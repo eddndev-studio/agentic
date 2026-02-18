@@ -4,6 +4,7 @@ import makeWASocket, {
     DisconnectReason,
     makeCacheableSignalKeyStore,
     fetchLatestBaileysVersion,
+    downloadMediaMessage,
     type WASocket,
     type WAMessage,
     jidNormalizedUser
@@ -14,7 +15,7 @@ import * as path from 'path';
 import * as https from 'node:https';
 import QRCode from 'qrcode';
 import { prisma } from './postgres.service';
-import { flowEngine } from '../core/flow';
+import { aiEngine } from '../core/ai';
 import { SessionStatus, Platform } from '@prisma/client';
 import pino from 'pino';
 
@@ -165,7 +166,30 @@ export class BaileysService {
             "";
 
         const msgType = msg.message.imageMessage ? 'IMAGE' :
-            msg.message.audioMessage ? 'AUDIO' : 'TEXT';
+            msg.message.audioMessage ? 'AUDIO' :
+            msg.message.documentMessage ? 'DOCUMENT' : 'TEXT';
+
+        // Download media if present
+        let mediaUrl: string | undefined;
+        if (['IMAGE', 'AUDIO', 'DOCUMENT'].includes(msgType)) {
+            try {
+                const buffer = await downloadMediaMessage(msg, 'buffer', {});
+                if (buffer) {
+                    const ext = msgType === 'IMAGE' ? '.jpg' :
+                        msgType === 'AUDIO' ? '.ogg' :
+                        (msg.message.documentMessage?.fileName?.split('.').pop() || 'pdf');
+                    const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext.replace('.', '')}`;
+                    const uploadDir = path.resolve('uploads');
+                    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+                    const filePath = path.join(uploadDir, filename);
+                    fs.writeFileSync(filePath, buffer as Buffer);
+                    mediaUrl = filePath;
+                    console.log(`[Baileys] Media saved: ${filePath}`);
+                }
+            } catch (mediaErr) {
+                console.error(`[Baileys] Failed to download media:`, mediaErr);
+            }
+        }
 
         console.log(`[${new Date().toISOString()}] [Baileys] Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${content.substring(0, 50)}...`);
 
@@ -234,6 +258,7 @@ export class BaileysService {
                             fromMe: msg.key.fromMe || false,
                             content,
                             type: msgType,
+                            metadata: mediaUrl ? { mediaUrl } : undefined,
                             isProcessed: false
                         }
                     });
@@ -251,9 +276,9 @@ export class BaileysService {
 
             if (!message) return; // Should not happen unless catostrophic DB failure
 
-            // 4. Process with Flow Engine
-            flowEngine.processIncomingMessage(session.id, message).catch(err => {
-                console.error(`[${new Date().toISOString()}] [Baileys] Flow Engine Error:`, err);
+            // 4. Process with AI Engine (delegates to FlowEngine if aiEnabled is false)
+            aiEngine.processMessage(session.id, message).catch(err => {
+                console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error:`, err);
             });
 
         } catch (e) {

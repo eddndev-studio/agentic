@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
-import { flowEngine } from "../core/flow";
+import { aiEngine } from "../core/ai";
 import { Platform, SessionStatus } from "@prisma/client";
 
 export const webhookController = new Elysia({ prefix: "/webhook" })
@@ -67,9 +67,9 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
                 }
             });
 
-            // 4. Process with Flow Engine
-            flowEngine.processIncomingMessage(session.id, message).catch(err => {
-                console.error("[Webhook] Flow Engine Error:", err);
+            // 4. Process with AI Engine (delegates to FlowEngine if aiEnabled is false)
+            aiEngine.processMessage(session.id, message).catch(err => {
+                console.error("[Webhook] AI Engine Error:", err);
             });
 
             return { status: "received", messageId: message.id, bot: bot.name };
