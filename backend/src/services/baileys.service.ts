@@ -373,8 +373,11 @@ export class BaileysService {
         const sock = sessions.get(botId);
         if (!sock || messageIds.length === 0) return;
         try {
-            await sock.readMessages([{ remoteJid: chatJid, id: messageIds[0], participant: undefined }]);
-        } catch {}
+            const keys = messageIds.map(id => ({ remoteJid: chatJid, id, participant: undefined }));
+            await sock.readMessages(keys);
+        } catch (e: any) {
+            console.warn(`[Baileys] markRead failed:`, e.message);
+        }
     }
 
     /**
@@ -384,8 +387,12 @@ export class BaileysService {
         const sock = sessions.get(botId);
         if (!sock) return;
         try {
+            // Subscribe to presence first so the recipient sees our updates
+            await sock.presenceSubscribe(chatJid);
             await sock.sendPresenceUpdate(presence, chatJid);
-        } catch {}
+        } catch (e: any) {
+            console.warn(`[Baileys] sendPresence(${presence}) failed:`, e.message);
+        }
     }
 
     /**

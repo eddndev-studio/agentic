@@ -63,11 +63,10 @@ export class AIEngine {
         }
 
         try {
-            // 4. Mark as read + show typing indicator
-            const lastMsg = messages[messages.length - 1];
-            const lastMsgExternalId = (lastMsg as any).externalId;
-            if (lastMsgExternalId) {
-                await BaileysService.markRead(bot.id, session.identifier, [lastMsgExternalId]);
+            // 4. Mark all messages as read + show typing indicator
+            const msgIds = messages.map(m => m.externalId).filter(Boolean);
+            if (msgIds.length > 0) {
+                await BaileysService.markRead(bot.id, session.identifier, msgIds);
             }
             await BaileysService.sendPresence(bot.id, session.identifier, "composing");
 
