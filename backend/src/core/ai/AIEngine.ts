@@ -15,7 +15,7 @@ const LOCK_TTL = 60; // seconds
 /** Maps primary provider to its fallback */
 const FALLBACK_MAP: Record<string, { provider: "OPENAI" | "GEMINI"; model: string }> = {
     GEMINI: { provider: "OPENAI", model: "gpt-4o-mini" },
-    OPENAI: { provider: "GEMINI", model: "gemini-2.0-flash" },
+    OPENAI: { provider: "GEMINI", model: "gemini-3-flash-preview" },
 };
 
 export class AIEngine {

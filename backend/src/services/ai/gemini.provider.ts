@@ -2,7 +2,7 @@ import type { AIProvider, AICompletionRequest, AICompletionResponse, AIMessage, 
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const CACHE_TTL = "3600s"; // 1 hour
-const MIN_CACHE_TOKENS = 4096; // Minimum for gemini-2.0-flash explicit caching
+const MIN_CACHE_TOKENS = 4096; // Minimum for Gemini explicit caching
 
 interface CacheEntry {
     name: string;       // "cachedContents/{id}"

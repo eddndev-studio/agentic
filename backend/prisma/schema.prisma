@@ -28,7 +28,7 @@ model Bot {
   updatedAt    DateTime   @updatedAt
   ipv6Address  String?
   aiEnabled    Boolean    @default(false)
-  aiModel      String     @default("gemini-2.0-flash")
+  aiModel      String     @default("gemini-3-flash-preview")
   aiProvider   AIProvider @default(GEMINI)
   systemPrompt String?
   temperature  Float      @default(0.7)

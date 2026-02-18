@@ -82,7 +82,7 @@ export class VisionService {
             inlineData = { mimeType, data: buffer.toString("base64") };
         }
 
-        const model = "gemini-2.0-flash";
+        const model = "gemini-3-flash-preview";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         const res = await fetch(url, {
