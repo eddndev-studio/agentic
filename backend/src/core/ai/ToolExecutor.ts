@@ -156,35 +156,32 @@ export class ToolExecutor {
                     where: {
                         botId,
                         OR: [
+                            { curp: args.curp || undefined },
                             { phoneNumber: args.phoneNumber || session.identifier },
-                            { email: args.email || "" },
-                        ],
+                            { email: args.email || undefined },
+                        ].filter(c => Object.values(c).some(v => v !== undefined)),
                     },
                     select: {
                         id: true, name: true, email: true, phoneNumber: true,
-                        status: true, appointmentDate: true, captureLine: true,
-                        contactNumber: true, createdAt: true,
+                        curp: true, status: true, createdAt: true,
                     },
                 });
-                return { success: !!client, data: client ?? "Client not found." };
+                return { success: !!client, data: client ?? "Cliente no encontrado." };
             }
 
             case "register_client": {
-                if (!args.name || !args.email || !args.phoneNumber) {
-                    return { success: false, data: "Missing required fields: name, email, phoneNumber" };
+                if (!args.curp || !args.email || !args.phoneNumber) {
+                    return { success: false, data: "Faltan campos obligatorios: curp, email, phoneNumber" };
                 }
-                // Import encryption service dynamically to avoid circular deps
-                const { EncryptionService } = await import("../../services/encryption.service");
                 const client = await prisma.client.create({
                     data: {
                         botId,
-                        name: args.name,
+                        name: args.name || "Pendiente",
+                        curp: args.curp,
                         email: args.email,
                         phoneNumber: args.phoneNumber,
-                        encryptedPassword: EncryptionService.encrypt(args.password || "temp123"),
-                        contactNumber: args.contactNumber,
                     },
-                    select: { id: true, name: true, email: true, status: true },
+                    select: { id: true, name: true, email: true, curp: true, status: true },
                 });
                 return { success: true, data: client };
             }
