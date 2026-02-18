@@ -1,0 +1,299 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const toolId = Astro.url.searchParams.get("id") || "";
+const botId = Astro.url.searchParams.get("botId") || "";
+---
+
+<Layout title="Tool Editor">
+    <div x-data="toolEditor" x-show="ready" class="space-y-8" style="display: none;">
+        <!-- Header -->
+        <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-white/10 pb-6 gap-4">
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <a id="back-link" href="/bots"
+                        class="text-gray-500 hover:text-brand-purple transition-colors" title="Back">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </a>
+                    <span class="text-[10px] font-mono text-brand-purple bg-brand-purple/10 px-2 py-0.5 uppercase"
+                        x-text="isEdit ? 'Edit Tool' : 'New Tool'"></span>
+                </div>
+                <h1 class="text-3xl font-bold tracking-tighter uppercase" x-text="$t('tool_editor')">Tool Editor</h1>
+            </div>
+
+            <div class="flex gap-3">
+                <button @click="saveTool()" :disabled="saving"
+                    class="px-6 py-2 bg-brand-purple text-white font-mono uppercase text-xs tracking-widest hover:bg-brand-purple/80 transition-colors disabled:opacity-50 rounded-full"
+                    x-text="saving ? ($t('saving') || 'Saving...') : ($t('save_changes') || 'Save')">
+                </button>
+                <button x-show="isEdit" @click="deleteTool()"
+                    class="px-4 py-2 border border-red-500/30 text-red-500 font-mono uppercase text-xs hover:bg-red-500/10 transition-colors rounded-full"
+                    x-text="$t('remove') || 'Delete'">
+                </button>
+            </div>
+        </header>
+
+        <!-- Form -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left: Basic Info -->
+            <div class="bg-brand-panel/30 border border-white/5 p-6 relative space-y-5">
+                <div class="cross-marker -top-[2px] -left-[2px]"></div>
+                <div class="cross-marker -top-[2px] -right-[2px]"></div>
+
+                <!-- Name -->
+                <div>
+                    <label class="block text-xs font-mono text-gray-400 uppercase mb-2" x-text="$t('tool_name')">Name</label>
+                    <input type="text" x-model="form.name"
+                        class="w-full bg-[#0f172a] border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none font-mono"
+                        placeholder="lookup_client" />
+                    <p class="text-[10px] text-gray-600 mt-1">snake_case, no spaces or special chars</p>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block text-xs font-mono text-gray-400 uppercase mb-2" x-text="$t('tool_description')">Description</label>
+                    <textarea x-model="form.description" rows="3"
+                        class="w-full bg-[#0f172a] border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none resize-y"
+                        placeholder="Look up a client by phone number or email..."></textarea>
+                </div>
+
+                <!-- Action Type -->
+                <div>
+                    <label class="block text-xs font-mono text-gray-400 uppercase mb-2" x-text="$t('tool_action_type')">Action Type</label>
+                    <div class="flex gap-2">
+                        <button type="button" @click="form.actionType = 'FLOW'"
+                            class="px-4 py-2 text-xs font-mono uppercase border transition-colors rounded-full"
+                            :class="form.actionType === 'FLOW' ? 'border-brand-purple text-brand-purple bg-brand-purple/10' : 'border-white/10 text-gray-500 hover:text-white'">
+                            <span x-text="$t('tool_flow')">Flow</span>
+                        </button>
+                        <button type="button" @click="form.actionType = 'WEBHOOK'"
+                            class="px-4 py-2 text-xs font-mono uppercase border transition-colors rounded-full"
+                            :class="form.actionType === 'WEBHOOK' ? 'border-brand-purple text-brand-purple bg-brand-purple/10' : 'border-white/10 text-gray-500 hover:text-white'">
+                            <span x-text="$t('tool_webhook')">Webhook</span>
+                        </button>
+                        <button type="button" @click="form.actionType = 'BUILTIN'"
+                            class="px-4 py-2 text-xs font-mono uppercase border transition-colors rounded-full"
+                            :class="form.actionType === 'BUILTIN' ? 'border-brand-purple text-brand-purple bg-brand-purple/10' : 'border-white/10 text-gray-500 hover:text-white'">
+                            <span x-text="$t('tool_builtin')">Built-in</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div>
+                    <label class="block text-xs font-mono text-gray-400 uppercase mb-2" x-text="$t('tool_status')">Status</label>
+                    <select x-model="form.status"
+                        class="w-full bg-[#0f172a] border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none">
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="DISABLED">DISABLED</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Right: Parameters & Config -->
+            <div class="space-y-8">
+                <!-- Parameters JSON Schema -->
+                <div class="bg-brand-panel/30 border border-white/5 p-6 relative">
+                    <div class="cross-marker -top-[2px] -left-[2px]"></div>
+                    <div class="cross-marker -top-[2px] -right-[2px]"></div>
+
+                    <label class="block text-xs font-mono text-gray-400 uppercase mb-2" x-text="$t('tool_parameters')">Parameters</label>
+                    <textarea x-model="form.parametersJson" rows="8"
+                        class="w-full bg-[#0f172a] border border-white/10 text-white text-xs p-3 focus:border-brand-purple focus:outline-none resize-y font-mono"
+                        placeholder='{"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}}'></textarea>
+                    <p x-show="paramError" class="text-red-400 text-[10px] mt-1" x-text="paramError"></p>
+                </div>
+
+                <!-- Action Config -->
+                <div class="bg-brand-panel/30 border border-white/5 p-6 relative">
+                    <div class="cross-marker -top-[2px] -left-[2px]"></div>
+                    <div class="cross-marker -top-[2px] -right-[2px]"></div>
+
+                    <label class="block text-xs font-mono text-gray-400 uppercase mb-4" x-text="$t('tool_action_config')">Action Config</label>
+
+                    <!-- FLOW config -->
+                    <div x-show="form.actionType === 'FLOW'" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-mono text-gray-500 mb-1">Flow ID</label>
+                            <select x-model="form.flowId"
+                                class="w-full bg-[#0f172a] border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none">
+                                <option value="">Select a Flow...</option>
+                                <template x-for="f in availableFlows" :key="f.id">
+                                    <option :value="f.id" x-text="f.name" class="bg-[#0f172a]"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- WEBHOOK config -->
+                    <div x-show="form.actionType === 'WEBHOOK'" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-mono text-gray-500 mb-1" x-text="$t('webhook_url')">URL</label>
+                            <input type="url" x-model="form.webhookUrl"
+                                class="w-full bg-[#0f172a] border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none"
+                                placeholder="https://api.example.com/webhook" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono text-gray-500 mb-1" x-text="$t('webhook_method')">Method</label>
+                            <select x-model="form.webhookMethod"
+                                class="w-full bg-[#0f172a] border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none">
+                                <option value="POST">POST</option>
+                                <option value="GET">GET</option>
+                                <option value="PUT">PUT</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- BUILTIN config -->
+                    <div x-show="form.actionType === 'BUILTIN'" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-mono text-gray-500 mb-1" x-text="$t('builtin_function')">Built-in</label>
+                            <select x-model="form.builtinName"
+                                class="w-full bg-[#0f172a] border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none">
+                                <option value="lookup_client">lookup_client</option>
+                                <option value="register_client">register_client</option>
+                                <option value="get_current_time">get_current_time</option>
+                                <option value="clear_conversation">clear_conversation</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    declare const Alpine: any;
+    import { ApiClient } from "../lib/api";
+
+    document.addEventListener("alpine:init", () => {
+        Alpine.data("toolEditor", () => ({
+            ready: false,
+            saving: false,
+            isEdit: false,
+            toolId: null as string | null,
+            currentBotId: null as string | null,
+            paramError: "",
+            availableFlows: [] as any[],
+
+            form: {
+                name: "",
+                description: "",
+                actionType: "FLOW",
+                status: "ACTIVE",
+                parametersJson: '{\n  "type": "object",\n  "properties": {}\n}',
+                flowId: "",
+                webhookUrl: "",
+                webhookMethod: "POST",
+                builtinName: "lookup_client",
+            },
+
+            async init() {
+                const params = new URLSearchParams(window.location.search);
+                this.toolId = params.get("id");
+                this.currentBotId = params.get("botId");
+
+                if (this.toolId) {
+                    this.isEdit = true;
+                    try {
+                        const tool = await ApiClient.get(`/tools/${this.toolId}`);
+                        this.currentBotId = tool.botId;
+                        this.form.name = tool.name;
+                        this.form.description = tool.description;
+                        this.form.actionType = tool.actionType;
+                        this.form.status = tool.status;
+                        this.form.parametersJson = JSON.stringify(tool.parameters || {}, null, 2);
+                        this.form.flowId = tool.flowId || (tool.actionConfig as any)?.flowId || "";
+                        this.form.webhookUrl = (tool.actionConfig as any)?.url || "";
+                        this.form.webhookMethod = (tool.actionConfig as any)?.method || "POST";
+                        this.form.builtinName = (tool.actionConfig as any)?.builtinName || tool.name;
+                    } catch (e: any) {
+                        alert("Failed to load tool: " + e.message);
+                    }
+                }
+
+                // Set back link
+                if (this.currentBotId) {
+                    const backLink = document.getElementById("back-link");
+                    if (backLink) backLink.setAttribute("href", `/bots/detail?id=${this.currentBotId}`);
+                }
+
+                // Load available flows
+                if (this.currentBotId) {
+                    try {
+                        this.availableFlows = await ApiClient.get(`/flows?botId=${this.currentBotId}`);
+                    } catch {}
+                }
+
+                this.ready = true;
+            },
+
+            buildActionConfig() {
+                switch (this.form.actionType) {
+                    case "FLOW":
+                        return { flowId: this.form.flowId };
+                    case "WEBHOOK":
+                        return { url: this.form.webhookUrl, method: this.form.webhookMethod };
+                    case "BUILTIN":
+                        return { builtinName: this.form.builtinName };
+                    default:
+                        return {};
+                }
+            },
+
+            async saveTool() {
+                // Validate JSON
+                let parameters: any;
+                try {
+                    parameters = JSON.parse(this.form.parametersJson);
+                    this.paramError = "";
+                } catch {
+                    this.paramError = "Invalid JSON";
+                    return;
+                }
+
+                this.saving = true;
+                try {
+                    const payload: any = {
+                        name: this.form.name,
+                        description: this.form.description,
+                        actionType: this.form.actionType,
+                        status: this.form.status,
+                        parameters,
+                        actionConfig: this.buildActionConfig(),
+                        flowId: this.form.actionType === "FLOW" ? this.form.flowId || null : null,
+                    };
+
+                    if (this.isEdit) {
+                        await ApiClient.put(`/tools/${this.toolId}`, payload);
+                    } else {
+                        payload.botId = this.currentBotId;
+                        const created = await ApiClient.post("/tools", payload);
+                        // Redirect to edit mode
+                        window.location.href = `/tool-editor?id=${created.id}`;
+                        return;
+                    }
+
+                    alert("Tool saved!");
+                } catch (e: any) {
+                    alert("Failed to save: " + (e.message || "Unknown error"));
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            async deleteTool() {
+                if (!confirm("Delete this tool?")) return;
+                try {
+                    await ApiClient.delete(`/tools/${this.toolId}`);
+                    window.location.href = `/bots/detail?id=${this.currentBotId}`;
+                } catch (e: any) {
+                    alert("Failed to delete: " + (e.message || "Unknown error"));
+                }
+            },
+        }));
+    });
+</script>
