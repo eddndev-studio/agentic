@@ -28,3 +28,6 @@ bun.log*
 
 # Docker
 .docker/
+
+# Baileys auth sessions
+backend/auth_info_baileys/
