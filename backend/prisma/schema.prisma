@@ -76,8 +76,8 @@ model Bot {
 
   // AI Configuration
   aiEnabled     Boolean    @default(false)
-  aiProvider    AIProvider @default(OPENAI)
-  aiModel       String     @default("gpt-4o-mini")
+  aiProvider    AIProvider @default(GEMINI)
+  aiModel       String     @default("gemini-2.0-flash")
   systemPrompt  String?    @db.Text
   temperature   Float      @default(0.7)
 

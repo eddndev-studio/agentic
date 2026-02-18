@@ -10,12 +10,12 @@ export class VisionService {
     static async analyze(
         imageSource: string,
         prompt = "Describe this image in detail.",
-        provider: "OPENAI" | "GEMINI" = "OPENAI"
+        provider: "OPENAI" | "GEMINI" = "GEMINI"
     ): Promise<string> {
-        if (provider === "GEMINI") {
-            return this.analyzeWithGemini(imageSource, prompt);
+        if (provider === "OPENAI") {
+            return this.analyzeWithOpenAI(imageSource, prompt);
         }
-        return this.analyzeWithOpenAI(imageSource, prompt);
+        return this.analyzeWithGemini(imageSource, prompt);
     }
 
     private static async analyzeWithOpenAI(imageSource: string, prompt: string): Promise<string> {
@@ -82,7 +82,7 @@ export class VisionService {
             inlineData = { mimeType, data: buffer.toString("base64") };
         }
 
-        const model = "gemini-1.5-flash";
+        const model = "gemini-2.0-flash";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         const res = await fetch(url, {
