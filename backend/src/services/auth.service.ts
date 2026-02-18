@@ -1,5 +1,6 @@
 import { prisma } from "./postgres.service";
 import { User } from "@prisma/client";
+import argon2 from "argon2";
 
 export class AuthService {
     /**
@@ -12,7 +13,7 @@ export class AuthService {
 
         if (!user || !user.isActive) return null;
 
-        const isValid = await Bun.password.verify(passwordPlain, user.passwordHash);
+        const isValid = await argon2.verify(user.passwordHash, passwordPlain);
         if (!isValid) return null;
 
         return user;
@@ -22,8 +23,8 @@ export class AuthService {
      * Create a new user (Internal/Seed use mostly)
      */
     static async createUser(email: string, passwordPlain: string, fullName?: string): Promise<User> {
-        const passwordHash = await Bun.password.hash(passwordPlain, {
-            algorithm: "argon2id",
+        const passwordHash = await argon2.hash(passwordPlain, {
+            type: argon2.argon2id,
             memoryCost: 4096,
             timeCost: 3
         });

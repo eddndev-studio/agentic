@@ -3,8 +3,8 @@ module.exports = {
     {
       name: "agentic-backend",
       cwd: "./backend",
-      script: "bun",
-      args: "run dist/index.js",
+      script: "node",
+      args: "dist/index.js",
       instances: 1,
       autorestart: true,
       watch: false,

@@ -1,14 +1,16 @@
 import { Elysia, t } from "elysia";
 import { join } from "path";
-import { mkdir } from "fs/promises";
+import { mkdir, readdir, stat, writeFile, readFile } from "fs/promises";
+import { createReadStream, existsSync } from "fs";
+import { lookup } from "mime-types";
 
 const UPLOAD_DIR = "./uploads";
 
-// Ensure upload dir exists (backend might start before volume mount or just to be safe)
+// Ensure upload dir exists
 await mkdir(UPLOAD_DIR, { recursive: true });
 
 export const uploadController = new Elysia({ prefix: "/upload" })
-    .post("/", async ({ body, request, set }) => {
+    .post("/", async ({ body, set }) => {
         console.log("[Upload] Incoming upload request...");
 
         try {
@@ -29,8 +31,9 @@ export const uploadController = new Elysia({ prefix: "/upload" })
 
             console.log(`[Upload] Writing to: ${filePath}`);
 
-            // Write file
-            await Bun.write(filePath, file);
+            // Write file using Node fs
+            const buffer = Buffer.from(await file.arrayBuffer());
+            await writeFile(filePath, buffer);
 
             console.log(`[Upload] File saved: ${filename} (${file.size} bytes)`);
 
@@ -54,10 +57,8 @@ export const uploadController = new Elysia({ prefix: "/upload" })
     })
     .get("/list", async () => {
         try {
-            const { readdir, stat } = await import("fs/promises");
             const files = await readdir(UPLOAD_DIR);
 
-            // Get stats for sorting/details (optional but good)
             const fileList = await Promise.all(files.map(async (f) => {
                 const stats = await stat(join(UPLOAD_DIR, f));
                 return {
@@ -77,14 +78,18 @@ export const uploadController = new Elysia({ prefix: "/upload" })
             return { files: [] };
         }
     })
-    .get("/files/:name", ({ params: { name }, set }) => {
+    .get("/files/:name", async ({ params: { name }, set }) => {
         const filePath = join(UPLOAD_DIR, name);
-        const file = Bun.file(filePath);
 
-        if (file.size === 0) {
+        if (!existsSync(filePath)) {
             set.status = 404;
             return "File not found";
         }
 
-        return file;
+        const buffer = await readFile(filePath);
+        const mimeType = lookup(name) || "application/octet-stream";
+
+        return new Response(buffer, {
+            headers: { "Content-Type": mimeType }
+        });
     });
