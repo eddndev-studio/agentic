@@ -80,6 +80,7 @@ model Bot {
   aiModel       String     @default("gemini-2.0-flash")
   systemPrompt  String?    @db.Text
   temperature   Float      @default(0.7)
+  messageDelay  Int        @default(0)   // Seconds to accumulate messages before AI processing. 0 = immediate.
 
   flows       Flow[]
   sessions    Session[]

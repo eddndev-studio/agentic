@@ -112,7 +112,7 @@ export const botController = new Elysia({ prefix: "/bots" })
     })
     .put("/:id", async ({ params: { id }, body, set }) => {
         const { name, identifier, platform, credentials, ipv6Address,
-            aiEnabled, aiProvider, aiModel, systemPrompt, temperature } = body as any;
+            aiEnabled, aiProvider, aiModel, systemPrompt, temperature, messageDelay } = body as any;
 
         try {
             const data: any = {};
@@ -126,6 +126,7 @@ export const botController = new Elysia({ prefix: "/bots" })
             if (aiModel !== undefined) data.aiModel = aiModel;
             if (systemPrompt !== undefined) data.systemPrompt = systemPrompt;
             if (temperature !== undefined) data.temperature = temperature;
+            if (messageDelay !== undefined) data.messageDelay = messageDelay;
 
             const bot = await prisma.bot.update({ where: { id }, data });
             return bot;

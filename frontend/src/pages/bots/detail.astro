@@ -260,6 +260,21 @@ const botId = Astro.url.searchParams.get("id") || "";
                             class="w-full accent-brand-purple" />
                     </div>
 
+                    <!-- Message Delay -->
+                    <div>
+                        <label class="block text-xs font-mono text-gray-400 uppercase mb-2">
+                            <span x-text="$t('message_delay')">Message Delay</span>:
+                            <span x-text="aiConfig.messageDelay + 's'" class="text-brand-purple"></span>
+                        </label>
+                        <input type="range" x-model.number="aiConfig.messageDelay" min="0" max="30" step="1"
+                            class="w-full accent-brand-purple" />
+                        <p class="text-[10px] text-gray-600 mt-1"
+                            x-text="aiConfig.messageDelay === 0
+                                ? ($t('message_delay_off') || 'Immediate processing (no accumulation)')
+                                : ($t('message_delay_desc') || 'Wait') + ' ' + aiConfig.messageDelay + 's'">
+                        </p>
+                    </div>
+
                     <!-- Actions -->
                     <div class="flex gap-3 pt-4">
                         <button type="submit" :disabled="savingAI"
@@ -1022,6 +1037,7 @@ const botId = Astro.url.searchParams.get("id") || "";
                 aiModel: "gemini-2.0-flash",
                 systemPrompt: "",
                 temperature: 0.7,
+                messageDelay: 0,
             },
             savingAI: false,
 
@@ -1065,6 +1081,7 @@ const botId = Astro.url.searchParams.get("id") || "";
                         aiModel: this.bot.aiModel || "gemini-2.0-flash",
                         systemPrompt: this.bot.systemPrompt || "",
                         temperature: this.bot.temperature ?? 0.7,
+                        messageDelay: this.bot.messageDelay ?? 0,
                     };
 
                     // Generate connection component HTML (will be hydrated by Alpine)
@@ -1269,6 +1286,7 @@ const botId = Astro.url.searchParams.get("id") || "";
                         aiModel: this.aiConfig.aiModel,
                         systemPrompt: this.aiConfig.systemPrompt || null,
                         temperature: this.aiConfig.temperature,
+                        messageDelay: this.aiConfig.messageDelay,
                     });
                     this.bot = updated;
                     alert("AI config saved!");

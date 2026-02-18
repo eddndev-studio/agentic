@@ -16,6 +16,7 @@ import * as https from 'node:https';
 import QRCode from 'qrcode';
 import { prisma } from './postgres.service';
 import { aiEngine } from '../core/ai';
+import { MessageAccumulator } from './accumulator.service';
 import { SessionStatus, Platform } from '@prisma/client';
 import pino from 'pino';
 
@@ -282,10 +283,28 @@ export class BaileysService {
 
             if (!message) return; // Should not happen unless catostrophic DB failure
 
-            // 4. Process with AI Engine (delegates to FlowEngine if aiEnabled is false)
-            aiEngine.processMessage(session.id, message).catch(err => {
-                console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error:`, err);
-            });
+            // 4. Skip bot's own messages — already stored in DB, don't trigger AI
+            if (message.fromMe) {
+                return;
+            }
+
+            // 5. Process with AI Engine (with optional message accumulation)
+            if (bot.messageDelay > 0) {
+                MessageAccumulator.accumulate(
+                    session.id,
+                    message,
+                    bot.messageDelay,
+                    (sid, msgs) => {
+                        aiEngine.processMessages(sid, msgs).catch(err => {
+                            console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error:`, err);
+                        });
+                    }
+                );
+            } else {
+                aiEngine.processMessage(session.id, message).catch(err => {
+                    console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error:`, err);
+                });
+            }
 
         } catch (e) {
             console.error(`[${new Date().toISOString()}] [Baileys] Error processing message:`, e);

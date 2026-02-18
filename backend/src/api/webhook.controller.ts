@@ -1,12 +1,13 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { aiEngine } from "../core/ai";
+import { MessageAccumulator } from "../services/accumulator.service";
 import { Platform, SessionStatus } from "@prisma/client";
 
 export const webhookController = new Elysia({ prefix: "/webhook" })
     .post("/:platform", async ({ params, body, set }) => {
         const { platform } = params;
-        const { from, content, type = "text" } = body as any;
+        const { from, content, type = "text", fromMe = false } = body as any;
 
         if (!['whatsapp', 'telegram'].includes(platform.toLowerCase())) {
             set.status = 400;
@@ -61,16 +62,35 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
                     externalId: `msg_${Date.now()}_${Math.random()}`,
                     sessionId: session.id,
                     sender: from,
+                    fromMe,
                     content,
                     type: type.toUpperCase(),
                     isProcessed: false
                 }
             });
 
-            // 4. Process with AI Engine (delegates to FlowEngine if aiEnabled is false)
-            aiEngine.processMessage(session.id, message).catch(err => {
-                console.error("[Webhook] AI Engine Error:", err);
-            });
+            // 4. Skip bot's own messages
+            if (fromMe) {
+                return { status: "received", messageId: message.id, bot: bot.name };
+            }
+
+            // 5. Process with AI Engine (with optional message accumulation)
+            if (bot.messageDelay > 0) {
+                MessageAccumulator.accumulate(
+                    session.id,
+                    message,
+                    bot.messageDelay,
+                    (sid, msgs) => {
+                        aiEngine.processMessages(sid, msgs).catch(err => {
+                            console.error("[Webhook] AI Engine Error:", err);
+                        });
+                    }
+                );
+            } else {
+                aiEngine.processMessage(session.id, message).catch(err => {
+                    console.error("[Webhook] AI Engine Error:", err);
+                });
+            }
 
             return { status: "received", messageId: message.id, bot: bot.name };
 
@@ -84,6 +104,7 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
             from: t.String(),
             content: t.String(),
             type: t.Optional(t.String()),
-            botId: t.Optional(t.String())
+            botId: t.Optional(t.String()),
+            fromMe: t.Optional(t.Boolean())
         })
     });

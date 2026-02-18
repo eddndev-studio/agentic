@@ -21,10 +21,18 @@ const FALLBACK_MAP: Record<string, { provider: "OPENAI" | "GEMINI"; model: strin
 export class AIEngine {
 
     /**
-     * Main entry point for processing a message.
-     * Delegates to FlowEngine for non-AI bots.
+     * Process a single message. Convenience wrapper around processMessages.
      */
     async processMessage(sessionId: string, message: Message): Promise<void> {
+        return this.processMessages(sessionId, [message]);
+    }
+
+    /**
+     * Process a batch of accumulated messages as a single AI call.
+     * Each message is preprocessed (audio→transcription, image→vision, PDF→text)
+     * and the results are combined into a single user message.
+     */
+    async processMessages(sessionId: string, messages: Message[]): Promise<void> {
         // 1. Load session + bot
         const session = await prisma.session.findUnique({
             where: { id: sessionId },
@@ -38,7 +46,10 @@ export class AIEngine {
 
         // 2. Backward compatibility: delegate to FlowEngine if AI not enabled
         if (!session.bot.aiEnabled) {
-            return flowEngine.processIncomingMessage(sessionId, message);
+            for (const msg of messages) {
+                await flowEngine.processIncomingMessage(sessionId, msg);
+            }
+            return;
         }
 
         const bot = session.bot;
@@ -52,32 +63,43 @@ export class AIEngine {
         }
 
         try {
-            // 4. Preprocess multimodal content
-            let userContent = message.content || "";
-            const metadata = (message.metadata as any) || {};
-            const mediaUrl = metadata.mediaUrl;
+            // 4. Preprocess multimodal content for each message in the batch
+            const contentParts: string[] = [];
 
-            if (mediaUrl) {
-                try {
-                    if (message.type === "AUDIO") {
-                        const transcription = await TranscriptionService.transcribe(mediaUrl);
-                        userContent = `[Audio transcription]: ${transcription}`;
-                    } else if (message.type === "IMAGE") {
-                        const description = await VisionService.analyze(mediaUrl, "Describe this image.", bot.aiProvider);
-                        userContent = userContent
-                            ? `${userContent}\n[Image description]: ${description}`
-                            : `[Image description]: ${description}`;
-                    } else if (message.type === "DOCUMENT" && mediaUrl.toLowerCase().endsWith(".pdf")) {
-                        const pdfText = await PDFService.extractText(mediaUrl);
-                        userContent = `[PDF content]: ${pdfText.substring(0, 3000)}`;
+            for (const msg of messages) {
+                let partContent = msg.content || "";
+                const metadata = (msg.metadata as any) || {};
+                const mediaUrl = metadata.mediaUrl;
+
+                if (mediaUrl) {
+                    try {
+                        if (msg.type === "AUDIO") {
+                            const transcription = await TranscriptionService.transcribe(mediaUrl);
+                            partContent = `[Audio transcription]: ${transcription}`;
+                        } else if (msg.type === "IMAGE") {
+                            const description = await VisionService.analyze(mediaUrl, "Describe this image.", bot.aiProvider);
+                            partContent = partContent
+                                ? `${partContent}\n[Image description]: ${description}`
+                                : `[Image description]: ${description}`;
+                        } else if (msg.type === "DOCUMENT" && mediaUrl.toLowerCase().endsWith(".pdf")) {
+                            const pdfText = await PDFService.extractText(mediaUrl);
+                            partContent = `[PDF content]: ${pdfText.substring(0, 3000)}`;
+                        }
+                    } catch (mediaError: any) {
+                        console.error(`[AIEngine] Media preprocessing error:`, mediaError);
+                        partContent = partContent || "[Media file received but could not be processed]";
                     }
-                } catch (mediaError: any) {
-                    console.error(`[AIEngine] Media preprocessing error:`, mediaError);
-                    userContent = userContent || "[Media file received but could not be processed]";
+                }
+
+                if (partContent) {
+                    contentParts.push(partContent);
                 }
             }
 
-            if (!userContent) userContent = "[empty message]";
+            const userContent = contentParts.length > 0
+                ? contentParts.join("\n\n")
+                : "[empty message]";
+
             const userMessage: AIMessage = { role: "user", content: userContent };
             await ConversationService.addMessage(sessionId, userMessage);
 
@@ -148,7 +170,7 @@ export class AIEngine {
                         bot.id,
                         session,
                         toolCall,
-                        message
+                        messages[messages.length - 1]
                     );
 
                     const resultStr = typeof result.data === "string"
