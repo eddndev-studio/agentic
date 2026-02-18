@@ -26,6 +26,8 @@ const logger = pino({ level: 'silent' });
 const sessions = new Map<string, WASocket>();
 // Map to store current QR codes: botId -> qrDataURL
 const qrCodes = new Map<string, string>();
+// Track reconnect attempts for exponential backoff
+const reconnectAttempts = new Map<string, number>();
 
 const AUTH_DIR = 'auth_info_baileys';
 
@@ -106,26 +108,35 @@ export class BaileysService {
                 if (connection === 'close') {
                     const error = lastDisconnect?.error as Boom;
                     const statusCode = error?.output?.statusCode;
-                    const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 408; // 408 is Request Timeout (QR ended)
 
-                    console.log(`[Baileys] Connection closed for Bot ${botId}. Code: ${statusCode}, Reconnecting: ${shouldReconnect}`, error);
+                    // Don't reconnect on: logged out, QR timeout, or conflict (another session replaced this one)
+                    const noReconnectCodes = [
+                        DisconnectReason.loggedOut,  // 401
+                        408,                         // QR timeout
+                        440,                         // Conflict: replaced by another connection
+                    ];
+                    const shouldReconnect = !noReconnectCodes.includes(statusCode!);
+
+                    console.log(`[Baileys] Connection closed for Bot ${botId}. Code: ${statusCode}, Reconnecting: ${shouldReconnect}`);
 
                     sessions.delete(botId);
                     qrCodes.delete(botId);
 
                     if (shouldReconnect) {
-                        // Backoff delay before reconnect
-                        setTimeout(() => this.startSession(botId), 5000);
+                        // Exponential backoff: 5s base, increases with consecutive failures
+                        const attempt = reconnectAttempts.get(botId) || 0;
+                        const delay = Math.min(5000 * Math.pow(2, attempt), 60000); // 5s, 10s, 20s, 40s, 60s max
+                        reconnectAttempts.set(botId, attempt + 1);
+                        console.log(`[Baileys] Reconnecting Bot ${botId} in ${delay / 1000}s (attempt ${attempt + 1})`);
+                        setTimeout(() => this.startSession(botId), delay);
                     } else {
-                        console.log(`[Baileys] Bot ${botId} stopped (Logged out or QR timeout).`);
-                        // Optionally clean up session dir if it was a QR timeout to force fresh start
-                        if (statusCode === 408) {
-                            // this.stopSession(botId); // Clean up
-                        }
+                        reconnectAttempts.delete(botId);
+                        console.log(`[Baileys] Bot ${botId} stopped (code ${statusCode}). No reconnect.`);
                     }
                 } else if (connection === 'open') {
                     console.log(`[Baileys] Connection opened for Bot ${botId}`);
                     qrCodes.delete(botId);
+                    reconnectAttempts.delete(botId); // Reset backoff on successful connection
                 }
             });
 
