@@ -45,7 +45,15 @@ enum TriggerScope {
   BOTH
 }
 
+enum AIProvider {
+  OPENAI
+  GEMINI
+}
 
+enum ToolStatus {
+  ACTIVE
+  DISABLED
+}
 
 model User {
   id            String   @id @default(uuid())
@@ -65,11 +73,19 @@ model Bot {
   identifier  String   @unique // Phone number (WhatsApp) or Token (Telegram)
   credentials Json?    // { apiKey, webhookVerifyToken, etc. }
   ipv6Address String?  // Optional IPv6 for outgoing connection
-  
+
+  // AI Configuration
+  aiEnabled     Boolean    @default(false)
+  aiProvider    AIProvider @default(OPENAI)
+  aiModel       String     @default("gpt-4o-mini")
+  systemPrompt  String?    @db.Text
+  temperature   Float      @default(0.7)
+
   flows       Flow[]
   sessions    Session[]
   triggers    Trigger[] // Global triggers for this bot
   clients     Client[]
+  tools       Tool[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -89,9 +105,10 @@ model Session {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   
-  messages      Message[]
-  triggers      Trigger[]
-  executions    Execution[]
+  messages          Message[]
+  triggers          Trigger[]
+  executions        Execution[]
+  conversationLogs  ConversationLog[]
 
   @@unique([botId, identifier]) // Unique user per bot
 }
@@ -135,6 +152,7 @@ model Flow {
   steps       Step[]
   triggers    Trigger[]
   executions  Execution[]
+  tools       Tool[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -244,6 +262,48 @@ model Client {
   @@index([email])
   @@index([phoneNumber])
   @@index([botId])
+}
+
+model Tool {
+  id            String     @id @default(uuid())
+
+  botId         String
+  bot           Bot        @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  name          String     // Function name for AI tool calling (snake_case)
+  description   String     @db.Text  // Description shown to the AI
+  parameters    Json?      // JSON Schema for tool parameters
+  actionType    String     // FLOW, WEBHOOK, BUILTIN
+  actionConfig  Json?      // Config per action type (url, method, headers, builtinName, etc.)
+  status        ToolStatus @default(ACTIVE)
+
+  flowId        String?    // Optional link to legacy Flow
+  flow          Flow?      @relation(fields: [flowId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([botId, name])
+  @@index([botId])
+}
+
+model ConversationLog {
+  id          String   @id @default(uuid())
+
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role        String   // system, user, assistant, tool
+  content     String?  @db.Text
+  toolName    String?
+  toolArgs    Json?
+  toolResult  Json?
+  tokenCount  Int?
+  model       String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId])
 }
 
 enum ClientStatus {
