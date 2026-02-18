@@ -63,7 +63,15 @@ export class AIEngine {
         }
 
         try {
-            // 4. Preprocess multimodal content for each message in the batch
+            // 4. Mark as read + show typing indicator
+            const lastMsg = messages[messages.length - 1];
+            const lastMsgExternalId = (lastMsg as any).externalId;
+            if (lastMsgExternalId) {
+                await BaileysService.markRead(bot.id, session.identifier, [lastMsgExternalId]);
+            }
+            await BaileysService.sendPresence(bot.id, session.identifier, "composing");
+
+            // 5. Preprocess multimodal content for each message in the batch
             const contentParts: string[] = [];
 
             for (const msg of messages) {
@@ -217,7 +225,9 @@ export class AIEngine {
                 }
             }
 
-            // 9. Send final response
+            // 9. Stop typing + send final response
+            await BaileysService.sendPresence(bot.id, session.identifier, "paused");
+
             if (response.content) {
                 await BaileysService.sendMessage(bot.id, session.identifier, { text: response.content });
 

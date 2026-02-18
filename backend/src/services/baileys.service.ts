@@ -367,6 +367,28 @@ export class BaileysService {
     }
 
     /**
+     * Mark messages as read (blue ticks) for a chat.
+     */
+    static async markRead(botId: string, chatJid: string, messageIds: string[]): Promise<void> {
+        const sock = sessions.get(botId);
+        if (!sock || messageIds.length === 0) return;
+        try {
+            await sock.readMessages([{ remoteJid: chatJid, id: messageIds[0], participant: undefined }]);
+        } catch {}
+    }
+
+    /**
+     * Send presence update (typing / paused) for a chat.
+     */
+    static async sendPresence(botId: string, chatJid: string, presence: "composing" | "paused"): Promise<void> {
+        const sock = sessions.get(botId);
+        if (!sock) return;
+        try {
+            await sock.sendPresenceUpdate(presence, chatJid);
+        } catch {}
+    }
+
+    /**
      * Check if a local address is available for binding.
      * Compares against OS network interfaces.
      */
