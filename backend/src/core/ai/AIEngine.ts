@@ -6,11 +6,17 @@ import { BaileysService } from "../../services/baileys.service";
 import { flowEngine } from "../flow";
 import { ToolExecutor } from "./ToolExecutor";
 import { TranscriptionService, VisionService, PDFService } from "../../services/media";
-import type { AIMessage, AIToolDefinition, AIToolCall } from "../../services/ai";
+import type { AIMessage, AIToolDefinition, AIToolCall, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 import type { Message } from "@prisma/client";
 
 const MAX_TOOL_ITERATIONS = 5;
 const LOCK_TTL = 60; // seconds
+
+/** Maps primary provider to its fallback */
+const FALLBACK_MAP: Record<string, { provider: "OPENAI" | "GEMINI"; model: string }> = {
+    GEMINI: { provider: "OPENAI", model: "gpt-4o-mini" },
+    OPENAI: { provider: "GEMINI", model: "gemini-2.0-flash" },
+};
 
 export class AIEngine {
 
@@ -96,14 +102,29 @@ export class AIEngine {
 
             messages.push(...history);
 
-            // 7. Get AI provider and call
-            const provider = getAIProvider(bot.aiProvider);
-            let response = await provider.chat({
-                model: bot.aiModel,
+            // 7. Get AI provider and call (with automatic fallback)
+            let activeProvider = getAIProvider(bot.aiProvider);
+            let activeModel = bot.aiModel;
+            let usedFallback = false;
+
+            const chatRequest: AICompletionRequest = {
+                model: activeModel,
                 messages,
                 tools: toolDefinitions.length > 0 ? toolDefinitions : undefined,
                 temperature: bot.temperature,
-            });
+            };
+
+            let response = await this.chatWithFallback(
+                activeProvider, chatRequest, bot.aiProvider
+            );
+
+            // If fallback was used, switch provider for the rest of the conversation
+            if (response._fallback) {
+                const fb = FALLBACK_MAP[bot.aiProvider];
+                activeProvider = getAIProvider(fb.provider);
+                activeModel = fb.model;
+                usedFallback = true;
+            }
 
             // 8. Tool call loop
             let iterations = 0;
@@ -142,12 +163,12 @@ export class AIEngine {
                     });
 
                     // Log tool execution to Postgres (async, non-blocking)
-                    this.logToolCall(sessionId, toolCall, result, bot.aiModel).catch(() => {});
+                    this.logToolCall(sessionId, toolCall, result, activeModel).catch(() => {});
                 }
 
                 await ConversationService.addMessages(sessionId, toolMessages);
 
-                // Re-call AI with updated history
+                // Re-call AI with updated history (use active provider, which may be fallback)
                 const updatedHistory = await ConversationService.getHistory(sessionId);
                 const updatedMessages: AIMessage[] = [];
                 if (bot.systemPrompt) {
@@ -155,12 +176,23 @@ export class AIEngine {
                 }
                 updatedMessages.push(...updatedHistory);
 
-                response = await provider.chat({
-                    model: bot.aiModel,
+                const loopRequest: AICompletionRequest = {
+                    model: activeModel,
                     messages: updatedMessages,
                     tools: toolDefinitions.length > 0 ? toolDefinitions : undefined,
                     temperature: bot.temperature,
-                });
+                };
+
+                response = await this.chatWithFallback(
+                    activeProvider, loopRequest, usedFallback ? FALLBACK_MAP[bot.aiProvider].provider : bot.aiProvider
+                );
+
+                if (response._fallback && !usedFallback) {
+                    const fb = FALLBACK_MAP[bot.aiProvider];
+                    activeProvider = getAIProvider(fb.provider);
+                    activeModel = fb.model;
+                    usedFallback = true;
+                }
             }
 
             // 9. Send final response
@@ -173,7 +205,7 @@ export class AIEngine {
             }
 
             // 10. Log to Postgres (async)
-            this.logConversation(sessionId, userContent, response.content, bot.aiModel, response.usage?.totalTokens).catch(() => {});
+            this.logConversation(sessionId, userContent, response.content, activeModel, response.usage?.totalTokens).catch(() => {});
 
         } catch (error: any) {
             console.error(`[AIEngine] Error processing message for session ${sessionId}:`, error);
@@ -189,6 +221,42 @@ export class AIEngine {
         } finally {
             // 11. Release lock
             await redis.del(lockKey);
+        }
+    }
+
+    /**
+     * Call provider.chat() with automatic fallback to the alternate provider on failure.
+     * Returns the response with a `_fallback` flag if the fallback was used.
+     */
+    private async chatWithFallback(
+        primary: AIProvider,
+        request: AICompletionRequest,
+        primaryName: string
+    ): Promise<AICompletionResponse & { _fallback?: boolean }> {
+        try {
+            return await primary.chat(request);
+        } catch (primaryError: any) {
+            const fb = FALLBACK_MAP[primaryName];
+            if (!fb) throw primaryError; // No fallback configured
+
+            console.warn(
+                `[AIEngine] ${primaryName} failed (${primaryError.message}), falling back to ${fb.provider}/${fb.model}`
+            );
+
+            try {
+                const fallbackProvider = getAIProvider(fb.provider);
+                const fallbackResponse = await fallbackProvider.chat({
+                    ...request,
+                    model: fb.model,
+                });
+                return { ...fallbackResponse, _fallback: true };
+            } catch (fallbackError: any) {
+                console.error(
+                    `[AIEngine] Fallback ${fb.provider} also failed:`, fallbackError.message
+                );
+                // Throw the original error — both providers are down
+                throw primaryError;
+            }
         }
     }
 
