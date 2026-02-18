@@ -109,13 +109,12 @@ export class BaileysService {
                     const error = lastDisconnect?.error as Boom;
                     const statusCode = error?.output?.statusCode;
 
-                    // Don't reconnect on: logged out, QR timeout, or conflict (another session replaced this one)
-                    const noReconnectCodes = [
-                        DisconnectReason.loggedOut,  // 401
+                    // Terminal states: don't reconnect
+                    const terminalCodes = [
+                        DisconnectReason.loggedOut,  // 401 — user logged out
                         408,                         // QR timeout
-                        440,                         // Conflict: replaced by another connection
                     ];
-                    const shouldReconnect = !noReconnectCodes.includes(statusCode!);
+                    const shouldReconnect = !terminalCodes.includes(statusCode!);
 
                     console.log(`[Baileys] Connection closed for Bot ${botId}. Code: ${statusCode}, Reconnecting: ${shouldReconnect}`);
 
@@ -123,9 +122,10 @@ export class BaileysService {
                     qrCodes.delete(botId);
 
                     if (shouldReconnect) {
-                        // Exponential backoff: 5s base, increases with consecutive failures
                         const attempt = reconnectAttempts.get(botId) || 0;
-                        const delay = Math.min(5000 * Math.pow(2, attempt), 60000); // 5s, 10s, 20s, 40s, 60s max
+                        // Conflict (440) gets a longer base delay to avoid fight with other instance
+                        const baseDelay = statusCode === 440 ? 15000 : 5000;
+                        const delay = Math.min(baseDelay * Math.pow(2, attempt), 120000);
                         reconnectAttempts.set(botId, attempt + 1);
                         console.log(`[Baileys] Reconnecting Bot ${botId} in ${delay / 1000}s (attempt ${attempt + 1})`);
                         setTimeout(() => this.startSession(botId), delay);
@@ -384,7 +384,12 @@ export class BaileysService {
         const sock = sessions.get(botId);
         if (!sock || messageIds.length === 0) return;
         try {
-            const keys = messageIds.map(id => ({ remoteJid: chatJid, id, participant: undefined }));
+            const keys = messageIds.map(id => ({
+                remoteJid: chatJid,
+                id,
+                fromMe: false,
+                participant: undefined,
+            }));
             await sock.readMessages(keys);
         } catch (e: any) {
             console.warn(`[Baileys] markRead failed:`, e.message);
@@ -398,8 +403,6 @@ export class BaileysService {
         const sock = sessions.get(botId);
         if (!sock) return;
         try {
-            // Subscribe to presence first so the recipient sees our updates
-            await sock.presenceSubscribe(chatJid);
             await sock.sendPresenceUpdate(presence, chatJid);
         } catch (e: any) {
             console.warn(`[Baileys] sendPresence(${presence}) failed:`, e.message);
