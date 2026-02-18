@@ -1,5 +1,18 @@
 import type { AIProvider, AICompletionRequest, AICompletionResponse, AIMessage, AIToolDefinition } from "./types";
 
+const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const CACHE_TTL = "3600s"; // 1 hour
+const MIN_CACHE_TOKENS = 4096; // Minimum for gemini-2.0-flash explicit caching
+
+interface CacheEntry {
+    name: string;       // "cachedContents/{id}"
+    promptHash: string; // Hash of the system prompt to detect changes
+    expiresAt: number;  // Unix ms
+}
+
+// In-memory cache of botId -> CacheEntry (process-level, not Redis — lightweight)
+const cacheRegistry = new Map<string, CacheEntry>();
+
 export class GeminiProvider implements AIProvider {
     private apiKey: string;
 
@@ -8,7 +21,13 @@ export class GeminiProvider implements AIProvider {
     }
 
     async chat(request: AICompletionRequest): Promise<AICompletionResponse> {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${request.model}:generateContent?key=${this.apiKey}`;
+        const systemMsg = request.messages.find((m) => m.role === "system");
+        const systemPrompt = systemMsg?.content ?? "";
+
+        // Try to use context cache for the system prompt
+        const cachedContentName = await this.getOrCreateCache(request.model, systemPrompt, request.tools);
+
+        const url = `${BASE_URL}/models/${request.model}:generateContent?key=${this.apiKey}`;
 
         const body: any = {
             contents: this.formatContents(request.messages),
@@ -17,18 +36,21 @@ export class GeminiProvider implements AIProvider {
             },
         };
 
-        // System instruction (extract system messages)
-        const systemMsg = request.messages.find((m) => m.role === "system");
-        if (systemMsg?.content) {
-            body.systemInstruction = {
-                parts: [{ text: systemMsg.content }],
-            };
-        }
-
-        if (request.tools && request.tools.length > 0) {
-            body.tools = [{
-                functionDeclarations: this.formatTools(request.tools),
-            }];
+        if (cachedContentName) {
+            // Use cached content — system instruction and tools are baked into the cache
+            body.cachedContent = cachedContentName;
+        } else {
+            // No cache — send system instruction and tools inline
+            if (systemPrompt) {
+                body.systemInstruction = {
+                    parts: [{ text: systemPrompt }],
+                };
+            }
+            if (request.tools && request.tools.length > 0) {
+                body.tools = [{
+                    functionDeclarations: this.formatTools(request.tools),
+                }];
+            }
         }
 
         const res = await fetch(url, {
@@ -74,11 +96,93 @@ export class GeminiProvider implements AIProvider {
         };
     }
 
+    /**
+     * Get or create a cached content for the system prompt + tools.
+     * Returns the cachedContent name if available, null otherwise.
+     */
+    private async getOrCreateCache(
+        model: string,
+        systemPrompt: string,
+        tools?: AIToolDefinition[]
+    ): Promise<string | null> {
+        if (!systemPrompt) return null;
+
+        // Simple hash to detect prompt changes
+        const promptHash = this.hash(systemPrompt + JSON.stringify(tools ?? []));
+        const cacheKey = `${model}:${promptHash}`;
+
+        // Check in-memory registry
+        const existing = cacheRegistry.get(cacheKey);
+        if (existing && existing.expiresAt > Date.now() + 60_000) {
+            // Still valid with at least 1 min buffer
+            return existing.name;
+        }
+
+        // Rough token estimate: ~4 chars per token for English/Spanish
+        const estimatedTokens = Math.ceil(systemPrompt.length / 4);
+        if (estimatedTokens < MIN_CACHE_TOKENS) {
+            // Too small for explicit caching — Gemini implicit caching handles this automatically
+            return null;
+        }
+
+        try {
+            const cacheBody: any = {
+                model: `models/${model}`,
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }],
+                },
+                ttl: CACHE_TTL,
+            };
+
+            if (tools && tools.length > 0) {
+                cacheBody.tools = [{
+                    functionDeclarations: this.formatTools(tools),
+                }];
+            }
+
+            const res = await fetch(`${BASE_URL}/cachedContents?key=${this.apiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(cacheBody),
+            });
+
+            if (!res.ok) {
+                const err = await res.text();
+                console.warn(`[Gemini] Cache creation failed (${res.status}), using inline: ${err}`);
+                return null;
+            }
+
+            const data = await res.json() as any;
+            const name = data.name; // "cachedContents/{id}"
+            const ttlSeconds = parseInt(CACHE_TTL);
+
+            cacheRegistry.set(cacheKey, {
+                name,
+                promptHash,
+                expiresAt: Date.now() + ttlSeconds * 1000,
+            });
+
+            console.log(`[Gemini] Created context cache: ${name} (${data.usageMetadata?.totalTokenCount} tokens, TTL ${CACHE_TTL})`);
+            return name;
+        } catch (error: any) {
+            console.warn(`[Gemini] Cache creation error, using inline:`, error.message);
+            return null;
+        }
+    }
+
+    private hash(str: string): string {
+        // Simple djb2 hash — just for change detection, not crypto
+        let hash = 5381;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) + hash) + str.charCodeAt(i);
+        }
+        return (hash >>> 0).toString(36);
+    }
+
     private formatContents(messages: AIMessage[]): any[] {
         const contents: any[] = [];
 
         for (const msg of messages) {
-            // Skip system messages (handled via systemInstruction)
             if (msg.role === "system") continue;
 
             if (msg.role === "user") {
