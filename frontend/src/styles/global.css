@@ -1,83 +1,41 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-purple: #8b5cf6;
-  --color-brand-dark: #0f172a;
-  --color-brand-panel: #1e293b;
+  /* WhatsApp Dark Mode Palette */
+  --color-wa-green: #00a884;
+  --color-wa-green-hover: #06cf9c;
+  --color-wa-bg-deep: #0b141a;
+  --color-wa-bg-panel: #111b21;
+  --color-wa-bg-header: #202c33;
+  --color-wa-bg-hover: #2a3942;
+  --color-wa-bubble-out: #005c4b;
+  --color-wa-bubble-in: #202c33;
+  --color-wa-text-primary: #e9edef;
+  --color-wa-text-secondary: #8696a0;
+  --color-wa-border: #2a3942;
+  --color-wa-danger: #ea4335;
+  --color-wa-info: #53bdeb;
 
-  /* Enforce Sharp Corners */
-  --radius-none: 0px;
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
+  /* Compatibility aliases */
+  --color-brand-purple: #00a884;
+  --color-brand-dark: #111b21;
+  --color-brand-panel: #111b21;
 
+  /* Rounded radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
   --radius-full: 9999px;
 }
 
-@layer base {
-
-  button,
-  .btn,
-  a[role="button"],
-  .button-like,
-  .badge,
-  [class*="px-"][class*="py-0.5"],
-  [class*="bg-brand-purple/10"] {
-    @apply rounded-full;
-  }
-
-  /* Global Sharp Corners for common containers */
-  div,
-  section,
-  article,
-  aside,
-  nav,
-  header,
-  footer {
-    @apply rounded-none;
-  }
-}
-
-/* "The Grid" Background */
+/* Body */
 body {
-  @apply bg-slate-950 text-slate-200 font-mono antialiased;
-  background-image:
-    linear-gradient(to right, rgba(139, 92, 246, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(139, 92, 246, 0.02) 1px, transparent 1px);
-  background-size: 40px 40px;
+  @apply bg-wa-bg-deep text-wa-text-primary font-sans antialiased;
   min-height: 100vh;
-}
-
-/* Cross Markers */
-.cross-marker {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-}
-
-.cross-marker::before,
-.cross-marker::after {
-  content: '';
-  position: absolute;
-  background-color: rgba(139, 92, 246, 0.3);
-}
-
-.cross-marker::before {
-  top: 4px;
-  left: 0;
-  width: 100%;
-  height: 2px;
-}
-
-.cross-marker::after {
-  left: 4px;
-  top: 0;
-  height: 100%;
-  width: 2px;
 }
 
 /* Custom Scrollbar */
@@ -87,13 +45,13 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #0b141a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #2a3942;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #aebac1;
 }
