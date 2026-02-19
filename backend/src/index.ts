@@ -56,6 +56,7 @@ import { executionController } from "./api/execution.controller";
 import { authController } from "./api/auth.controller";
 import { clientRoutes } from "./api/client.routes";
 import { toolController } from "./api/tool.controller";
+import { sessionController } from "./api/session.controller";
 import { cors } from "@elysiajs/cors";
 
 const app = new Elysia({ adapter: node() })
@@ -77,6 +78,7 @@ const app = new Elysia({ adapter: node() })
     .use(authController)
     .use(clientRoutes)
     .use(toolController)
+    .use(sessionController)
     .get("/", () => "Agentic Orchestrator Active")
     .get("/health", () => ({ status: "ok", timestamp: new Date().toISOString() }))
     .get("/info", () => ({
