@@ -135,5 +135,23 @@ export default {
     tool_builtin: "Built-in",
     webhook_url: "Webhook URL",
     webhook_method: "HTTP Method",
-    builtin_function: "Built-in Function"
+    builtin_function: "Built-in Function",
+
+    // Monitor
+    monitor: "Monitor",
+    search_sessions: "Search sessions...",
+    send_message: "Send Message",
+    force_ai: "Force AI",
+    force_ai_desc: "Send a synthetic message to trigger an AI response for this session.",
+    force_ai_context: "Context (optional)",
+    run_flow: "Run Flow",
+    run_tool: "Run Tool",
+    select_flow: "Select a flow...",
+    select_tool: "Select a tool...",
+    tool_arguments: "Arguments (JSON)",
+    no_sessions: "No sessions found",
+    no_messages: "No messages yet",
+    type_message: "Type a message...",
+    execute: "Execute",
+    confirm: "Confirm"
 };

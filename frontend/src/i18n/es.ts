@@ -135,5 +135,23 @@ export default {
     tool_builtin: "Incorporada",
     webhook_url: "URL del Webhook",
     webhook_method: "Método HTTP",
-    builtin_function: "Función Incorporada"
+    builtin_function: "Función Incorporada",
+
+    // Monitor
+    monitor: "Monitor",
+    search_sessions: "Buscar sesiones...",
+    send_message: "Enviar Mensaje",
+    force_ai: "Forzar IA",
+    force_ai_desc: "Enviar un mensaje sintético para provocar una respuesta de IA en esta sesión.",
+    force_ai_context: "Contexto (opcional)",
+    run_flow: "Ejecutar Flujo",
+    run_tool: "Ejecutar Herramienta",
+    select_flow: "Seleccionar flujo...",
+    select_tool: "Seleccionar herramienta...",
+    tool_arguments: "Argumentos (JSON)",
+    no_sessions: "No se encontraron sesiones",
+    no_messages: "Sin mensajes aún",
+    type_message: "Escribe un mensaje...",
+    execute: "Ejecutar",
+    confirm: "Confirmar"
 };
