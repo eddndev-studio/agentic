@@ -207,6 +207,7 @@ model ConversationLog {
   session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
+  @@index([sessionId, createdAt])
 }
 
 enum Platform {
