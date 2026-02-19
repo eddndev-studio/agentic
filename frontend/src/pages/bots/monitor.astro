@@ -8,15 +8,15 @@ import Layout from "../../layouts/Layout.astro";
         class="h-[calc(100vh-4rem)] flex flex-col"
     >
         <!-- Header -->
-        <header class="flex items-center justify-between border-b border-white/10 pb-4 mb-4 flex-shrink-0">
+        <header class="flex items-center justify-between border-b border-wa-border pb-4 mb-4 flex-shrink-0">
             <div class="flex items-center gap-3">
-                <a href="#" @click.prevent="goBack()" class="text-gray-500 hover:text-brand-purple transition-colors">
+                <a href="#" @click.prevent="goBack()" class="text-wa-text-secondary hover:text-wa-green transition-colors">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
                 </a>
-                <h1 class="text-xl font-bold tracking-tighter uppercase" x-text="$t('monitor')">Monitor</h1>
-                <span class="text-[10px] font-mono text-brand-purple bg-brand-purple/10 px-2 py-0.5 uppercase" x-show="botName" x-text="botName"></span>
+                <h1 class="text-xl font-bold tracking-tight" x-text="$t('monitor')">Monitor</h1>
+                <span class="text-[10px] font-sans text-wa-green bg-wa-green/10 px-2 py-0.5" x-show="botName" x-text="botName"></span>
             </div>
         </header>
 
@@ -24,14 +24,14 @@ import Layout from "../../layouts/Layout.astro";
         <div class="flex-1 flex gap-4 min-h-0">
 
             <!-- Left: Sessions list -->
-            <div class="w-80 flex-shrink-0 flex flex-col bg-brand-panel/30 border border-white/5 overflow-hidden">
+            <div class="w-80 flex-shrink-0 flex flex-col bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden">
                 <!-- Search -->
-                <div class="p-3 border-b border-white/5">
+                <div class="p-3 border-b border-wa-border">
                     <input
                         type="text"
                         x-model="searchQuery"
                         @input.debounce.300ms="loadSessions()"
-                        class="w-full bg-[#0f172a] border border-white/10 text-white text-xs p-2 focus:border-brand-purple focus:outline-none placeholder-gray-600"
+                        class="w-full bg-wa-bg-deep border border-wa-border text-white text-xs p-2 rounded-lg focus:border-wa-green focus:outline-none placeholder-wa-text-secondary"
                         :placeholder="$t('search_sessions')"
                     />
                 </div>
@@ -39,30 +39,30 @@ import Layout from "../../layouts/Layout.astro";
                 <!-- Session items -->
                 <div class="flex-1 overflow-y-auto">
                     <template x-if="sessions.length === 0">
-                        <div class="p-6 text-center text-xs text-gray-600 font-mono" x-text="$t('no_sessions')"></div>
+                        <div class="p-6 text-center text-xs text-wa-text-secondary font-sans" x-text="$t('no_sessions')"></div>
                     </template>
 
                     <template x-for="s in sessions" :key="s.id">
                         <button
                             @click="selectSession(s)"
-                            class="w-full text-left p-3 border-b border-white/5 hover:bg-white/5 transition-colors"
-                            :class="selectedSession?.id === s.id ? 'bg-brand-purple/10 border-l-2 border-l-brand-purple' : ''"
+                            class="w-full text-left p-3 border-b border-wa-border hover:bg-wa-bg-hover transition-colors"
+                            :class="selectedSession?.id === s.id ? 'bg-wa-green/10 border-l-2 border-l-wa-green' : ''"
                         >
                             <div class="flex justify-between items-start">
                                 <div class="flex-1 min-w-0">
                                     <div class="font-medium text-sm text-white truncate" x-text="s.name || s.identifier"></div>
-                                    <div class="text-[10px] text-gray-500 font-mono truncate" x-text="s.identifier"></div>
+                                    <div class="text-[10px] text-wa-text-secondary font-sans truncate" x-text="s.identifier"></div>
                                 </div>
                                 <div class="flex flex-col items-end flex-shrink-0 ml-2">
-                                    <span class="text-[10px] text-gray-600" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
-                                    <span class="text-[10px] text-gray-600 font-mono" x-text="s.messageCount + ' msgs'"></span>
+                                    <span class="text-[10px] text-wa-text-secondary" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
+                                    <span class="text-[10px] text-wa-text-secondary font-sans" x-text="s.messageCount + ' msgs'"></span>
                                 </div>
                             </div>
-                            <div x-show="s.lastMessage" class="mt-1 text-xs text-gray-500 truncate" x-text="s.lastMessage?.content || ''"></div>
+                            <div x-show="s.lastMessage" class="mt-1 text-xs text-wa-text-secondary truncate" x-text="s.lastMessage?.content || ''"></div>
                             <div x-show="s.labels?.length" class="mt-1.5 flex flex-wrap gap-1">
                                 <template x-for="lbl in (s.labels || [])" :key="lbl.id">
                                     <span
-                                        class="text-[9px] font-mono px-1.5 py-0.5 rounded-full text-white/90"
+                                        class="text-[9px] font-sans px-1.5 py-0.5 rounded-full text-white/90"
                                         :style="`background:${labelColor(lbl.color)}`"
                                         x-text="lbl.name"
                                     ></span>
@@ -74,11 +74,11 @@ import Layout from "../../layouts/Layout.astro";
             </div>
 
             <!-- Right: Chat panel -->
-            <div class="flex-1 flex flex-col bg-brand-panel/30 border border-white/5 overflow-hidden">
+            <div class="flex-1 flex flex-col bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden">
                 <!-- No session selected -->
                 <template x-if="!selectedSession">
                     <div class="flex-1 flex items-center justify-center">
-                        <p class="text-xs font-mono text-gray-600 uppercase" x-text="$t('no_sessions')"></p>
+                        <p class="text-xs font-sans text-wa-text-secondary" x-text="$t('no_sessions')"></p>
                     </div>
                 </template>
 
@@ -86,15 +86,15 @@ import Layout from "../../layouts/Layout.astro";
                 <template x-if="selectedSession">
                     <div class="flex flex-col h-full">
                         <!-- Chat header -->
-                        <div class="p-4 border-b border-white/5 flex-shrink-0">
+                        <div class="p-4 border-b border-wa-border flex-shrink-0">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <div class="font-bold text-sm" x-text="selectedSession.name || selectedSession.identifier"></div>
-                                    <div class="text-[10px] text-gray-500 font-mono" x-text="selectedSession.identifier"></div>
+                                    <div class="text-[10px] text-wa-text-secondary font-sans" x-text="selectedSession.identifier"></div>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="w-2 h-2 rounded-full" :class="selectedSession.status === 'CONNECTED' ? 'bg-green-500' : 'bg-gray-600'"></span>
-                                    <span class="text-[10px] font-mono text-gray-500" x-text="selectedSession.status"></span>
+                                    <span class="text-[10px] font-sans text-wa-text-secondary" x-text="selectedSession.status"></span>
                                 </div>
                             </div>
                             <!-- Labels row -->
@@ -102,7 +102,7 @@ import Layout from "../../layouts/Layout.astro";
                                 <template x-for="lbl in (selectedSession.labels || [])" :key="lbl.id">
                                     <button
                                         @click="removeLabel(lbl.id)"
-                                        class="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full text-white/90 hover:opacity-80 transition-opacity cursor-pointer"
+                                        class="inline-flex items-center gap-1 text-[10px] font-sans px-2 py-0.5 rounded-full text-white/90 hover:opacity-80 transition-opacity cursor-pointer"
                                         :style="`background:${labelColor(lbl.color)}`"
                                         :title="'Remove ' + lbl.name"
                                     >
@@ -115,18 +115,18 @@ import Layout from "../../layouts/Layout.astro";
                                     <button
                                         @click="open = !open"
                                         x-show="availableLabels().length > 0"
-                                        class="text-[10px] font-mono px-2 py-0.5 border border-white/10 text-gray-400 rounded-full hover:border-brand-purple hover:text-brand-purple transition-colors"
+                                        class="text-[10px] font-sans px-2 py-0.5 border border-wa-border text-wa-text-secondary rounded-full hover:border-wa-green hover:text-wa-green transition-colors"
                                     >+ Label</button>
                                     <div
                                         x-show="open"
                                         @click.outside="open = false"
-                                        class="absolute top-full left-0 mt-1 z-50 bg-[#0f172a] border border-white/10 rounded shadow-lg min-w-[160px] max-h-48 overflow-y-auto"
+                                        class="absolute top-full left-0 mt-1 z-50 bg-wa-bg-deep border border-wa-border rounded shadow-lg min-w-[160px] max-h-48 overflow-y-auto"
                                         style="display: none;"
                                     >
                                         <template x-for="lbl in availableLabels()" :key="lbl.id">
                                             <button
                                                 @click="assignLabel(lbl.id); open = false"
-                                                class="w-full text-left px-3 py-1.5 text-xs hover:bg-white/5 flex items-center gap-2"
+                                                class="w-full text-left px-3 py-1.5 text-xs hover:bg-wa-bg-hover flex items-center gap-2"
                                             >
                                                 <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
                                                 <span x-text="lbl.name"></span>
@@ -144,7 +144,7 @@ import Layout from "../../layouts/Layout.astro";
                         >
                             <template x-if="messages.length === 0">
                                 <div class="flex items-center justify-center h-full">
-                                    <p class="text-xs font-mono text-gray-600" x-text="$t('no_messages')"></p>
+                                    <p class="text-xs font-sans text-wa-text-secondary" x-text="$t('no_messages')"></p>
                                 </div>
                             </template>
 
@@ -153,36 +153,36 @@ import Layout from "../../layouts/Layout.astro";
                                     <div
                                         class="max-w-[70%] px-3 py-2 rounded-lg text-sm break-words"
                                         :class="msg.fromMe
-                                            ? 'bg-brand-purple/20 text-white rounded-br-none'
-                                            : 'bg-[#0f172a] text-white rounded-bl-none border border-white/10'"
+                                            ? 'bg-wa-bubble-out text-white rounded-br-none'
+                                            : 'bg-wa-bubble-in text-white rounded-bl-none'"
                                     >
                                         <!-- Type badge for non-text -->
                                         <span
                                             x-show="msg.type !== 'TEXT'"
-                                            class="inline-block text-[9px] font-mono bg-white/10 px-1 py-0.5 rounded mb-1 uppercase"
+                                            class="inline-block text-[9px] font-sans bg-white/10 px-1 py-0.5 rounded mb-1 uppercase"
                                             x-text="msg.type"
                                         ></span>
                                         <div x-text="msg.content || '[media]'" class="whitespace-pre-wrap"></div>
-                                        <div class="text-[10px] text-gray-500 mt-1 text-right" x-text="formatTime(msg.createdAt)"></div>
+                                        <div class="text-[10px] text-wa-text-secondary mt-1 text-right" x-text="formatTime(msg.createdAt)"></div>
                                     </div>
                                 </div>
                             </template>
                         </div>
 
                         <!-- Input area -->
-                        <div class="p-3 border-t border-white/5 flex-shrink-0 space-y-2">
+                        <div class="p-3 border-t border-wa-border flex-shrink-0 space-y-2">
                             <!-- Message input -->
                             <form @submit.prevent="sendMessage()" class="flex gap-2">
                                 <input
                                     type="text"
                                     x-model="messageInput"
-                                    class="flex-1 bg-[#0f172a] border border-white/10 text-white text-sm p-2 focus:border-brand-purple focus:outline-none placeholder-gray-600"
+                                    class="flex-1 bg-wa-bg-deep border border-wa-border text-white text-sm p-2 rounded-lg focus:border-wa-green focus:outline-none placeholder-wa-text-secondary"
                                     :placeholder="$t('type_message')"
                                 />
                                 <button
                                     type="submit"
                                     :disabled="!messageInput.trim() || sending"
-                                    class="px-4 py-2 bg-brand-purple text-white text-xs font-mono uppercase tracking-widest hover:bg-brand-purple/80 transition-colors disabled:opacity-50 rounded-full"
+                                    class="px-4 py-2 bg-wa-green text-white text-xs font-sans hover:bg-wa-green-hover transition-colors disabled:opacity-50 rounded-lg"
                                     x-text="$t('send_message')"
                                 ></button>
                             </form>
@@ -191,17 +191,17 @@ import Layout from "../../layouts/Layout.astro";
                             <div class="flex gap-2 flex-wrap">
                                 <button
                                     @click="showForceAIModal = true"
-                                    class="px-3 py-1.5 border border-yellow-500/30 text-yellow-400 text-[10px] font-mono uppercase hover:bg-yellow-500/10 transition-colors rounded-full"
+                                    class="px-3 py-1.5 border border-yellow-500/30 text-yellow-400 text-[10px] font-sans hover:bg-yellow-500/10 transition-colors rounded-lg"
                                     x-text="$t('force_ai')"
                                 ></button>
                                 <button
                                     @click="openFlowModal()"
-                                    class="px-3 py-1.5 border border-blue-500/30 text-blue-400 text-[10px] font-mono uppercase hover:bg-blue-500/10 transition-colors rounded-full"
+                                    class="px-3 py-1.5 border border-blue-500/30 text-blue-400 text-[10px] font-sans hover:bg-blue-500/10 transition-colors rounded-lg"
                                     x-text="$t('run_flow')"
                                 ></button>
                                 <button
                                     @click="openToolModal()"
-                                    class="px-3 py-1.5 border border-green-500/30 text-green-400 text-[10px] font-mono uppercase hover:bg-green-500/10 transition-colors rounded-full"
+                                    class="px-3 py-1.5 border border-green-500/30 text-green-400 text-[10px] font-sans hover:bg-green-500/10 transition-colors rounded-lg"
                                     x-text="$t('run_tool')"
                                 ></button>
                             </div>
@@ -214,27 +214,27 @@ import Layout from "../../layouts/Layout.astro";
         <!-- Force AI Modal -->
         <div
             x-show="showForceAIModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
             style="display: none;"
         >
-            <div class="bg-[#0f172a] border border-white/10 p-6 max-w-md w-full" @click.outside="showForceAIModal = false">
-                <h3 class="text-sm font-bold uppercase tracking-widest mb-2" x-text="$t('force_ai')"></h3>
-                <p class="text-xs text-gray-500 mb-4" x-text="$t('force_ai_desc')"></p>
+            <div class="bg-wa-bg-panel border border-wa-border p-6 max-w-md w-full rounded-xl" @click.outside="showForceAIModal = false">
+                <h3 class="text-sm font-bold mb-2" x-text="$t('force_ai')"></h3>
+                <p class="text-xs text-wa-text-secondary mb-4" x-text="$t('force_ai_desc')"></p>
                 <textarea
                     x-model="forceAIContext"
                     rows="3"
-                    class="w-full bg-black/40 border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none resize-y mb-4"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y mb-4"
                     :placeholder="$t('force_ai_context')"
                 ></textarea>
                 <div class="flex justify-end gap-2">
                     <button
                         @click="showForceAIModal = false"
-                        class="px-4 py-2 border border-white/10 text-gray-400 text-xs uppercase hover:bg-white/5 transition-colors rounded-full"
+                        class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
                         x-text="$t('cancel')"
                     ></button>
                     <button
                         @click="forceAI()"
-                        class="px-4 py-2 bg-yellow-600 text-white text-xs uppercase hover:bg-yellow-700 transition-colors rounded-full"
+                        class="px-4 py-2 bg-yellow-600 text-white text-xs hover:bg-yellow-700 transition-colors rounded-lg"
                         x-text="$t('confirm')"
                     ></button>
                 </div>
@@ -244,14 +244,14 @@ import Layout from "../../layouts/Layout.astro";
         <!-- Run Flow Modal -->
         <div
             x-show="showFlowModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
             style="display: none;"
         >
-            <div class="bg-[#0f172a] border border-white/10 p-6 max-w-md w-full" @click.outside="showFlowModal = false">
-                <h3 class="text-sm font-bold uppercase tracking-widest mb-4" x-text="$t('run_flow')"></h3>
+            <div class="bg-wa-bg-panel border border-wa-border p-6 max-w-md w-full rounded-xl" @click.outside="showFlowModal = false">
+                <h3 class="text-sm font-bold mb-4" x-text="$t('run_flow')"></h3>
                 <select
                     x-model="selectedFlowId"
-                    class="w-full bg-black/40 border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none mb-4"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-4"
                 >
                     <option value="" x-text="$t('select_flow')"></option>
                     <template x-for="f in flows" :key="f.id">
@@ -261,13 +261,13 @@ import Layout from "../../layouts/Layout.astro";
                 <div class="flex justify-end gap-2">
                     <button
                         @click="showFlowModal = false"
-                        class="px-4 py-2 border border-white/10 text-gray-400 text-xs uppercase hover:bg-white/5 transition-colors rounded-full"
+                        class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
                         x-text="$t('cancel')"
                     ></button>
                     <button
                         @click="executeFlow()"
                         :disabled="!selectedFlowId"
-                        class="px-4 py-2 bg-blue-600 text-white text-xs uppercase hover:bg-blue-700 transition-colors disabled:opacity-50 rounded-full"
+                        class="px-4 py-2 bg-blue-600 text-white text-xs hover:bg-blue-700 transition-colors disabled:opacity-50 rounded-lg"
                         x-text="$t('execute')"
                     ></button>
                 </div>
@@ -277,37 +277,37 @@ import Layout from "../../layouts/Layout.astro";
         <!-- Run Tool Modal -->
         <div
             x-show="showToolModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
             style="display: none;"
         >
-            <div class="bg-[#0f172a] border border-white/10 p-6 max-w-md w-full" @click.outside="showToolModal = false">
-                <h3 class="text-sm font-bold uppercase tracking-widest mb-4" x-text="$t('run_tool')"></h3>
+            <div class="bg-wa-bg-panel border border-wa-border p-6 max-w-md w-full rounded-xl" @click.outside="showToolModal = false">
+                <h3 class="text-sm font-bold mb-4" x-text="$t('run_tool')"></h3>
                 <select
                     x-model="selectedToolName"
-                    class="w-full bg-black/40 border border-white/10 text-white text-sm p-3 focus:border-brand-purple focus:outline-none mb-3"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-3"
                 >
                     <option value="" x-text="$t('select_tool')"></option>
                     <template x-for="tool in tools" :key="tool.id">
                         <option :value="tool.name" x-text="tool.name"></option>
                     </template>
                 </select>
-                <label class="block text-[10px] font-mono text-gray-500 uppercase mb-1" x-text="$t('tool_arguments')"></label>
+                <label class="block text-[10px] font-sans text-wa-text-secondary mb-1" x-text="$t('tool_arguments')"></label>
                 <textarea
                     x-model="toolArgsJson"
                     rows="4"
-                    class="w-full bg-black/40 border border-white/10 text-white text-xs font-mono p-3 focus:border-brand-purple focus:outline-none resize-y mb-4"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-xs font-mono p-3 focus:border-wa-green focus:outline-none resize-y mb-4"
                     placeholder='{ "key": "value" }'
                 ></textarea>
                 <div class="flex justify-end gap-2">
                     <button
                         @click="showToolModal = false"
-                        class="px-4 py-2 border border-white/10 text-gray-400 text-xs uppercase hover:bg-white/5 transition-colors rounded-full"
+                        class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
                         x-text="$t('cancel')"
                     ></button>
                     <button
                         @click="executeTool()"
                         :disabled="!selectedToolName"
-                        class="px-4 py-2 bg-green-600 text-white text-xs uppercase hover:bg-green-700 transition-colors disabled:opacity-50 rounded-full"
+                        class="px-4 py-2 bg-green-600 text-white text-xs hover:bg-green-700 transition-colors disabled:opacity-50 rounded-lg"
                         x-text="$t('execute')"
                     ></button>
                 </div>
