@@ -9,7 +9,7 @@ import { TranscriptionService, VisionService, PDFService } from "../../services/
 import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 import type { Message } from "@prisma/client";
 
-const MAX_TOOL_ITERATIONS = 5;
+const MAX_TOOL_ITERATIONS = 10;
 const LOCK_TTL = 60; // seconds
 
 /** Maps primary provider to its fallback */

@@ -275,6 +275,163 @@ export class ToolExecutor {
                 return { success: true, data: "Conversation history cleared." };
             }
 
+            case "get_labels": {
+                const labels = await prisma.label.findMany({
+                    where: { botId, deleted: false },
+                    include: { _count: { select: { sessions: true } } },
+                });
+                return {
+                    success: true,
+                    data: labels.map(l => ({
+                        name: l.name,
+                        color: l.color,
+                        waLabelId: l.waLabelId,
+                        sessionCount: l._count.sessions,
+                    })),
+                };
+            }
+
+            case "assign_label": {
+                const labelName = args.label_name;
+                if (!labelName) {
+                    return { success: false, data: "Falta el parámetro label_name." };
+                }
+
+                const label = await prisma.label.findFirst({
+                    where: { botId, deleted: false, name: { equals: labelName, mode: "insensitive" } },
+                });
+                if (!label) {
+                    return { success: false, data: `Etiqueta '${labelName}' no encontrada.` };
+                }
+
+                // Sync with WhatsApp
+                await BaileysService.addChatLabel(botId, session.identifier, label.waLabelId);
+
+                // Upsert in DB
+                await prisma.sessionLabel.upsert({
+                    where: { sessionId_labelId: { sessionId: session.id, labelId: label.id } },
+                    update: {},
+                    create: { sessionId: session.id, labelId: label.id },
+                });
+
+                return { success: true, data: `Etiqueta '${label.name}' asignada al chat.` };
+            }
+
+            case "remove_label": {
+                const removeLabelName = args.label_name;
+                if (!removeLabelName) {
+                    return { success: false, data: "Falta el parámetro label_name." };
+                }
+
+                const labelToRemove = await prisma.label.findFirst({
+                    where: { botId, deleted: false, name: { equals: removeLabelName, mode: "insensitive" } },
+                });
+                if (!labelToRemove) {
+                    return { success: false, data: `Etiqueta '${removeLabelName}' no encontrada.` };
+                }
+
+                const existingAssoc = await prisma.sessionLabel.findUnique({
+                    where: { sessionId_labelId: { sessionId: session.id, labelId: labelToRemove.id } },
+                });
+                if (!existingAssoc) {
+                    return { success: false, data: `El chat no tiene la etiqueta '${labelToRemove.name}'.` };
+                }
+
+                // Sync with WhatsApp
+                await BaileysService.removeChatLabel(botId, session.identifier, labelToRemove.waLabelId);
+
+                // Remove from DB
+                await prisma.sessionLabel.delete({ where: { id: existingAssoc.id } });
+
+                return { success: true, data: `Etiqueta '${labelToRemove.name}' removida del chat.` };
+            }
+
+            case "get_sessions_by_label": {
+                const searchLabelName = args.label_name;
+                if (!searchLabelName) {
+                    return { success: false, data: "Falta el parámetro label_name." };
+                }
+                const includeMessages = args.include_messages ?? 5;
+
+                const targetLabel = await prisma.label.findFirst({
+                    where: { botId, deleted: false, name: { equals: searchLabelName, mode: "insensitive" } },
+                });
+                if (!targetLabel) {
+                    return { success: false, data: `Etiqueta '${searchLabelName}' no encontrada.` };
+                }
+
+                const sessionLabels = await prisma.sessionLabel.findMany({
+                    where: { labelId: targetLabel.id },
+                    include: {
+                        session: {
+                            include: {
+                                messages: {
+                                    orderBy: { createdAt: "desc" },
+                                    take: includeMessages,
+                                    select: {
+                                        content: true,
+                                        fromMe: true,
+                                        createdAt: true,
+                                        type: true,
+                                    },
+                                },
+                                client: {
+                                    select: { id: true, phoneNumber: true, email: true },
+                                },
+                            },
+                        },
+                    },
+                });
+
+                const result = sessionLabels.map(sl => ({
+                    sessionId: sl.session.id,
+                    name: sl.session.name,
+                    identifier: sl.session.identifier,
+                    client: sl.session.client,
+                    lastMessageAt: sl.session.messages[0]?.createdAt ?? null,
+                    lastMessages: sl.session.messages.reverse().map(m => ({
+                        content: m.content,
+                        fromMe: m.fromMe,
+                        createdAt: m.createdAt,
+                        type: m.type,
+                    })),
+                }));
+
+                return { success: true, data: result };
+            }
+
+            case "send_followup_message": {
+                const targetSessionId = args.session_id;
+                const messageText = args.message;
+                if (!targetSessionId || !messageText) {
+                    return { success: false, data: "Faltan parámetros: session_id y message son obligatorios." };
+                }
+
+                // Validate session belongs to the same bot
+                const targetSession = await prisma.session.findFirst({
+                    where: { id: targetSessionId, botId },
+                });
+                if (!targetSession) {
+                    return { success: false, data: `Sesión '${targetSessionId}' no encontrada o no pertenece a este bot.` };
+                }
+
+                // Send message via WhatsApp
+                await BaileysService.sendMessage(botId, targetSession.identifier, { text: messageText });
+
+                // Persist message in DB
+                await prisma.message.create({
+                    data: {
+                        sessionId: targetSession.id,
+                        content: messageText,
+                        fromMe: true,
+                        type: "TEXT",
+                        externalId: null,
+                    },
+                });
+
+                return { success: true, data: `Mensaje de seguimiento enviado a ${targetSession.name || targetSession.identifier}.` };
+            }
+
             default:
                 return { success: false, data: `Unknown builtin: ${builtinName}` };
         }
