@@ -6,7 +6,7 @@ import { BaileysService } from "../../services/baileys.service";
 import { flowEngine } from "../flow";
 import { ToolExecutor } from "./ToolExecutor";
 import { TranscriptionService, VisionService, PDFService } from "../../services/media";
-import type { AIMessage, AIToolDefinition, AIToolCall, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
+import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 import type { Message } from "@prisma/client";
 
 const MAX_TOOL_ITERATIONS = 5;
@@ -191,8 +191,7 @@ export class AIEngine {
                         name: toolCall.name,
                     });
 
-                    // Log tool execution to Postgres (async, non-blocking)
-                    this.logToolCall(sessionId, toolCall, result, activeModel).catch(() => {});
+                    // Tool logging now handled by ConversationService.addMessages (dual-write)
                 }
 
                 await ConversationService.addMessages(sessionId, toolMessages);
@@ -235,8 +234,8 @@ export class AIEngine {
                 await ConversationService.addMessage(sessionId, assistantMsg);
             }
 
-            // 10. Log to Postgres (async)
-            this.logConversation(sessionId, userContent, response.content, activeModel, response.usage?.totalTokens).catch(() => {});
+            // 10. Update metadata on recent ConversationLog entries (async, fire-and-forget)
+            this.logMetadata(sessionId, activeModel, response.usage?.totalTokens).catch(() => {});
 
         } catch (error: any) {
             console.error(`[AIEngine] Error processing message for session ${sessionId}:`, error);
@@ -291,33 +290,12 @@ export class AIEngine {
         }
     }
 
-    private async logConversation(
-        sessionId: string, userContent: string, assistantContent: string | null,
-        model: string, tokenCount?: number
+    private async logMetadata(
+        sessionId: string, model: string, tokenCount?: number
     ): Promise<void> {
-        await prisma.conversationLog.createMany({
-            data: [
-                { sessionId, role: "user", content: userContent, model },
-                ...(assistantContent ? [{
-                    sessionId, role: "assistant", content: assistantContent, model, tokenCount,
-                }] : []),
-            ],
-        });
-    }
-
-    private async logToolCall(
-        sessionId: string, toolCall: AIToolCall, result: { success: boolean; data: any },
-        model: string
-    ): Promise<void> {
-        await prisma.conversationLog.create({
-            data: {
-                sessionId,
-                role: "tool",
-                toolName: toolCall.name,
-                toolArgs: toolCall.arguments,
-                toolResult: { success: result.success, data: result.data },
-                model,
-            },
+        await prisma.conversationLog.updateMany({
+            where: { sessionId, model: null },
+            data: { model, ...(tokenCount != null ? { tokenCount } : {}) },
         });
     }
 }
