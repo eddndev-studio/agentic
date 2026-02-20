@@ -302,7 +302,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Flow not found" };
         }
 
-        // Create execution directly (bypass TriggerMatcher)
+        // Create execution directly (manual trigger, bypass normal trigger matching)
         const execution = await prisma.execution.create({
             data: {
                 sessionId: id,
