@@ -14,7 +14,6 @@
         "@prisma/client": "^5.12.0",
         "@whiskeysockets/baileys": "^7.0.0-rc.9",
         "argon2": "^0.41.1",
-        "bullmq": "^5.66.2",
         "elysia": "latest",
         "ioredis": "latest",
         "mime-types": "^2.1.35",
