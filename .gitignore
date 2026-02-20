@@ -34,3 +34,6 @@ backend/auth_info_baileys/
 
 # Uploaded media files
 backend/uploads/
+
+core/target/
+
