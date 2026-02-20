@@ -3,8 +3,15 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/index.ts",
-        "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outdir=dist --packages=external",
+        "dev:api": "tsx watch src/api-main.ts",
+        "dev:gateway": "tsx watch src/gateway-main.ts",
+        "build:monolith": "esbuild src/index.ts --bundle --platform=node --format=esm --outdir=dist --packages=external",
+        "build:api": "esbuild src/api-main.ts --bundle --platform=node --format=esm --outdir=dist/api --packages=external",
+        "build:gateway": "esbuild src/gateway-main.ts --bundle --platform=node --format=esm --outdir=dist/gateway --packages=external",
+        "build": "npm run build:api && npm run build:gateway",
         "start": "node dist/index.js",
+        "start:api": "node dist/api/api-main.js",
+        "start:gateway": "node dist/gateway/gateway-main.js",
         "test": "vitest run"
     },
     "dependencies": {

@@ -1,7 +1,8 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { Platform, AIProvider } from "@prisma/client";
-import { BaileysService } from "../services/baileys.service";
+import { redis } from "../services/redis.service";
+import { sendCommand } from "../services/gateway-command.client";
 import { ConversationService } from "../services/conversation.service";
 import { authMiddleware } from "../middleware/auth.middleware";
 
@@ -62,10 +63,14 @@ export const botController = new Elysia({ prefix: "/bots" })
             // ipv6Address removed from input validation as it is auto-generated
         })
     })
-    // Baileys Management
+    // Baileys Management (via Gateway commands + Redis reads)
     .post("/:id/connect", async ({ params: { id }, set }) => {
         try {
-            await BaileysService.startSession(id);
+            const res = await sendCommand(id, "START_SESSION", {});
+            if (!res.success) {
+                set.status = 500;
+                return `Failed to start session: ${res.error}`;
+            }
             return { success: true, message: "Session initialization started" };
         } catch (e: any) {
             set.status = 500;
@@ -73,7 +78,7 @@ export const botController = new Elysia({ prefix: "/bots" })
         }
     })
     .get("/:id/qr", async ({ params: { id }, set }) => {
-        const qr = BaileysService.getQR(id);
+        const qr = await redis.get(`bot:qr:${id}`);
         if (!qr) {
             set.status = 404;
             return { message: "QR not generated or session already connected" };
@@ -81,18 +86,27 @@ export const botController = new Elysia({ prefix: "/bots" })
         return { qr };
     })
     .get("/:id/status", async ({ params: { id } }) => {
-        const session = BaileysService.getSession(id);
-        const qr = BaileysService.getQR(id);
+        const status = await redis.hgetall(`bot:status:${id}`);
+        const qr = await redis.get(`bot:qr:${id}`);
+
+        let user: any = null;
+        if (status.user) {
+            try { user = JSON.parse(status.user); } catch {}
+        }
 
         return {
-            connected: !!session?.user,
+            connected: status.connected === "true",
             hasQr: !!qr,
-            user: session?.user
+            user,
         };
     })
     .post("/:id/disconnect", async ({ params: { id }, set }) => {
         try {
-            await BaileysService.stopSession(id);
+            const res = await sendCommand(id, "STOP_SESSION", {});
+            if (!res.success) {
+                set.status = 500;
+                return `Failed to disconnect session: ${res.error}`;
+            }
             return { success: true, message: "Session disconnected successfully" };
         } catch (e: any) {
             set.status = 500;

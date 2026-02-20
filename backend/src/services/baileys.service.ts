@@ -18,10 +18,12 @@ import { prisma } from './postgres.service';
 import { aiEngine } from '../core/ai';
 import { MessageAccumulator } from './accumulator.service';
 import { publishNewMessage } from './stream.service';
+import { redis } from './redis.service';
 import { SessionStatus, Platform } from '@prisma/client';
 import pino from 'pino';
 
 const logger = pino({ level: 'silent' });
+const GATEWAY_ID = process.env.GATEWAY_ID || "default";
 
 // Map to store active sockets: botId -> socket
 const sessions = new Map<string, WASocket>();
@@ -101,6 +103,8 @@ export class BaileysService {
                     try {
                         const url = await QRCode.toDataURL(qr);
                         qrCodes.set(botId, url);
+                        // Dual-write QR to Redis (120s TTL)
+                        redis.set(`bot:qr:${botId}`, url, "EX", 120).catch(() => {});
                     } catch (err) {
                         console.error(`[${new Date().toISOString()}] QR Generation Error`, err);
                     }
@@ -121,6 +125,9 @@ export class BaileysService {
 
                     sessions.delete(botId);
                     qrCodes.delete(botId);
+                    // Dual-write disconnection to Redis
+                    redis.del(`bot:qr:${botId}`).catch(() => {});
+                    redis.hset(`bot:status:${botId}`, { connected: "false" }).catch(() => {});
 
                     if (shouldReconnect) {
                         const attempt = reconnectAttempts.get(botId) || 0;
@@ -138,6 +145,13 @@ export class BaileysService {
                     console.log(`[Baileys] Connection opened for Bot ${botId}`);
                     qrCodes.delete(botId);
                     reconnectAttempts.delete(botId); // Reset backoff on successful connection
+                    // Dual-write connection status to Redis
+                    redis.del(`bot:qr:${botId}`).catch(() => {});
+                    redis.hset(`bot:status:${botId}`, {
+                        connected: "true",
+                        user: JSON.stringify(sock.user || null),
+                        gatewayId: GATEWAY_ID,
+                    }).catch(() => {});
 
                     // Force label sync — labels live in 'regular_high' app state
                     setTimeout(async () => {
@@ -476,6 +490,9 @@ export class BaileysService {
             sessions.delete(botId);
         }
         qrCodes.delete(botId);
+        // Dual-write cleanup to Redis
+        redis.del(`bot:qr:${botId}`).catch(() => {});
+        redis.del(`bot:status:${botId}`).catch(() => {});
 
         // Optionally clear auth data to require new QR scan
         const sessionDir = path.join(AUTH_DIR, botId);

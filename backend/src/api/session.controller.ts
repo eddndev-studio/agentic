@@ -1,7 +1,6 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
-import { BaileysService } from "../services/baileys.service";
-import { aiEngine } from "../core/ai";
+import { sendCommand } from "../services/gateway-command.client";
 import { publishScheduleStep } from "../services/stream.service";
 import { ToolExecutor } from "../core/ai/ToolExecutor";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -95,7 +94,11 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     .post("/labels/sync", async ({ body, set }) => {
         const { botId } = body;
         try {
-            await BaileysService.syncLabels(botId);
+            const res = await sendCommand(botId, "SYNC_LABELS", {});
+            if (!res.success) {
+                set.status = 500;
+                return { error: res.error };
+            }
             return { success: true };
         } catch (e: any) {
             set.status = 500;
@@ -123,9 +126,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Label not found" };
         }
 
-        // Call Baileys to sync with WhatsApp
+        // Sync with WhatsApp via gateway command
         try {
-            await BaileysService.addChatLabel(session.botId, session.identifier, label.waLabelId);
+            await sendCommand(session.botId, "ADD_CHAT_LABEL", {
+                chatJid: session.identifier,
+                waLabelId: label.waLabelId,
+            });
         } catch (e: any) {
             console.warn(`[SessionController] addChatLabel WA sync failed:`, e.message);
         }
@@ -161,9 +167,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Label not found" };
         }
 
-        // Call Baileys to sync with WhatsApp
+        // Sync with WhatsApp via gateway command
         try {
-            await BaileysService.removeChatLabel(session.botId, session.identifier, label.waLabelId);
+            await sendCommand(session.botId, "REMOVE_CHAT_LABEL", {
+                chatJid: session.identifier,
+                waLabelId: label.waLabelId,
+            });
         } catch (e: any) {
             console.warn(`[SessionController] removeChatLabel WA sync failed:`, e.message);
         }
@@ -217,15 +226,19 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Session not found" };
         }
 
-        const sent = await BaileysService.sendMessage(
-            session.botId,
-            session.identifier,
-            { text: body.text }
-        );
+        try {
+            const res = await sendCommand(session.botId, "SEND_MESSAGE", {
+                to: session.identifier,
+                content: { text: body.text },
+            });
 
-        if (!sent) {
+            if (!res.success) {
+                set.status = 500;
+                return { error: res.error || "Failed to send message — bot may not be connected" };
+            }
+        } catch (e: any) {
             set.status = 500;
-            return { error: "Failed to send message — bot may not be connected" };
+            return { error: e.message || "Failed to send message" };
         }
 
         // Persist the sent message
@@ -272,8 +285,11 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             },
         });
 
-        // Trigger AIEngine processing
-        aiEngine.processMessage(id, syntheticMsg).catch((err) => {
+        // Trigger AI processing via gateway command (fire-and-forget)
+        sendCommand(session.botId, "FORCE_AI", {
+            sessionId: id,
+            messageId: syntheticMsg.id,
+        }).catch((err) => {
             console.error("[SessionController] force-ai error:", err);
         });
 

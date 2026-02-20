@@ -1,7 +1,6 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
-import { aiEngine } from "../core/ai";
-import { MessageAccumulator } from "../services/accumulator.service";
+import { sendCommandFireAndForget } from "../services/gateway-command.client";
 import { Platform, SessionStatus } from "@prisma/client";
 
 export const webhookController = new Elysia({ prefix: "/webhook" })
@@ -74,23 +73,13 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
                 return { status: "received", messageId: message.id, bot: bot.name };
             }
 
-            // 5. Process with AI Engine (with optional message accumulation)
-            if (bot.messageDelay > 0) {
-                MessageAccumulator.accumulate(
-                    session.id,
-                    message,
-                    bot.messageDelay,
-                    (sid, msgs) => {
-                        aiEngine.processMessages(sid, msgs).catch(err => {
-                            console.error("[Webhook] AI Engine Error:", err);
-                        });
-                    }
-                );
-            } else {
-                aiEngine.processMessage(session.id, message).catch(err => {
-                    console.error("[Webhook] AI Engine Error:", err);
-                });
-            }
+            // 5. Trigger AI processing via gateway command (fire-and-forget)
+            sendCommandFireAndForget(bot.id, "FORCE_AI", {
+                sessionId: session.id,
+                messageId: message.id,
+            }).catch(err => {
+                console.error("[Webhook] Gateway command error:", err);
+            });
 
             return { status: "received", messageId: message.id, bot: bot.name };
 

@@ -183,8 +183,45 @@ export class GeminiProvider implements AIProvider {
     private formatContents(messages: AIMessage[]): any[] {
         const contents: any[] = [];
 
-        for (const msg of messages) {
+        // Pre-scan: collect indices of assistant+tool exchanges that lack thought_signature.
+        // These must be converted to text so Gemini doesn't reject them.
+        const unsafeToolCallIndices = new Set<number>();
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            if (msg.role === "assistant" && msg.toolCalls?.length) {
+                const missingSignature = msg.toolCalls.some(tc => !tc.thoughtSignature);
+                if (missingSignature) {
+                    unsafeToolCallIndices.add(i);
+                    // Also mark the following tool result messages
+                    for (let j = i + 1; j < messages.length && messages[j].role === "tool"; j++) {
+                        unsafeToolCallIndices.add(j);
+                    }
+                }
+            }
+        }
+
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
             if (msg.role === "system") continue;
+
+            // Convert unsafe tool exchanges to plain text
+            if (unsafeToolCallIndices.has(i)) {
+                if (msg.role === "assistant" && msg.toolCalls?.length) {
+                    const callSummaries = msg.toolCalls
+                        .map(tc => `[Called ${tc.name}(${JSON.stringify(tc.arguments)})]`)
+                        .join("\n");
+                    const text = msg.content
+                        ? `${msg.content}\n${callSummaries}`
+                        : callSummaries;
+                    contents.push({ role: "model", parts: [{ text }] });
+                } else if (msg.role === "tool") {
+                    contents.push({
+                        role: "user",
+                        parts: [{ text: `[Tool result for ${msg.name}]: ${msg.content ?? "ok"}` }],
+                    });
+                }
+                continue;
+            }
 
             if (msg.role === "user") {
                 contents.push({

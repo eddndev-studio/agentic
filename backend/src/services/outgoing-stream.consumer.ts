@@ -1,8 +1,9 @@
 import { redis } from "./redis.service";
 import { BaileysService } from "./baileys.service";
 
-const STREAM_KEY = "agentic:queue:outgoing";
-const GROUP_NAME = "node_gateway_group";
+const GATEWAY_ID = process.env.GATEWAY_ID || "default";
+const STREAM_KEY = `agentic:queue:outgoing:${GATEWAY_ID}`;
+const GROUP_NAME = `outgoing_${GATEWAY_ID}`;
 const CONSUMER_NAME = `node_consumer_${process.pid}`;
 
 interface OutgoingPayload {

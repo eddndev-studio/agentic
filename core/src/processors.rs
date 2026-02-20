@@ -227,11 +227,30 @@ pub async fn execute_step(
             }
         }
 
-        // XADD to outgoing queue
+        // XADD to per-gateway outgoing queue
         if outgoing_payload.text.is_some()
             || outgoing_payload.image.is_some()
             || outgoing_payload.audio.is_some()
         {
+            // Look up which gateway owns this bot
+            let gateway_id: Option<String> = redis::cmd("HGET")
+                .arg("gateway:assignments")
+                .arg(&session.bot_id)
+                .query_async(&mut state.redis.clone())
+                .await
+                .unwrap_or(None);
+
+            let stream_key = match gateway_id {
+                Some(ref gw) => format!("agentic:queue:outgoing:{}", gw),
+                None => {
+                    error!(
+                        bot_id = %session.bot_id,
+                        "No gateway assignment found, dropping outgoing message"
+                    );
+                    return Ok(());
+                }
+            };
+
             let msg = OutgoingMessage {
                 bot_id: session.bot_id.clone(),
                 target: session.identifier.clone(),
@@ -242,7 +261,7 @@ pub async fn execute_step(
 
             if let Ok(json_str) = serde_json::to_string(&msg) {
                 let result: redis::RedisResult<String> = redis::cmd("XADD")
-                    .arg("agentic:queue:outgoing")
+                    .arg(&stream_key)
                     .arg("MAXLEN")
                     .arg("~")
                     .arg(10000)
@@ -258,13 +277,15 @@ pub async fn execute_step(
                             stream_id = id,
                             execution_id = execution_id,
                             step_order = step_order,
-                            "XADD to agentic:queue:outgoing"
+                            stream_key = %stream_key,
+                            "XADD to outgoing queue"
                         );
                     }
                     Err(e) => {
                         error!(
                             error = %e,
                             execution_id = execution_id,
+                            stream_key = %stream_key,
                             "Failed to XADD to outgoing queue"
                         );
                     }

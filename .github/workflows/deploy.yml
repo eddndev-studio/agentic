@@ -51,18 +51,26 @@ jobs:
 
             echo "Installing systemd services..."
             cd ..
-            sudo cp deploy/agentic-backend.service /etc/systemd/system/
+            sudo cp deploy/agentic-api.service /etc/systemd/system/
+            sudo cp deploy/agentic-gateway@.service /etc/systemd/system/
             sudo cp deploy/agentic-core.service /etc/systemd/system/
+            sudo cp deploy/.env.gateway-1 /var/www/agentic/deploy/
             sudo systemctl daemon-reload
-            sudo systemctl enable agentic-core agentic-backend
+            sudo systemctl enable agentic-core agentic-api agentic-gateway@1
+
+            echo "Stopping old monolith (if present)..."
+            sudo systemctl stop agentic-backend 2>/dev/null || true
+            sudo systemctl disable agentic-backend 2>/dev/null || true
 
             echo "Restarting services..."
             sudo systemctl restart agentic-core
-            sudo systemctl restart agentic-backend
+            sudo systemctl restart agentic-gateway@1
+            sudo systemctl restart agentic-api
 
             echo "Verifying services..."
-            sleep 2
+            sleep 3
             sudo systemctl is-active agentic-core
-            sudo systemctl is-active agentic-backend
+            sudo systemctl is-active agentic-api
+            sudo systemctl is-active agentic-gateway@1
 
             echo "Deployment Complete!"
