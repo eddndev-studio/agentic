@@ -40,3 +40,26 @@ export async function publishNewMessage(params: {
         payload
     );
 }
+
+/**
+ * Publishes a SCHEDULE_STEP event to the Redis Stream for the Rust core to process.
+ * Used when manually executing a flow from the API — the Rust core handles
+ * delay/jitter calculation and step advancement.
+ */
+export async function publishScheduleStep(executionId: string, stepOrder: number) {
+    const payload = JSON.stringify({
+        type: "SCHEDULE_STEP",
+        execution_id: executionId,
+        step_order: stepOrder,
+    });
+
+    await redis.xadd(
+        "agentic:queue:incoming",
+        "MAXLEN",
+        "~",
+        "10000",
+        "*",
+        "payload",
+        payload
+    );
+}

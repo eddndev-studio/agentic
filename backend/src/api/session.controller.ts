@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { BaileysService } from "../services/baileys.service";
 import { aiEngine } from "../core/ai";
-import { flowEngine } from "../core/flow";
+import { publishScheduleStep } from "../services/stream.service";
 import { ToolExecutor } from "../core/ai/ToolExecutor";
 import { authMiddleware } from "../middleware/auth.middleware";
 
@@ -313,9 +313,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             },
         });
 
-        // Schedule first step
-        flowEngine.scheduleStep(execution.id, 0).catch((err) => {
-            console.error("[SessionController] execute-flow error:", err);
+        // Publish to Redis Stream — Rust core handles step scheduling
+        publishScheduleStep(execution.id, 0).catch((err) => {
+            console.error("[SessionController] execute-flow stream publish error:", err);
         });
 
         return { success: true, execution };
