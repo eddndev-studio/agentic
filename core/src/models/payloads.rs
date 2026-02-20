@@ -20,6 +20,12 @@ pub enum IncomingMessage {
         execution_id: String,
         step_id: String,
     },
+    /// A request to schedule step processing for an execution (used by manual flow execution from the API)
+    #[serde(rename = "SCHEDULE_STEP")]
+    ScheduleStep {
+        execution_id: String,
+        step_order: i32,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

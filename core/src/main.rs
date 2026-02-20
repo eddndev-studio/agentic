@@ -171,6 +171,26 @@ async fn main() -> Result<()> {
                                                     }
                                                 });
                                             }
+                                            models::payloads::IncomingMessage::ScheduleStep {
+                                                execution_id,
+                                                step_order,
+                                            } => {
+                                                info!(
+                                                    execution_id = execution_id,
+                                                    step_order = step_order,
+                                                    "Received SCHEDULE_STEP"
+                                                );
+
+                                                let spawn_state = state.clone();
+                                                tokio::spawn(async move {
+                                                    flow_engine::schedule_step(
+                                                        spawn_state,
+                                                        execution_id,
+                                                        step_order,
+                                                    )
+                                                    .await;
+                                                });
+                                            }
                                         }
 
                                         // Acknowledge message
