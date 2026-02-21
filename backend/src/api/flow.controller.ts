@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { StepType } from "@prisma/client";
+import { syncFlowTool } from "../services/flow-tool-sync";
 
 export const flowController = new Elysia({ prefix: "/flows" })
     .get("/", async ({ query }) => {
@@ -65,6 +66,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                 },
                 include: { steps: true, triggers: true }
             });
+            syncFlowTool(flow).catch(() => {});
             return flow;
         } catch (e: any) {
             set.status = 500;
@@ -110,6 +112,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                     include: { steps: true, triggers: true }
                 });
             });
+            syncFlowTool(flow).catch(() => {});
             return flow;
         } catch (e: any) {
             set.status = 500;
@@ -175,6 +178,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                 include: { steps: true, triggers: true }
             });
 
+            syncFlowTool(newFlow).catch(() => {});
             return newFlow;
         } catch (e: any) {
             set.status = 500;

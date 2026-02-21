@@ -1,6 +1,7 @@
 import { prisma } from "../../services/postgres.service";
 import { BaileysService } from "../../services/baileys.service";
 import { EncryptionService } from "../../services/encryption.service";
+import { isBuiltinTool } from "./builtin-tools";
 import type { Session } from "@prisma/client";
 
 export interface ToolResult {
@@ -12,6 +13,7 @@ export class ToolExecutor {
 
     /**
      * Execute a tool call by looking up the tool definition and dispatching by actionType.
+     * Built-in tools skip the DB lookup entirely (fast-path).
      */
     static async execute(
         botId: string,
@@ -19,28 +21,45 @@ export class ToolExecutor {
         toolCall: { name: string; arguments: Record<string, any> },
         originalMessage?: { content?: string | null }
     ): Promise<ToolResult> {
-        const tool = await prisma.tool.findFirst({
-            where: { botId, name: toolCall.name, status: "ACTIVE" },
-        });
-
-        if (!tool) {
-            return { success: false, data: `Tool '${toolCall.name}' not found or disabled.` };
-        }
-
         try {
-            switch (tool.actionType) {
-                case "FLOW":
-                    return await this.executeFlow(botId, session, tool, toolCall.arguments);
-                case "WEBHOOK":
-                    return await this.executeWebhook(tool, toolCall.arguments, session);
-                case "BUILTIN":
-                    return await this.executeBuiltin(botId, session, tool, toolCall.arguments);
-                default:
-                    return { success: false, data: `Unknown actionType: ${tool.actionType}` };
+            // Fast-path: built-in tools don't need a DB record
+            if (isBuiltinTool(toolCall.name)) {
+                return await this.executeBuiltin(botId, session, { name: toolCall.name }, toolCall.arguments);
             }
+
+            const tool = await prisma.tool.findFirst({
+                where: { botId, name: toolCall.name, status: "ACTIVE" },
+            });
+
+            if (!tool) {
+                return { success: false, data: `Tool '${toolCall.name}' not found or disabled.` };
+            }
+
+            return await this.dispatchByActionType(botId, session, tool, toolCall.arguments);
         } catch (error: any) {
             console.error(`[ToolExecutor] Error executing tool '${toolCall.name}':`, error);
             return { success: false, data: error.message || "Tool execution failed" };
+        }
+    }
+
+    /**
+     * Dispatch execution based on the tool's actionType.
+     */
+    private static async dispatchByActionType(
+        botId: string,
+        session: Session,
+        tool: any,
+        args: Record<string, any>
+    ): Promise<ToolResult> {
+        switch (tool.actionType) {
+            case "FLOW":
+                return await this.executeFlow(botId, session, tool, args);
+            case "WEBHOOK":
+                return await this.executeWebhook(tool, args, session);
+            case "BUILTIN":
+                return await this.executeBuiltin(botId, session, tool, args);
+            default:
+                return { success: false, data: `Unknown actionType: ${tool.actionType}` };
         }
     }
 
@@ -149,8 +168,7 @@ export class ToolExecutor {
         tool: any,
         args: Record<string, any>
     ): Promise<ToolResult> {
-        const config = tool.actionConfig as any;
-        const builtinName = config?.builtinName || tool.name;
+        const builtinName = tool.name || (tool.actionConfig as any)?.builtinName;
 
         switch (builtinName) {
             case "lookup_client": {

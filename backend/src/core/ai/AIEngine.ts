@@ -10,6 +10,7 @@ import * as fs from "fs";
 import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 import type { Message } from "@prisma/client";
 import { eventBus } from "../../services/event-bus";
+import { BUILTIN_TOOLS } from "./builtin-tools";
 
 const MAX_TOOL_ITERATIONS = 10;
 const LOCK_TTL = 60; // seconds
@@ -134,16 +135,21 @@ export class AIEngine {
             const userMessage: AIMessage = { role: "user", content: userContent };
             await ConversationService.addMessage(sessionId, userMessage);
 
-            // 5. Load tools from DB
+            // 5. Load tools from DB + inject builtins
             const tools = await prisma.tool.findMany({
                 where: { botId: bot.id, status: "ACTIVE" },
             });
 
-            const toolDefinitions: AIToolDefinition[] = tools.map((t) => ({
+            const dbToolDefs: AIToolDefinition[] = tools.map((t) => ({
                 name: t.name,
                 description: t.description,
                 parameters: (t.parameters as Record<string, any>) || { type: "object", properties: {} },
             }));
+
+            // Append builtins that don't collide with DB tools (DB has priority)
+            const dbToolNames = new Set(dbToolDefs.map((t) => t.name));
+            const filteredBuiltins = BUILTIN_TOOLS.filter((b) => !dbToolNames.has(b.name));
+            const toolDefinitions: AIToolDefinition[] = [...dbToolDefs, ...filteredBuiltins];
 
             // 6. Build messages array
             const history = await ConversationService.getHistory(sessionId);

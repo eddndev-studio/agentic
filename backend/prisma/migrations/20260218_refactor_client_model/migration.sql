@@ -7,24 +7,36 @@ ALTER TABLE "Client" DROP COLUMN IF EXISTS "appointmentPdfPath";
 ALTER TABLE "Client" DROP COLUMN IF EXISTS "contactNumber";
 
 -- Add CURP column
-ALTER TABLE "Client" ADD COLUMN "curp" TEXT;
-CREATE UNIQUE INDEX "Client_curp_key" ON "Client"("curp");
-CREATE INDEX "Client_curp_idx" ON "Client"("curp");
+ALTER TABLE "Client" ADD COLUMN IF NOT EXISTS "curp" TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS "Client_curp_key" ON "Client"("curp");
+CREATE INDEX IF NOT EXISTS "Client_curp_idx" ON "Client"("curp");
 
 -- Make encryptedPassword optional
 ALTER TABLE "Client" ALTER COLUMN "encryptedPassword" DROP NOT NULL;
 
--- Create new enum values
-ALTER TYPE "ClientStatus" ADD VALUE IF NOT EXISTS 'REGISTRO_PENDIENTE';
-ALTER TYPE "ClientStatus" ADD VALUE IF NOT EXISTS 'PAGO_GOBIERNO_PENDIENTE';
-ALTER TYPE "ClientStatus" ADD VALUE IF NOT EXISTS 'PAGO_GOBIERNO_REALIZADO';
-ALTER TYPE "ClientStatus" ADD VALUE IF NOT EXISTS 'EXAMEN_EN_PROCESO';
-ALTER TYPE "ClientStatus" ADD VALUE IF NOT EXISTS 'LICENCIA_LISTA';
-ALTER TYPE "ClientStatus" ADD VALUE IF NOT EXISTS 'COMPLETADO';
+-- Recreate ClientStatus enum with all new values via column swap
+-- (Postgres cannot ADD VALUE + USE in same transaction, so we recreate the type)
+CREATE TYPE "ClientStatus_new" AS ENUM (
+    'REGISTRO_PENDIENTE',
+    'PAGO_GOBIERNO_PENDIENTE',
+    'PAGO_GOBIERNO_REALIZADO',
+    'EXAMEN_EN_PROCESO',
+    'LICENCIA_LISTA',
+    'COMPLETADO'
+);
 
--- Update existing clients to new default status
-UPDATE "Client" SET status = 'REGISTRO_PENDIENTE' WHERE status IN ('PAGO_PENDIENTE', 'LINEA_DE_CAPTURA_CREADA', 'CITA_AGENDADA', 'PAGADO');
+ALTER TABLE "Client" ALTER COLUMN "status" DROP DEFAULT;
+ALTER TABLE "Client" ALTER COLUMN "status" TYPE "ClientStatus_new"
+    USING (
+        CASE "status"::text
+            WHEN 'PAGO_PENDIENTE' THEN 'REGISTRO_PENDIENTE'
+            WHEN 'LINEA_DE_CAPTURA_CREADA' THEN 'REGISTRO_PENDIENTE'
+            WHEN 'CITA_AGENDADA' THEN 'REGISTRO_PENDIENTE'
+            WHEN 'PAGADO' THEN 'REGISTRO_PENDIENTE'
+            ELSE 'REGISTRO_PENDIENTE'
+        END::"ClientStatus_new"
+    );
 
--- Rename enum: drop old values (requires recreating the type in Postgres)
--- Since Postgres doesn't support DROP VALUE, we recreate via column swap
+DROP TYPE "ClientStatus";
+ALTER TYPE "ClientStatus_new" RENAME TO "ClientStatus";
 ALTER TABLE "Client" ALTER COLUMN "status" SET DEFAULT 'REGISTRO_PENDIENTE'::"ClientStatus";

@@ -1,17 +1,8 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { authMiddleware } from "../middleware/auth.middleware";
-
-/**
- * Sanitize a tool name for AI function calling (snake_case, no special chars).
- */
-function sanitizeToolName(name: string): string {
-    return name
-        .toLowerCase()
-        .replace(/[^a-z0-9_]/g, "_")
-        .replace(/_+/g, "_")
-        .replace(/^_|_$/g, "");
-}
+import { sanitizeToolName } from "../utils/sanitize";
+import { isBuiltinTool } from "../core/ai/builtin-tools";
 
 export const toolController = new Elysia({ prefix: "/tools" })
     .use(authMiddleware)
@@ -48,6 +39,11 @@ export const toolController = new Elysia({ prefix: "/tools" })
 
         const sanitizedName = sanitizeToolName(name);
 
+        if (isBuiltinTool(sanitizedName)) {
+            set.status = 409;
+            return { error: `Tool name '${sanitizedName}' is reserved (built-in tool).` };
+        }
+
         try {
             const tool = await prisma.tool.create({
                 data: {
@@ -76,7 +72,14 @@ export const toolController = new Elysia({ prefix: "/tools" })
 
         try {
             const data: any = {};
-            if (name !== undefined) data.name = sanitizeToolName(name);
+            if (name !== undefined) {
+                const sanitized = sanitizeToolName(name);
+                if (isBuiltinTool(sanitized)) {
+                    set.status = 409;
+                    return { error: `Tool name '${sanitized}' is reserved (built-in tool).` };
+                }
+                data.name = sanitized;
+            }
             if (description !== undefined) data.description = description;
             if (parameters !== undefined) data.parameters = parameters;
             if (actionType !== undefined) data.actionType = actionType;
@@ -103,7 +106,7 @@ export const toolController = new Elysia({ prefix: "/tools" })
         }
     })
 
-    // Migrate flow to tool
+    // Migrate flow to tool (fallback — auto-sync usually handles this)
     .post("/from-flow/:flowId", async ({ params: { flowId }, set }) => {
         const flow = await prisma.flow.findUnique({
             where: { id: flowId },
@@ -115,6 +118,12 @@ export const toolController = new Elysia({ prefix: "/tools" })
             return { error: "Flow not found" };
         }
 
+        // Return existing tool if already auto-created
+        const existing = await prisma.tool.findFirst({
+            where: { flowId: flow.id },
+        });
+        if (existing) return existing;
+
         const sanitizedName = sanitizeToolName(flow.name);
 
         try {
@@ -122,7 +131,7 @@ export const toolController = new Elysia({ prefix: "/tools" })
                 data: {
                     botId: flow.botId,
                     name: sanitizedName,
-                    description: flow.description || `Executes the '${flow.name}' flow sequence.`,
+                    description: flow.description || `Ejecuta el flujo '${flow.name}'.`,
                     parameters: { type: "object", properties: {} },
                     actionType: "FLOW",
                     actionConfig: { flowId: flow.id },
