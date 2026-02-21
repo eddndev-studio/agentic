@@ -10,10 +10,13 @@ export class OpenAIProvider implements AIProvider {
     }
 
     async chat(request: AICompletionRequest): Promise<AICompletionResponse> {
+        const FIXED_TEMPERATURE_MODELS = ["gpt-5-nano", "gpt-5-mini", "gpt-5", "o1", "o1-mini", "o3-mini"];
+        const skipTemperature = FIXED_TEMPERATURE_MODELS.some(m => request.model.startsWith(m));
+
         const body: any = {
             model: request.model,
             messages: this.formatMessages(request.messages),
-            temperature: request.temperature ?? 0.7,
+            ...(skipTemperature ? {} : { temperature: request.temperature ?? 0.7 }),
         };
 
         if (request.tools && request.tools.length > 0) {

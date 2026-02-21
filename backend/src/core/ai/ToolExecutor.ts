@@ -446,7 +446,7 @@ export class ToolExecutor {
                     },
                 });
 
-                return { success: true, data: `Respuesta enviada citando mensaje '${messageId}'.` };
+                return { success: true, data: `Mensaje enviado. No respondas de nuevo a este mensaje, ya fue contestado.` };
             }
 
             case "send_followup_message": {

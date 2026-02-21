@@ -188,6 +188,8 @@ export class AIEngine {
 
             // 8. Tool call loop
             let iterations = 0;
+            const executedTools = new Set<string>();
+            const repliedMessageIds = new Set<string>();
             while (response.toolCalls.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
                 iterations++;
 
@@ -204,12 +206,28 @@ export class AIEngine {
                 for (const toolCall of response.toolCalls) {
                     console.log(`[AIEngine] Executing tool: ${toolCall.name}(${JSON.stringify(toolCall.arguments)})`);
 
+                    // Prevent reply_to_message loops: skip if same message_id already replied
+                    if (toolCall.name === "reply_to_message" && toolCall.arguments.message_id) {
+                        if (repliedMessageIds.has(toolCall.arguments.message_id)) {
+                            toolMessages.push({
+                                role: "tool",
+                                content: "Ya respondiste a este mensaje. No lo repitas.",
+                                toolCallId: toolCall.id,
+                                name: toolCall.name,
+                            });
+                            continue;
+                        }
+                        repliedMessageIds.add(toolCall.arguments.message_id);
+                    }
+
                     const result = await ToolExecutor.execute(
                         bot.id,
                         session,
                         toolCall,
                         messages[messages.length - 1]
                     );
+
+                    executedTools.add(toolCall.name);
 
                     const resultStr = typeof result.data === "string"
                         ? result.data
@@ -257,11 +275,16 @@ export class AIEngine {
             // 9. Stop typing + send final response
             await BaileysService.sendPresence(bot.id, session.identifier, "paused");
 
-            if (response.content) {
+            // Skip final message if reply_to_message already sent the response directly
+            const alreadyReplied = executedTools.has("reply_to_message");
+
+            if (response.content && !alreadyReplied) {
                 await BaileysService.sendMessage(bot.id, session.identifier, { text: response.content });
                 eventBus.emitBotEvent({ type: 'message:sent', botId: bot.id, sessionId, content: response.content });
+            }
 
-                // Add assistant response to history
+            if (response.content) {
+                // Always persist to history, even if we didn't send via WhatsApp
                 const assistantMsg: AIMessage = { role: "assistant", content: response.content };
                 await ConversationService.addMessage(sessionId, assistantMsg);
             }
