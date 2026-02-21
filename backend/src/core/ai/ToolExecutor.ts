@@ -86,8 +86,6 @@ export class ToolExecutor {
             return { success: false, data: `Flow '${flowId}' not found.` };
         }
 
-        const results: string[] = [];
-
         for (const step of flow.steps) {
             let content = step.content || "";
 
@@ -99,22 +97,19 @@ export class ToolExecutor {
             try {
                 if (step.type === "TEXT" && content) {
                     await BaileysService.sendMessage(botId, session.identifier, { text: content });
-                    results.push(`Sent text: ${content.substring(0, 50)}`);
                 } else if (step.type === "IMAGE" && step.mediaUrl) {
                     await BaileysService.sendMessage(botId, session.identifier, {
                         image: { url: step.mediaUrl },
                         caption: content || undefined,
                     });
-                    results.push("Sent image");
                 } else if ((step.type === "AUDIO" || step.type === "PTT") && step.mediaUrl) {
                     await BaileysService.sendMessage(botId, session.identifier, {
                         audio: { url: step.mediaUrl },
                         ptt: step.type === "PTT",
                     });
-                    results.push(`Sent ${step.type.toLowerCase()}`);
                 }
             } catch (e: any) {
-                results.push(`Failed step ${step.order}: ${e.message}`);
+                console.error(`[ToolExecutor] Flow '${flow.name}' step ${step.order} failed:`, e.message);
             }
 
             // Respect step delay
@@ -123,7 +118,10 @@ export class ToolExecutor {
             }
         }
 
-        return { success: true, data: `Executed flow '${flow.name}' with ${flow.steps.length} steps. ${results.join("; ")}` };
+        return {
+            success: true,
+            data: `[Flujo ejecutado: ${flow.name}]${flow.description ? ` ${flow.description}` : ""}`,
+        };
     }
 
     /**
