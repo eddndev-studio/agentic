@@ -5,233 +5,317 @@ import Layout from "../../layouts/Layout.astro";
 <Layout title="Monitor">
     <div
         x-data="botMonitor"
-        class="h-[calc(100vh-4rem)] flex flex-col"
+        class="h-[calc(100vh-4rem)] flex overflow-hidden"
     >
-        <!-- Header -->
-        <header class="flex items-center justify-between border-b border-wa-border pb-4 mb-4 flex-shrink-0">
-            <div class="flex items-center gap-3">
+        <!-- Left: Sessions panel -->
+        <div
+            class="flex-col border-r border-wa-border min-h-0 bg-wa-bg-panel"
+            :class="selectedSession ? 'hidden md:flex md:w-[360px] md:flex-shrink-0' : 'flex w-full md:w-[360px] md:flex-shrink-0'"
+        >
+            <!-- Panel header -->
+            <div class="h-14 bg-wa-bg-header flex items-center px-4 gap-3 flex-shrink-0">
                 <a href="#" @click.prevent="goBack()" class="text-wa-text-secondary hover:text-wa-green transition-colors">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
                 </a>
-                <h1 class="text-xl font-bold tracking-tight" x-text="$t('monitor')">Monitor</h1>
-                <span class="text-[10px] font-sans text-wa-green bg-wa-green/10 px-2 py-0.5" x-show="botName" x-text="botName"></span>
+                <h1 class="text-base font-semibold flex-1" x-text="botName || $t('monitor')"></h1>
             </div>
-        </header>
 
-        <!-- Two-panel layout -->
-        <div class="flex-1 flex gap-4 min-h-0">
-
-            <!-- Left: Sessions list -->
-            <div
-                class="flex-col bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden min-h-0"
-                :class="selectedSession ? 'hidden md:flex md:w-80 md:flex-shrink-0' : 'flex w-full md:w-80 md:flex-shrink-0'"
-            >
-                <!-- Search -->
-                <div class="p-3 border-b border-wa-border">
+            <!-- Search bar -->
+            <div class="p-2 bg-wa-bg-panel">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
                     <input
                         type="text"
                         x-model="searchQuery"
                         @input.debounce.300ms="loadSessions()"
-                        class="w-full bg-wa-bg-deep border border-wa-border text-white text-xs p-2 rounded-lg focus:border-wa-green focus:outline-none placeholder-wa-text-secondary"
+                        class="w-full bg-wa-bg-hover text-wa-text-primary text-sm py-1.5 pl-9 pr-3 rounded-full focus:outline-none placeholder-wa-text-secondary"
                         :placeholder="$t('search_sessions')"
                     />
                 </div>
+            </div>
 
-                <!-- Session items -->
-                <div class="flex-1 overflow-y-auto">
-                    <template x-if="sessions.length === 0">
-                        <div class="p-6 text-center text-xs text-wa-text-secondary font-sans" x-text="$t('no_sessions')"></div>
-                    </template>
+            <!-- Session items -->
+            <div class="flex-1 overflow-y-auto">
+                <template x-if="sessions.length === 0">
+                    <div class="p-6 text-center text-sm text-wa-text-secondary" x-text="$t('no_sessions')"></div>
+                </template>
 
-                    <template x-for="s in sessions" :key="s.id">
-                        <button
-                            @click="selectSession(s)"
-                            class="w-full text-left p-3 border-b border-wa-border hover:bg-wa-bg-hover transition-colors"
-                            :class="selectedSession?.id === s.id ? 'bg-wa-green/10 border-l-2 border-l-wa-green' : ''"
-                        >
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1 min-w-0">
-                                    <div class="font-medium text-sm text-white truncate" x-text="s.name || s.identifier"></div>
-                                    <div class="text-[10px] text-wa-text-secondary font-sans truncate" x-text="s.identifier"></div>
-                                </div>
-                                <div class="flex flex-col items-end flex-shrink-0 ml-2">
-                                    <span class="text-[10px] text-wa-text-secondary" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
-                                    <span class="text-[10px] text-wa-text-secondary font-sans" x-text="s.messageCount + ' msgs'"></span>
-                                </div>
+                <template x-for="s in sessions" :key="s.id">
+                    <button
+                        @click="selectSession(s)"
+                        class="w-full text-left px-3 py-3 flex items-center gap-3 hover:bg-wa-bg-hover transition-colors border-b border-wa-border/50"
+                        :class="selectedSession?.id === s.id ? 'bg-wa-bg-hover' : ''"
+                    >
+                        <!-- Avatar -->
+                        <div
+                            class="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                            :style="`background:${avatarColor(s.name || s.identifier)}`"
+                            x-text="avatarInitials(s.name || s.identifier)"
+                        ></div>
+
+                        <!-- Session info -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-baseline">
+                                <span class="font-medium text-[15px] text-wa-text-primary truncate" x-text="s.name || s.identifier"></span>
+                                <span class="text-xs text-wa-text-secondary flex-shrink-0 ml-2" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
                             </div>
-                            <div x-show="s.lastMessage" class="mt-1 text-xs text-wa-text-secondary truncate" x-text="s.lastMessage?.content || ''"></div>
-                            <div x-show="s.labels?.length" class="mt-1.5 flex flex-wrap gap-1">
+                            <div class="flex items-center gap-1 mt-0.5">
+                                <!-- Double check for fromMe -->
+                                <template x-if="s.lastMessage?.fromMe">
+                                    <svg class="w-4 h-4 flex-shrink-0 wa-check-blue" viewBox="0 0 16 15" fill="currentColor">
+                                        <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.3a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l3.605 4.19a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z"/>
+                                        <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
+                                    </svg>
+                                </template>
+                                <span class="text-sm text-wa-text-secondary truncate" x-text="s.lastMessage?.content || ''"></span>
+                            </div>
+                            <!-- Labels -->
+                            <div x-show="s.labels?.length" class="mt-1 flex flex-wrap gap-1">
                                 <template x-for="lbl in (s.labels || [])" :key="lbl.id">
                                     <span
-                                        class="text-[9px] font-sans px-1.5 py-0.5 rounded-full text-white/90"
+                                        class="text-[9px] px-1.5 py-0.5 rounded-full text-white/90"
                                         :style="`background:${labelColor(lbl.color)}`"
                                         x-text="lbl.name"
                                     ></span>
                                 </template>
                             </div>
-                        </button>
-                    </template>
-                </div>
-            </div>
-
-            <!-- Right: Chat panel -->
-            <div
-                class="flex-1 flex-col bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden min-h-0"
-                :class="selectedSession ? 'flex' : 'hidden md:flex'"
-            >
-                <!-- No session selected -->
-                <template x-if="!selectedSession">
-                    <div class="flex-1 flex items-center justify-center">
-                        <p class="text-xs font-sans text-wa-text-secondary" x-text="$t('no_sessions')"></p>
-                    </div>
+                        </div>
+                    </button>
                 </template>
+            </div>
+        </div>
 
-                <!-- Session selected -->
-                <template x-if="selectedSession">
-                    <div class="flex flex-col h-full min-h-0">
-                        <!-- Chat header -->
-                        <div class="p-4 border-b border-wa-border flex-shrink-0">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <!-- Back button (mobile only) -->
-                                    <button
-                                        @click="selectedSession = null"
-                                        class="md:hidden text-wa-text-secondary hover:text-wa-green transition-colors flex-shrink-0"
-                                    >
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                                        </svg>
-                                    </button>
-                                    <div class="min-w-0">
-                                        <div class="font-bold text-sm truncate" x-text="selectedSession.name || selectedSession.identifier"></div>
-                                        <div class="text-[10px] text-wa-text-secondary font-sans truncate" x-text="selectedSession.identifier"></div>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full" :class="selectedSession.status === 'CONNECTED' ? 'bg-green-500' : 'bg-gray-600'"></span>
-                                    <span class="text-[10px] font-sans text-wa-text-secondary" x-text="selectedSession.status"></span>
-                                </div>
-                            </div>
-                            <!-- Labels row -->
-                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                                <template x-for="lbl in (selectedSession.labels || [])" :key="lbl.id">
-                                    <button
-                                        @click="removeLabel(lbl.id)"
-                                        class="inline-flex items-center gap-1 text-[10px] font-sans px-2 py-0.5 rounded-full text-white/90 hover:opacity-80 transition-opacity cursor-pointer"
-                                        :style="`background:${labelColor(lbl.color)}`"
-                                        :title="'Remove ' + lbl.name"
-                                    >
-                                        <span x-text="lbl.name"></span>
-                                        <svg class="w-3 h-3 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                    </button>
-                                </template>
-                                <!-- Add label dropdown -->
-                                <div class="relative" x-data="{ open: false }">
-                                    <button
-                                        @click="open = !open"
-                                        x-show="availableLabels().length > 0"
-                                        class="text-[10px] font-sans px-2 py-0.5 border border-wa-border text-wa-text-secondary rounded-full hover:border-wa-green hover:text-wa-green transition-colors"
-                                    >+ Label</button>
-                                    <div
-                                        x-show="open"
-                                        @click.outside="open = false"
-                                        class="absolute top-full left-0 mt-1 z-50 bg-wa-bg-deep border border-wa-border rounded shadow-lg min-w-[160px] max-h-48 overflow-y-auto"
-                                        style="display: none;"
-                                    >
-                                        <template x-for="lbl in availableLabels()" :key="lbl.id">
-                                            <button
-                                                @click="assignLabel(lbl.id); open = false"
-                                                class="w-full text-left px-3 py-1.5 text-xs hover:bg-wa-bg-hover flex items-center gap-2"
-                                            >
-                                                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
-                                                <span x-text="lbl.name"></span>
-                                            </button>
-                                        </template>
-                                    </div>
+        <!-- Right: Chat panel -->
+        <div
+            class="flex-1 flex-col min-h-0 min-w-0"
+            :class="selectedSession ? 'flex' : 'hidden md:flex'"
+        >
+            <!-- No session selected (empty state) -->
+            <template x-if="!selectedSession">
+                <div class="flex-1 flex items-center justify-center wa-chat-wallpaper">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-full bg-wa-bg-hover/50 flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-wa-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-wa-text-secondary">Selecciona un chat para comenzar</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Session selected -->
+            <template x-if="selectedSession">
+                <div class="flex flex-col h-full min-h-0">
+                    <!-- Chat header -->
+                    <div class="h-14 bg-wa-bg-header flex items-center px-4 gap-3 flex-shrink-0">
+                        <!-- Back button (mobile) -->
+                        <button
+                            @click="selectedSession = null"
+                            class="md:hidden text-wa-text-secondary hover:text-wa-green transition-colors flex-shrink-0"
+                        >
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+
+                        <!-- Avatar -->
+                        <div
+                            class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                            :style="`background:${avatarColor(selectedSession.name || selectedSession.identifier)}`"
+                            x-text="avatarInitials(selectedSession.name || selectedSession.identifier)"
+                        ></div>
+
+                        <!-- Name + status -->
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-[15px] text-wa-text-primary truncate" x-text="selectedSession.name || selectedSession.identifier"></div>
+                            <div class="text-xs text-wa-text-secondary" x-text="selectedSession.status === 'CONNECTED' ? 'en línea' : 'desconectado'"></div>
+                        </div>
+
+                        <!-- Labels (compact pills) -->
+                        <div class="hidden sm:flex items-center gap-1 flex-shrink-0">
+                            <template x-for="lbl in (selectedSession.labels || []).slice(0, 3)" :key="lbl.id">
+                                <button
+                                    @click="removeLabel(lbl.id)"
+                                    class="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full text-white/90 hover:opacity-80 transition-opacity"
+                                    :style="`background:${labelColor(lbl.color)}`"
+                                    :title="'Remove ' + lbl.name"
+                                >
+                                    <span x-text="lbl.name"></span>
+                                    <svg class="w-2.5 h-2.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </template>
+                            <!-- Add label -->
+                            <div class="relative" x-data="{ open: false }">
+                                <button
+                                    @click="open = !open"
+                                    x-show="availableLabels().length > 0"
+                                    class="text-[9px] px-1.5 py-0.5 border border-wa-border text-wa-text-secondary rounded-full hover:border-wa-green hover:text-wa-green transition-colors"
+                                >+ Label</button>
+                                <div
+                                    x-show="open"
+                                    @click.outside="open = false"
+                                    class="absolute top-full right-0 mt-1 z-50 bg-wa-bg-deep border border-wa-border rounded-lg shadow-lg min-w-[160px] max-h-48 overflow-y-auto"
+                                    style="display: none;"
+                                >
+                                    <template x-for="lbl in availableLabels()" :key="lbl.id">
+                                        <button
+                                            @click="assignLabel(lbl.id); open = false"
+                                            class="w-full text-left px-3 py-1.5 text-xs hover:bg-wa-bg-hover flex items-center gap-2"
+                                        >
+                                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
+                                            <span x-text="lbl.name"></span>
+                                        </button>
+                                    </template>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Messages area -->
-                        <div
-                            x-ref="messagesContainer"
-                            class="flex-1 overflow-y-auto p-4 space-y-3 min-h-0"
-                        >
-                            <template x-if="messages.length === 0">
-                                <div class="flex items-center justify-center h-full">
-                                    <p class="text-xs font-sans text-wa-text-secondary" x-text="$t('no_messages')"></p>
+                        <!-- Three-dot menu -->
+                        <div class="relative flex-shrink-0" x-data="{ menuOpen: false }">
+                            <button @click="menuOpen = !menuOpen" class="w-10 h-10 flex items-center justify-center text-wa-text-secondary hover:text-wa-text-primary transition-colors rounded-full hover:bg-wa-bg-hover">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="5" r="1.5"/>
+                                    <circle cx="12" cy="12" r="1.5"/>
+                                    <circle cx="12" cy="19" r="1.5"/>
+                                </svg>
+                            </button>
+                            <div
+                                x-show="menuOpen"
+                                @click.outside="menuOpen = false"
+                                class="absolute top-full right-0 mt-1 z-50 bg-wa-bg-header border border-wa-border rounded-lg shadow-lg min-w-[180px] py-1"
+                                style="display: none;"
+                            >
+                                <button
+                                    @click="showForceAIModal = true; menuOpen = false"
+                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
+                                >
+                                    <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    <span x-text="$t('force_ai')"></span>
+                                </button>
+                                <button
+                                    @click="openFlowModal(); menuOpen = false"
+                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
+                                >
+                                    <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+                                    <span x-text="$t('run_flow')"></span>
+                                </button>
+                                <button
+                                    @click="openToolModal(); menuOpen = false"
+                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
+                                >
+                                    <svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    <span x-text="$t('run_tool')"></span>
+                                </button>
+                                <!-- Mobile-only labels option -->
+                                <div class="sm:hidden border-t border-wa-border mt-1 pt-1">
+                                    <div class="px-4 py-1.5 text-[10px] text-wa-text-secondary uppercase tracking-wider">Labels</div>
+                                    <template x-for="lbl in (selectedSession.labels || [])" :key="'mob-' + lbl.id">
+                                        <button
+                                            @click="removeLabel(lbl.id); menuOpen = false"
+                                            class="w-full text-left px-4 py-2 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-2"
+                                        >
+                                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
+                                            <span x-text="lbl.name"></span>
+                                            <svg class="w-3 h-3 ml-auto text-wa-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </template>
+                                    <template x-for="lbl in availableLabels()" :key="'mob-add-' + lbl.id">
+                                        <button
+                                            @click="assignLabel(lbl.id); menuOpen = false"
+                                            class="w-full text-left px-4 py-2 text-sm text-wa-text-secondary hover:bg-wa-bg-hover flex items-center gap-2"
+                                        >
+                                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
+                                            <span x-text="'+ ' + lbl.name"></span>
+                                        </button>
+                                    </template>
                                 </div>
-                            </template>
+                            </div>
+                        </div>
+                    </div>
 
-                            <template x-for="msg in messages" :key="msg.id">
-                                <div class="flex" :class="msg.fromMe ? 'justify-end' : 'justify-start'">
+                    <!-- Messages area -->
+                    <div
+                        x-ref="messagesContainer"
+                        class="flex-1 overflow-y-auto px-[6%] md:px-[12%] py-4 min-h-0 wa-chat-wallpaper"
+                    >
+                        <template x-if="messages.length === 0">
+                            <div class="flex items-center justify-center h-full">
+                                <p class="text-sm text-wa-text-secondary" x-text="$t('no_messages')"></p>
+                            </div>
+                        </template>
+
+                        <template x-for="(msg, idx) in messages" :key="msg.id">
+                            <div>
+                                <!-- Date separator -->
+                                <div x-show="showDateSep(messages, idx)" class="flex justify-center my-3">
+                                    <span class="wa-date-pill" x-text="dateLabel(msg.createdAt)"></span>
+                                </div>
+
+                                <!-- Message bubble -->
+                                <div class="flex mb-[2px]"
+                                     :class="[
+                                         msg.fromMe ? 'justify-end' : 'justify-start',
+                                         isLastInGroup(messages, idx) ? 'mb-2' : ''
+                                     ]"
+                                >
                                     <div
-                                        class="max-w-[85%] md:max-w-[70%] px-3 py-2 rounded-lg text-sm break-words"
-                                        :class="msg.fromMe
-                                            ? 'bg-wa-bubble-out text-white rounded-br-none'
-                                            : 'bg-wa-bubble-in text-white rounded-bl-none'"
+                                        class="relative max-w-[85%] md:max-w-[65%] px-2.5 py-1.5 text-sm break-words shadow-sm"
+                                        :class="[
+                                            msg.fromMe ? 'bg-wa-bubble-out text-white' : 'bg-wa-bubble-in text-white',
+                                            isLastInGroup(messages, idx)
+                                                ? (msg.fromMe ? 'rounded-lg rounded-br-none wa-bubble-tail-out' : 'rounded-lg rounded-bl-none wa-bubble-tail-in')
+                                                : 'rounded-lg'
+                                        ]"
                                     >
                                         <!-- Type badge for non-text -->
                                         <span
                                             x-show="msg.type !== 'TEXT'"
-                                            class="inline-block text-[9px] font-sans bg-white/10 px-1 py-0.5 rounded mb-1 uppercase"
+                                            class="inline-block text-[9px] bg-white/10 px-1 py-0.5 rounded mb-1 uppercase"
                                             x-text="msg.type"
                                         ></span>
-                                        <div x-text="msg.content || '[media]'" class="whitespace-pre-wrap"></div>
-                                        <div class="text-[10px] text-wa-text-secondary mt-1 text-right" x-text="formatTime(msg.createdAt)"></div>
+                                        <span x-text="msg.content || '[media]'" class="whitespace-pre-wrap"></span>
+                                        <span class="inline-flex items-center gap-1 float-right ml-2 mt-1 text-[11px] text-wa-text-secondary align-bottom leading-none translate-y-0.5">
+                                            <span x-text="shortTime(msg.createdAt)"></span>
+                                            <template x-if="msg.fromMe">
+                                                <svg class="w-4 h-4 wa-check-blue" viewBox="0 0 16 15" fill="currentColor">
+                                                    <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.3a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l3.605 4.19a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z"/>
+                                                    <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
+                                                </svg>
+                                            </template>
+                                        </span>
                                     </div>
                                 </div>
-                            </template>
-                        </div>
-
-                        <!-- Input area -->
-                        <div class="p-3 border-t border-wa-border flex-shrink-0 space-y-2">
-                            <!-- Message input -->
-                            <form @submit.prevent="sendMessage()" class="flex gap-2">
-                                <input
-                                    type="text"
-                                    x-model="messageInput"
-                                    class="flex-1 min-w-0 bg-wa-bg-deep border border-wa-border text-white text-sm p-2 rounded-lg focus:border-wa-green focus:outline-none placeholder-wa-text-secondary"
-                                    :placeholder="$t('type_message')"
-                                />
-                                <button
-                                    type="submit"
-                                    :disabled="!messageInput.trim() || sending"
-                                    class="flex-shrink-0 px-4 py-2 bg-wa-green text-white text-xs font-sans hover:bg-wa-green-hover transition-colors disabled:opacity-50 rounded-lg"
-                                >
-                                    <!-- Icon for mobile -->
-                                    <svg class="w-4 h-4 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                                    </svg>
-                                    <!-- Text for desktop -->
-                                    <span class="hidden md:inline" x-text="$t('send_message')"></span>
-                                </button>
-                            </form>
-
-                            <!-- Action buttons -->
-                            <div class="flex gap-2 flex-wrap">
-                                <button
-                                    @click="showForceAIModal = true"
-                                    class="px-3 py-1.5 border border-yellow-500/30 text-yellow-400 text-[10px] font-sans hover:bg-yellow-500/10 transition-colors rounded-lg"
-                                    x-text="$t('force_ai')"
-                                ></button>
-                                <button
-                                    @click="openFlowModal()"
-                                    class="px-3 py-1.5 border border-blue-500/30 text-blue-400 text-[10px] font-sans hover:bg-blue-500/10 transition-colors rounded-lg"
-                                    x-text="$t('run_flow')"
-                                ></button>
-                                <button
-                                    @click="openToolModal()"
-                                    class="px-3 py-1.5 border border-green-500/30 text-green-400 text-[10px] font-sans hover:bg-green-500/10 transition-colors rounded-lg"
-                                    x-text="$t('run_tool')"
-                                ></button>
                             </div>
-                        </div>
+                        </template>
                     </div>
-                </template>
-            </div>
+
+                    <!-- Input area -->
+                    <div class="bg-wa-bg-header px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
+                        <form @submit.prevent="sendMessage()" class="flex-1 flex items-center gap-2">
+                            <input
+                                type="text"
+                                x-model="messageInput"
+                                class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2.5 px-4 rounded-full focus:outline-none placeholder-wa-text-secondary"
+                                :placeholder="$t('type_message')"
+                            />
+                            <button
+                                type="submit"
+                                :disabled="!messageInput.trim() || sending"
+                                class="w-10 h-10 rounded-full bg-wa-green text-white flex items-center justify-center hover:bg-wa-green-hover transition-colors disabled:opacity-40 flex-shrink-0"
+                            >
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </template>
         </div>
 
         <!-- Force AI Modal -->
@@ -246,7 +330,7 @@ import Layout from "../../layouts/Layout.astro";
                 <textarea
                     x-model="forceAIContext"
                     rows="3"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y mb-4"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y mb-4 rounded-lg"
                     :placeholder="$t('force_ai_context')"
                 ></textarea>
                 <div class="flex justify-end gap-2">
@@ -274,7 +358,7 @@ import Layout from "../../layouts/Layout.astro";
                 <h3 class="text-sm font-bold mb-4" x-text="$t('run_flow')"></h3>
                 <select
                     x-model="selectedFlowId"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-4"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-4 rounded-lg"
                 >
                     <option value="" x-text="$t('select_flow')"></option>
                     <template x-for="f in flows" :key="f.id">
@@ -307,18 +391,18 @@ import Layout from "../../layouts/Layout.astro";
                 <h3 class="text-sm font-bold mb-4" x-text="$t('run_tool')"></h3>
                 <select
                     x-model="selectedToolName"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-3"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-3 rounded-lg"
                 >
                     <option value="" x-text="$t('select_tool')"></option>
                     <template x-for="tool in tools" :key="tool.id">
                         <option :value="tool.name" x-text="tool.name"></option>
                     </template>
                 </select>
-                <label class="block text-[10px] font-sans text-wa-text-secondary mb-1" x-text="$t('tool_arguments')"></label>
+                <label class="block text-[10px] text-wa-text-secondary mb-1" x-text="$t('tool_arguments')"></label>
                 <textarea
                     x-model="toolArgsJson"
                     rows="4"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-xs font-mono p-3 focus:border-wa-green focus:outline-none resize-y mb-4"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-xs font-mono p-3 focus:border-wa-green focus:outline-none resize-y mb-4 rounded-lg"
                     placeholder='{ "key": "value" }'
                 ></textarea>
                 <div class="flex justify-end gap-2">
@@ -418,7 +502,9 @@ import Layout from "../../layouts/Layout.astro";
                         }
                     })
                     .on('session:created', (data: any) => {
-                        this.sessions.unshift(data.session);
+                        if (data.session?.id && !this.sessions.some((s: any) => s.id === data.session.id)) {
+                            this.sessions.unshift(data.session);
+                        }
                     });
                 this.sseClient.connect();
 
@@ -439,12 +525,69 @@ import Layout from "../../layouts/Layout.astro";
                 }
             },
 
+            // --- UI Helpers ---
+
+            avatarInitials(name: string): string {
+                if (!name) return "?";
+                const parts = name.trim().split(/\s+/);
+                if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+                return name.slice(0, 2).toUpperCase();
+            },
+
+            avatarColor(name: string): string {
+                const colors = [
+                    '#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706',
+                    '#dc2626', '#db2777', '#9333ea', '#4f46e5', '#0d9488',
+                    '#ca8a04', '#e11d48', '#6366f1', '#14b8a6', '#f59e0b',
+                ];
+                let hash = 0;
+                for (let i = 0; i < (name || '').length; i++) {
+                    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                return colors[Math.abs(hash) % colors.length];
+            },
+
+            dateLabel(dateStr: string): string {
+                if (!dateStr) return "";
+                const d = new Date(dateStr);
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                const diff = (today.getTime() - msgDay.getTime()) / 86400000;
+                if (diff === 0) return "Hoy";
+                if (diff === 1) return "Ayer";
+                return d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            },
+
+            showDateSep(msgs: any[], i: number): boolean {
+                if (i === 0) return true;
+                const prev = new Date(msgs[i - 1].createdAt);
+                const curr = new Date(msgs[i].createdAt);
+                return prev.getFullYear() !== curr.getFullYear()
+                    || prev.getMonth() !== curr.getMonth()
+                    || prev.getDate() !== curr.getDate();
+            },
+
+            isLastInGroup(msgs: any[], i: number): boolean {
+                if (i === msgs.length - 1) return true;
+                return msgs[i].fromMe !== msgs[i + 1].fromMe;
+            },
+
+            shortTime(dateStr: string): string {
+                if (!dateStr) return "";
+                const d = new Date(dateStr);
+                return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
+            },
+
+            // --- Data Loading ---
+
             async loadSessions() {
                 try {
                     const params = new URLSearchParams();
                     if (this.botId) params.append("botId", this.botId);
                     if (this.searchQuery) params.append("search", this.searchQuery);
-                    this.sessions = await ApiClient.get(`/sessions?${params.toString()}`);
+                    const res = await ApiClient.get(`/sessions?${params.toString()}`);
+                    this.sessions = res.data || [];
                 } catch (e) {
                     console.error("Failed to load sessions", e);
                 }
