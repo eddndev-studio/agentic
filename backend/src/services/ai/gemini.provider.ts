@@ -57,6 +57,7 @@ export class GeminiProvider implements AIProvider {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(60_000),
         });
 
         if (!res.ok) {
@@ -145,6 +146,7 @@ export class GeminiProvider implements AIProvider {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(cacheBody),
+                signal: AbortSignal.timeout(15_000),
             });
 
             if (!res.ok) {
@@ -181,6 +183,21 @@ export class GeminiProvider implements AIProvider {
     }
 
     private formatContents(messages: AIMessage[]): any[] {
+        // Pre-scan: identify tool calls that lack thoughtSignature.
+        // Gemini requires thought_signature on all functionCall parts.
+        // When history contains calls from OpenAI fallback (no signature),
+        // we convert them to plain text summaries to avoid 400 errors.
+        const unsignedCallIds = new Set<string>();
+        for (const msg of messages) {
+            if (msg.role === "assistant" && msg.toolCalls?.length) {
+                for (const tc of msg.toolCalls) {
+                    if (!tc.thoughtSignature) {
+                        unsignedCallIds.add(tc.id);
+                    }
+                }
+            }
+        }
+
         const contents: any[] = [];
 
         for (const msg of messages) {
@@ -197,12 +214,24 @@ export class GeminiProvider implements AIProvider {
                     parts.push({ text: msg.content });
                 }
                 if (msg.toolCalls?.length) {
-                    for (const tc of msg.toolCalls) {
+                    const signedCalls = msg.toolCalls.filter(tc => tc.thoughtSignature);
+                    const unsignedCalls = msg.toolCalls.filter(tc => !tc.thoughtSignature);
+
+                    // Convert unsigned calls to text summary
+                    if (unsignedCalls.length > 0) {
+                        const summary = unsignedCalls
+                            .map(tc => `[Called ${tc.name}(${JSON.stringify(tc.arguments)})]`)
+                            .join("\n");
+                        parts.push({ text: summary });
+                    }
+
+                    // Keep signed calls as proper functionCall parts
+                    for (const tc of signedCalls) {
                         parts.push({
                             functionCall: {
                                 name: tc.name,
                                 args: tc.arguments,
-                                ...(tc.thoughtSignature ? { thought_signature: tc.thoughtSignature } : {}),
+                                thought_signature: tc.thoughtSignature,
                             },
                         });
                     }
@@ -211,15 +240,24 @@ export class GeminiProvider implements AIProvider {
                     contents.push({ role: "model", parts });
                 }
             } else if (msg.role === "tool") {
-                contents.push({
-                    role: "function",
-                    parts: [{
-                        functionResponse: {
-                            name: msg.name ?? "unknown",
-                            response: { result: msg.content ?? "" },
-                        },
-                    }],
-                });
+                // Skip tool responses for unsigned calls (they're now text summaries)
+                if (msg.toolCallId && unsignedCallIds.has(msg.toolCallId)) {
+                    // Convert to a model message with the result as text
+                    contents.push({
+                        role: "model",
+                        parts: [{ text: `[Result of ${msg.name ?? "tool"}]: ${msg.content ?? ""}` }],
+                    });
+                } else {
+                    contents.push({
+                        role: "function",
+                        parts: [{
+                            functionResponse: {
+                                name: msg.name ?? "unknown",
+                                response: { result: msg.content ?? "" },
+                            },
+                        }],
+                    });
+                }
             }
         }
 

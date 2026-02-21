@@ -53,6 +53,7 @@ export class VisionService {
                 }],
                 max_tokens: 500,
             }),
+            signal: AbortSignal.timeout(60_000),
         });
 
         if (!res.ok) {
@@ -71,7 +72,7 @@ export class VisionService {
         let inlineData: { mimeType: string; data: string };
 
         if (imageSource.startsWith("http://") || imageSource.startsWith("https://")) {
-            const res = await fetch(imageSource);
+            const res = await fetch(imageSource, { signal: AbortSignal.timeout(30_000) });
             if (!res.ok) throw new Error(`Failed to download image: ${res.status}`);
             const buffer = Buffer.from(await res.arrayBuffer());
             const mimeType = res.headers.get("content-type") || "image/jpeg";
@@ -96,6 +97,7 @@ export class VisionService {
                     ],
                 }],
             }),
+            signal: AbortSignal.timeout(60_000),
         });
 
         if (!res.ok) {

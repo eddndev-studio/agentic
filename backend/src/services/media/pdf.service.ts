@@ -12,7 +12,7 @@ export class PDFService {
         let buffer: Buffer;
 
         if (pdfSource.startsWith("http://") || pdfSource.startsWith("https://")) {
-            const res = await fetch(pdfSource);
+            const res = await fetch(pdfSource, { signal: AbortSignal.timeout(30_000) });
             if (!res.ok) throw new Error(`Failed to download PDF: ${res.status}`);
             buffer = Buffer.from(await res.arrayBuffer());
         } else {

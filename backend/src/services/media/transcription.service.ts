@@ -17,7 +17,7 @@ export class TranscriptionService {
 
         if (audioSource.startsWith("http://") || audioSource.startsWith("https://")) {
             // Download the file first
-            const res = await fetch(audioSource);
+            const res = await fetch(audioSource, { signal: AbortSignal.timeout(30_000) });
             if (!res.ok) throw new Error(`Failed to download audio: ${res.status}`);
             const blob = await res.blob();
             formData.append("file", blob, "audio.ogg");
@@ -35,6 +35,7 @@ export class TranscriptionService {
                 "Authorization": `Bearer ${apiKey}`,
             },
             body: formData,
+            signal: AbortSignal.timeout(60_000),
         });
 
         if (!response.ok) {

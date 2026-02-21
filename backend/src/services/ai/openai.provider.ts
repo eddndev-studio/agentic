@@ -27,6 +27,7 @@ export class OpenAIProvider implements AIProvider {
                 "Authorization": `Bearer ${this.apiKey}`,
             },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(60_000),
         });
 
         if (!res.ok) {
