@@ -1,7 +1,10 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
+import { authMiddleware } from "../middleware/auth.middleware";
 
 export const executionController = new Elysia({ prefix: "/executions" })
+    .use(authMiddleware)
+    .guard({ isSignIn: true })
     .get("/", async ({ query, set }) => {
         const {
             botId,

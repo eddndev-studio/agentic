@@ -39,7 +39,11 @@ export class MessageAccumulator {
             const accumulated = entry.messages;
             buffers.delete(sessionId);
             console.log(`[Accumulator] Flushing ${accumulated.length} message(s) for session ${sessionId}`);
-            callback(sessionId, accumulated);
+            try {
+                callback(sessionId, accumulated);
+            } catch (e) {
+                console.error(`[Accumulator] Callback error for session ${sessionId}:`, e);
+            }
         }, delaySec * 1000);
     }
 
@@ -51,7 +55,11 @@ export class MessageAccumulator {
             clearTimeout(entry.timer);
             buffers.delete(sessionId);
             console.log(`[Accumulator] Force-flushing ${entry.messages.length} message(s) for session ${sessionId}`);
-            callback(sessionId, entry.messages);
+            try {
+                callback(sessionId, entry.messages);
+            } catch (e) {
+                console.error(`[Accumulator] Force-flush callback error for session ${sessionId}:`, e);
+            }
         }
     }
 

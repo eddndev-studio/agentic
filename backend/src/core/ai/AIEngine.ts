@@ -6,11 +6,15 @@ import { BaileysService } from "../../services/baileys.service";
 import { flowEngine } from "../flow";
 import { ToolExecutor } from "./ToolExecutor";
 import { TranscriptionService, VisionService, PDFService } from "../../services/media";
+import * as fs from "fs";
 import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 import type { Message } from "@prisma/client";
+import { eventBus } from "../../services/event-bus";
 
 const MAX_TOOL_ITERATIONS = 10;
 const LOCK_TTL = 60; // seconds
+const PENDING_QUEUE_KEY = (sid: string) => `ai:pending:${sid}`;
+const MAX_PENDING_RETRIES = 3;
 
 /** Maps primary provider to its fallback */
 const FALLBACK_MAP: Record<string, { provider: "OPENAI" | "GEMINI"; model: string }> = {
@@ -54,11 +58,16 @@ export class AIEngine {
 
         const bot = session.bot;
         const lockKey = `ai:lock:${sessionId}`;
+        const pendingKey = PENDING_QUEUE_KEY(sessionId);
 
-        // 3. Acquire distributed lock
+        // 3. Acquire distributed lock — if held, queue messages for later processing
         const lockAcquired = await redis.set(lockKey, "1", "EX", LOCK_TTL, "NX");
         if (!lockAcquired) {
-            console.log(`[AIEngine] Lock held for session ${sessionId}, skipping`);
+            // Queue messages in Redis so they're processed after the lock is released
+            const serialized = JSON.stringify(messages.map(m => m.id));
+            await redis.rpush(pendingKey, serialized);
+            await redis.expire(pendingKey, LOCK_TTL + 30);
+            console.log(`[AIEngine] Lock held for session ${sessionId}, queued ${messages.length} message(s)`);
             return;
         }
 
@@ -72,6 +81,7 @@ export class AIEngine {
 
             // 5. Preprocess multimodal content for each message in the batch
             const contentParts: string[] = [];
+            const localFilesToCleanup: string[] = [];
 
             for (const msg of messages) {
                 let partContent = msg.content || "";
@@ -79,6 +89,11 @@ export class AIEngine {
                 const mediaUrl = metadata.mediaUrl;
 
                 if (mediaUrl) {
+                    // Track local files for cleanup after processing
+                    if (!mediaUrl.startsWith("http://") && !mediaUrl.startsWith("https://")) {
+                        localFilesToCleanup.push(mediaUrl);
+                    }
+
                     try {
                         if (msg.type === "AUDIO") {
                             const transcription = await TranscriptionService.transcribe(mediaUrl);
@@ -101,6 +116,15 @@ export class AIEngine {
                 if (partContent) {
                     contentParts.push(partContent);
                 }
+            }
+
+            // Clean up local media files after processing (fire-and-forget)
+            for (const filePath of localFilesToCleanup) {
+                fs.unlink(filePath, (err) => {
+                    if (err && err.code !== 'ENOENT') {
+                        console.warn(`[AIEngine] Failed to clean up media file ${filePath}:`, err.message);
+                    }
+                });
             }
 
             const userContent = contentParts.length > 0
@@ -228,6 +252,7 @@ export class AIEngine {
 
             if (response.content) {
                 await BaileysService.sendMessage(bot.id, session.identifier, { text: response.content });
+                eventBus.emitBotEvent({ type: 'message:sent', botId: bot.id, sessionId, content: response.content });
 
                 // Add assistant response to history
                 const assistantMsg: AIMessage = { role: "assistant", content: response.content };
@@ -251,6 +276,11 @@ export class AIEngine {
         } finally {
             // 11. Release lock
             await redis.del(lockKey);
+
+            // 12. Drain pending queue — process messages that arrived while lock was held
+            this.drainPending(sessionId).catch(err => {
+                console.error(`[AIEngine] drainPending error for session ${sessionId}:`, err);
+            });
         }
     }
 
@@ -287,6 +317,31 @@ export class AIEngine {
                 // Throw the original error — both providers are down
                 throw primaryError;
             }
+        }
+    }
+
+    /**
+     * Drain queued messages that arrived while the AI lock was held.
+     * Loads message IDs from Redis, fetches them from DB, and re-processes.
+     */
+    private async drainPending(sessionId: string): Promise<void> {
+        const pendingKey = PENDING_QUEUE_KEY(sessionId);
+        const item = await redis.lpop(pendingKey);
+        if (!item) return;
+
+        try {
+            const messageIds: string[] = JSON.parse(item);
+            const messages = await prisma.message.findMany({
+                where: { id: { in: messageIds } },
+                orderBy: { createdAt: "asc" },
+            });
+
+            if (messages.length > 0) {
+                console.log(`[AIEngine] Draining ${messages.length} pending message(s) for session ${sessionId}`);
+                await this.processMessages(sessionId, messages);
+            }
+        } catch (e) {
+            console.error(`[AIEngine] drainPending parse/process error:`, e);
         }
     }
 

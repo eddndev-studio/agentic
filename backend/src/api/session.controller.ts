@@ -10,9 +10,11 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
 
-    // GET /sessions — List sessions with last message preview
+    // GET /sessions — List sessions with last message preview (paginated)
     .get("/", async ({ query }) => {
-        const { botId, search } = query;
+        const { botId, search, limit, offset } = query;
+        const take = Math.min(Number(limit) || 50, 200);
+        const skip = Number(offset) || 0;
 
         const where: any = {};
         if (botId) where.botId = botId;
@@ -23,43 +25,53 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             ];
         }
 
-        const sessions = await prisma.session.findMany({
-            where,
-            orderBy: { updatedAt: "desc" },
-            include: {
-                messages: {
-                    orderBy: { createdAt: "desc" },
-                    take: 1,
-                    select: { content: true, createdAt: true, fromMe: true, type: true },
+        const [total, sessions] = await prisma.$transaction([
+            prisma.session.count({ where }),
+            prisma.session.findMany({
+                where,
+                orderBy: { updatedAt: "desc" },
+                take,
+                skip,
+                include: {
+                    messages: {
+                        orderBy: { createdAt: "desc" },
+                        take: 1,
+                        select: { content: true, createdAt: true, fromMe: true, type: true },
+                    },
+                    labels: {
+                        include: { label: true },
+                    },
+                    _count: { select: { messages: true } },
                 },
-                labels: {
-                    include: { label: true },
-                },
-                _count: { select: { messages: true } },
-            },
-        });
+            }),
+        ]);
 
-        return sessions.map((s) => ({
-            id: s.id,
-            name: s.name,
-            identifier: s.identifier,
-            platform: s.platform,
-            botId: s.botId,
-            status: s.status,
-            updatedAt: s.updatedAt,
-            messageCount: s._count.messages,
-            lastMessage: s.messages[0] || null,
-            labels: s.labels.map((sl) => ({
-                id: sl.label.id,
-                name: sl.label.name,
-                color: sl.label.color,
-                waLabelId: sl.label.waLabelId,
+        return {
+            data: sessions.map((s) => ({
+                id: s.id,
+                name: s.name,
+                identifier: s.identifier,
+                platform: s.platform,
+                botId: s.botId,
+                status: s.status,
+                updatedAt: s.updatedAt,
+                messageCount: s._count.messages,
+                lastMessage: s.messages[0] || null,
+                labels: s.labels.map((sl) => ({
+                    id: sl.label.id,
+                    name: sl.label.name,
+                    color: sl.label.color,
+                    waLabelId: sl.label.waLabelId,
+                })),
             })),
-        }));
+            pagination: { total, limit: take, offset: skip },
+        };
     }, {
         query: t.Object({
             botId: t.Optional(t.String()),
             search: t.Optional(t.String()),
+            limit: t.Optional(t.String()),
+            offset: t.Optional(t.String()),
         }),
     })
 

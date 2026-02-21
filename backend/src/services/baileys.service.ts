@@ -18,6 +18,7 @@ import { prisma } from './postgres.service';
 import { aiEngine } from '../core/ai';
 import { flowEngine } from '../core/flow';
 import { MessageAccumulator } from './accumulator.service';
+import { eventBus } from './event-bus';
 import { SessionStatus, Platform } from '@prisma/client';
 import pino from 'pino';
 
@@ -29,6 +30,10 @@ const sessions = new Map<string, WASocket>();
 const qrCodes = new Map<string, string>();
 // Track reconnect attempts for exponential backoff
 const reconnectAttempts = new Map<string, number>();
+// Track reconnect timers so they can be cancelled on shutdown
+const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+let shuttingDown = false;
 
 const AUTH_DIR = 'auth_info_baileys';
 
@@ -101,6 +106,7 @@ export class BaileysService {
                     try {
                         const url = await QRCode.toDataURL(qr);
                         qrCodes.set(botId, url);
+                        eventBus.emitBotEvent({ type: 'bot:qr', botId, qr: url });
                     } catch (err) {
                         console.error(`[${new Date().toISOString()}] QR Generation Error`, err);
                     }
@@ -121,15 +127,20 @@ export class BaileysService {
 
                     sessions.delete(botId);
                     qrCodes.delete(botId);
+                    eventBus.emitBotEvent({ type: 'bot:disconnected', botId, statusCode });
 
-                    if (shouldReconnect) {
+                    if (shouldReconnect && !shuttingDown) {
                         const attempt = reconnectAttempts.get(botId) || 0;
                         // Conflict (440) gets a longer base delay to avoid fight with other instance
                         const baseDelay = statusCode === 440 ? 15000 : 5000;
                         const delay = Math.min(baseDelay * Math.pow(2, attempt), 120000);
                         reconnectAttempts.set(botId, attempt + 1);
                         console.log(`[Baileys] Reconnecting Bot ${botId} in ${delay / 1000}s (attempt ${attempt + 1})`);
-                        setTimeout(() => this.startSession(botId), delay);
+                        const timer = setTimeout(() => {
+                            reconnectTimers.delete(botId);
+                            if (!shuttingDown) this.startSession(botId);
+                        }, delay);
+                        reconnectTimers.set(botId, timer);
                     } else {
                         reconnectAttempts.delete(botId);
                         console.log(`[Baileys] Bot ${botId} stopped (code ${statusCode}). No reconnect.`);
@@ -138,6 +149,7 @@ export class BaileysService {
                     console.log(`[Baileys] Connection opened for Bot ${botId}`);
                     qrCodes.delete(botId);
                     reconnectAttempts.delete(botId); // Reset backoff on successful connection
+                    eventBus.emitBotEvent({ type: 'bot:connected', botId, user: sock.user });
 
                     // Force label sync — labels live in 'regular_high' app state
                     setTimeout(async () => {
@@ -349,6 +361,7 @@ export class BaileysService {
                             status: SessionStatus.CONNECTED
                         }
                     });
+                    eventBus.emitBotEvent({ type: 'session:created', botId, session });
                 } catch (e: any) {
                     // Handle Race Condition: Another request created the session ms ago
                     if (e.code === 'P2002') {
@@ -366,44 +379,46 @@ export class BaileysService {
                 }
             }
 
-            // 3. Persist Message
-            let message;
-            try {
-                // Check if message already exists (Idempotency)
-                const messageExternalId = msg.key.id || `msg_${Date.now()}`;
-                const existingMessage = await prisma.message.findUnique({
-                    where: { externalId: messageExternalId }
-                });
+            // 3. Persist Message (atomic upsert — no TOCTOU race)
+            const messageExternalId = msg.key.id || `msg_${Date.now()}`;
+            const messageData = {
+                sessionId: session.id,
+                sender: from,
+                fromMe: msg.key.fromMe || false,
+                content,
+                type: msgType,
+                metadata: mediaUrl ? { mediaUrl } : undefined,
+                isProcessed: false,
+            };
 
-                if (existingMessage) {
-                    console.log(`[Baileys] Message ${messageExternalId} already exists, skipping creation.`);
-                    message = existingMessage;
-                } else {
-                    message = await prisma.message.create({
-                        data: {
-                            externalId: messageExternalId,
-                            sessionId: session.id,
-                            sender: from,
-                            fromMe: msg.key.fromMe || false,
-                            content,
-                            type: msgType,
-                            metadata: mediaUrl ? { mediaUrl } : undefined,
-                            isProcessed: false
-                        }
+            const { message, created } = await (async () => {
+                const beforeUpsert = Date.now();
+                try {
+                    const msg = await prisma.message.upsert({
+                        where: { externalId: messageExternalId },
+                        update: {},  // no-op on conflict — keeps existing record
+                        create: { externalId: messageExternalId, ...messageData },
                     });
+                    // A message is "new" if its createdAt is very recent (within our upsert window)
+                    const isNew = msg.createdAt.getTime() >= beforeUpsert - 1000;
+                    return { message: msg, created: isNew };
+                } catch (e: any) {
+                    // Fallback for edge cases
+                    console.error(`[Baileys] Message upsert error for ${messageExternalId}:`, e);
+                    const existing = await prisma.message.findUnique({ where: { externalId: messageExternalId } });
+                    return { message: existing, created: false };
                 }
-            } catch (e: any) {
-                if (e.code === 'P2002') {
-                    console.warn(`[Baileys] Message creation collision for ${msg.key.id}, fetching existing...`);
-                    message = await prisma.message.findUnique({
-                        where: { externalId: msg.key.id! }
-                    });
-                } else {
-                    throw e;
-                }
+            })();
+
+            if (!message) return;
+
+            // Skip duplicate messages — already processed by a previous event
+            if (!created) {
+                console.log(`[Baileys] Duplicate message ${messageExternalId}, skipping processing.`);
+                return;
             }
 
-            if (!message) return; // Should not happen unless catostrophic DB failure
+            eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
 
             // 4. Outgoing messages: skip AI but evaluate flow triggers (OUTGOING/BOTH)
             if (message.fromMe) {
@@ -414,21 +429,26 @@ export class BaileysService {
             }
 
             // 5. Process with AI Engine (with optional message accumulation)
+            const handleAIError = async (err: any, sid: string) => {
+                console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error for session ${sid}:`, err);
+                try {
+                    await BaileysService.sendMessage(botId, from, {
+                        text: "Lo siento, ocurrió un error procesando tu mensaje. Intenta de nuevo en unos momentos."
+                    });
+                } catch {}
+            };
+
             if (bot.messageDelay > 0) {
                 MessageAccumulator.accumulate(
                     session.id,
                     message,
                     bot.messageDelay,
                     (sid, msgs) => {
-                        aiEngine.processMessages(sid, msgs).catch(err => {
-                            console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error:`, err);
-                        });
+                        aiEngine.processMessages(sid, msgs).catch(err => handleAIError(err, sid));
                     }
                 );
             } else {
-                aiEngine.processMessage(session.id, message).catch(err => {
-                    console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error:`, err);
-                });
+                aiEngine.processMessage(session.id, message).catch(err => handleAIError(err, session.id));
             }
 
         } catch (e) {
@@ -558,6 +578,33 @@ export class BaileysService {
         const jid = await this.resolveJidForAppState(sock, chatJid);
         console.log(`[Baileys] removeChatLabel: jid=${jid}, waLabelId=${waLabelId}`);
         await (sock as any).removeChatLabel(jid, waLabelId);
+    }
+
+    /**
+     * Graceful shutdown: cancel all reconnect timers and close all sockets.
+     */
+    static async shutdownAll(): Promise<void> {
+        shuttingDown = true;
+
+        // Cancel all pending reconnect timers
+        for (const [botId, timer] of reconnectTimers) {
+            clearTimeout(timer);
+            console.log(`[Baileys] Cancelled reconnect timer for Bot ${botId}`);
+        }
+        reconnectTimers.clear();
+        reconnectAttempts.clear();
+
+        // Close all active sockets (without deleting auth — not a logout)
+        for (const [botId, sock] of sessions) {
+            try {
+                sock.ws.close();
+                console.log(`[Baileys] Closed socket for Bot ${botId}`);
+            } catch (e: any) {
+                console.warn(`[Baileys] Error closing socket for Bot ${botId}:`, e.message);
+            }
+        }
+        sessions.clear();
+        qrCodes.clear();
     }
 
     /**

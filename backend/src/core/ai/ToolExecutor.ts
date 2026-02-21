@@ -130,6 +130,7 @@ export class ToolExecutor {
             method,
             headers,
             body: method !== "GET" ? JSON.stringify({ ...args, sessionId: session.id, identifier: session.identifier }) : undefined,
+            signal: AbortSignal.timeout(15_000),
         });
 
         const text = await res.text();

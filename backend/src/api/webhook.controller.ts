@@ -5,7 +5,7 @@ import { MessageAccumulator } from "../services/accumulator.service";
 import { Platform, SessionStatus } from "@prisma/client";
 
 export const webhookController = new Elysia({ prefix: "/webhook" })
-    .post("/:platform", async ({ params, body, set }) => {
+    .post("/:platform", async ({ params, body, headers, set }) => {
         const { platform } = params;
         const { from, content, type = "text", fromMe = false } = body as any;
 
@@ -20,7 +20,6 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
 
         try {
             // 1. Resolve Bot (Target System)
-            // For now, accept 'botId' in body, or default to the Seed Bot
             const botIdentifier = (body as any).botId || "AGENTIC_DEMO_BOT";
 
             const bot = await prisma.bot.findUnique({
@@ -30,6 +29,16 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
             if (!bot) {
                 set.status = 404;
                 return `Bot '${botIdentifier}' not found`;
+            }
+
+            // Verify webhook secret if configured on the bot
+            const webhookSecret = (bot.credentials as any)?.webhookSecret;
+            if (webhookSecret) {
+                const providedSecret = headers['x-webhook-secret'];
+                if (providedSecret !== webhookSecret) {
+                    set.status = 401;
+                    return "Invalid webhook secret";
+                }
             }
 
             // 2. Resolve Session (User Connection)

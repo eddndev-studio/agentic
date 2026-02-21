@@ -1,8 +1,9 @@
 import { Elysia, t } from "elysia";
-import { join } from "path";
+import { join, resolve, sep } from "path";
 import { mkdir, readdir, stat, writeFile, readFile } from "fs/promises";
 import { createReadStream, existsSync } from "fs";
 import { lookup } from "mime-types";
+import { authMiddleware } from "../middleware/auth.middleware";
 
 const UPLOAD_DIR = "./uploads";
 
@@ -10,6 +11,8 @@ const UPLOAD_DIR = "./uploads";
 await mkdir(UPLOAD_DIR, { recursive: true });
 
 export const uploadController = new Elysia({ prefix: "/upload" })
+    .use(authMiddleware)
+    .guard({ isSignIn: true })
     .post("/", async ({ body, set }) => {
         console.log("[Upload] Incoming upload request...");
 
@@ -79,14 +82,19 @@ export const uploadController = new Elysia({ prefix: "/upload" })
         }
     })
     .get("/files/:name", async ({ params: { name }, set }) => {
-        const filePath = join(UPLOAD_DIR, name);
+        // Prevent path traversal: ensure resolved path stays inside UPLOAD_DIR
+        const resolved = resolve(UPLOAD_DIR, name);
+        if (!resolved.startsWith(resolve(UPLOAD_DIR) + sep)) {
+            set.status = 400;
+            return "Invalid file path";
+        }
 
-        if (!existsSync(filePath)) {
+        if (!existsSync(resolved)) {
             set.status = 404;
             return "File not found";
         }
 
-        const buffer = await readFile(filePath);
+        const buffer = await readFile(resolved);
         const mimeType = lookup(name) || "application/octet-stream";
 
         return new Response(buffer, {
