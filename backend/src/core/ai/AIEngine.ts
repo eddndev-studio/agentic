@@ -17,10 +17,9 @@ const LOCK_TTL = 60; // seconds
 const PENDING_QUEUE_KEY = (sid: string) => `ai:pending:${sid}`;
 const MAX_PENDING_RETRIES = 3;
 
-/** Maps primary provider to its fallback */
-const FALLBACK_MAP: Record<string, { provider: "OPENAI" | "GEMINI"; model: string }> = {
-    GEMINI: { provider: "OPENAI", model: "gpt-4o-mini" },
-    OPENAI: { provider: "GEMINI", model: "gemini-3-flash-preview" },
+/** Maps primary model to a cheaper Gemini fallback */
+const FALLBACK_MAP: Record<string, { provider: "GEMINI"; model: string }> = {
+    GEMINI: { provider: "GEMINI", model: "gemini-2.5-flash" },
 };
 
 export class AIEngine {
