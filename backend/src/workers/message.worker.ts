@@ -1,6 +1,7 @@
 import { Worker, Job } from "bullmq";
 import { QUEUE_NAME } from "../services/queue.service";
 import { StepProcessor } from "./processors/StepProcessor";
+import { AutomationProcessor } from "./processors/AutomationProcessor";
 
 // Redis config is handled internally by QueueService/index usually, 
 // but Workers need a connection definition.
@@ -18,6 +19,9 @@ export const startAgenticWorker = () => {
                     break;
                 case "incoming":
                     console.log("[Worker] Incoming message job (TODO)");
+                    break;
+                case "check_automations":
+                    await AutomationProcessor.processAll();
                     break;
                 default:
                     console.warn(`[Worker] Unknown job name: ${job.name}`);

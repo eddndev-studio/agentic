@@ -112,6 +112,13 @@ prisma.bot.findMany({ where: { platform: Platform.WHATSAPP } }).then(bots => {
     }
 });
 
+// Schedule automation check every 30 minutes
+queueService.scheduleAutomationCheck().then(() => {
+    console.log("[Init] Automation check scheduled (every 30 min)");
+}).catch(err => {
+    console.error("[Init] Failed to schedule automation check:", err);
+});
+
 // --- API ---
 import { webhookController } from "./api/webhook.controller";
 import { uploadController } from "./api/upload.controller";
@@ -124,6 +131,7 @@ import { clientRoutes } from "./api/client.routes";
 import { toolController } from "./api/tool.controller";
 import { sessionController } from "./api/session.controller";
 import { eventsController } from "./api/events.controller";
+import { automationController } from "./api/automation.controller";
 import { cors } from "@elysiajs/cors";
 
 const app = new Elysia({ adapter: node() })
@@ -147,6 +155,7 @@ const app = new Elysia({ adapter: node() })
     .use(toolController)
     .use(sessionController)
     .use(eventsController)
+    .use(automationController)
     .get("/", () => "Agentic Orchestrator Active")
     .get("/health", () => ({ status: "ok", timestamp: new Date().toISOString() }))
     .get("/info", () => ({

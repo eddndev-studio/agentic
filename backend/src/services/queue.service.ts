@@ -23,6 +23,13 @@ class QueueService {
         return this.queue.add("execute_step", { executionId, stepId }, { delay: delayMs });
     }
 
+    async scheduleAutomationCheck(intervalMs = 30 * 60 * 1000) {
+        return this.queue.add("check_automations", {}, {
+            repeat: { every: intervalMs },
+            removeOnComplete: true,
+        });
+    }
+
     async close() {
         await this.queue.close();
     }
