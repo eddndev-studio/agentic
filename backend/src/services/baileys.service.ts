@@ -339,6 +339,11 @@ export class BaileysService {
             const bot = await prisma.bot.findUnique({ where: { id: botId } });
             if (!bot) return;
 
+            // Filter: exclude group messages
+            if (bot.excludeGroups && from.endsWith("@g.us")) {
+                return;
+            }
+
             // 2. Resolve Session (User Connection)
             let session = await prisma.session.findUnique({
                 where: {
@@ -419,6 +424,18 @@ export class BaileysService {
             }
 
             eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
+
+            // Filter: skip AI for sessions with ignored labels
+            if (bot.ignoredLabels.length > 0) {
+                const sessionLabels = await prisma.sessionLabel.findMany({
+                    where: { sessionId: session.id },
+                    include: { label: { select: { name: true } } },
+                });
+                const labelNames = sessionLabels.map(sl => sl.label.name);
+                if (labelNames.some(name => bot.ignoredLabels.includes(name))) {
+                    return;
+                }
+            }
 
             // 4. Outgoing messages: skip AI but evaluate flow triggers (OUTGOING/BOTH)
             if (message.fromMe) {
