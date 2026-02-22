@@ -1,0 +1,622 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Boost Monitor">
+    <main class="space-y-6" x-data="fbAdsMonitor">
+        <!-- Header -->
+        <header class="flex flex-wrap justify-between items-center gap-4 border-b border-wa-border pb-6">
+            <h1 class="text-2xl font-bold tracking-tight" x-text="$t('ads_page_title')">Boost Monitor</h1>
+
+            <!-- User bar (when logged in) -->
+            <div x-show="fbUser" class="flex items-center gap-3" style="display:none;">
+                <img :src="fbUser?.picture" class="w-8 h-8 rounded-full" x-show="fbUser?.picture" />
+                <span class="text-sm text-wa-text-secondary">
+                    <span x-text="$t('ads_logged_in_as')"></span>
+                    <span class="text-white font-medium" x-text="fbUser?.name"></span>
+                </span>
+                <button
+                    @click="fbLogout()"
+                    class="ml-2 px-3 py-1 text-xs border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors"
+                    x-text="$t('ads_logout')"
+                >
+                </button>
+            </div>
+        </header>
+
+        <!-- Error banner -->
+        <div
+            x-show="error"
+            class="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center gap-3"
+            style="display:none;"
+        >
+            <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <span x-text="error"></span>
+        </div>
+
+        <!-- Token expired banner -->
+        <div
+            x-show="tokenExpired"
+            class="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-400 text-sm flex items-center gap-3"
+            style="display:none;"
+        >
+            <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span x-text="$t('ads_token_expired')"></span>
+        </div>
+
+        <!-- STATE 1: Not authenticated -->
+        <div x-show="fbReady && !fbUser" class="flex items-center justify-center py-24" style="display:none;">
+            <div class="text-center space-y-6 max-w-sm">
+                <div class="w-20 h-20 mx-auto bg-blue-500/10 rounded-2xl flex items-center justify-center">
+                    <svg class="w-10 h-10 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold mb-2" x-text="$t('ads_page_title')"></h2>
+                    <p class="text-sm text-wa-text-secondary">Monitor your Facebook boosted posts and ad campaigns.</p>
+                </div>
+                <button
+                    @click="fbLogin()"
+                    class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors flex items-center gap-3 mx-auto"
+                >
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    <span x-text="$t('ads_login')"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SDK loading spinner -->
+        <div x-show="!fbReady" class="flex items-center justify-center py-24">
+            <div class="animate-spin w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full"></div>
+        </div>
+
+        <!-- STATE 2: Select ad account -->
+        <div x-show="fbUser && !selectedAccountId" style="display:none;">
+            <h2 class="text-lg font-bold mb-4" x-text="$t('ads_select_account')"></h2>
+
+            <!-- Loading accounts -->
+            <div x-show="loadingAccounts" class="flex items-center gap-3 text-wa-text-secondary text-sm py-8 justify-center">
+                <div class="animate-spin w-5 h-5 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                <span x-text="$t('ads_loading_accounts')"></span>
+            </div>
+
+            <!-- No accounts -->
+            <div x-show="!loadingAccounts && adAccounts.length === 0" class="text-center py-12 text-wa-text-secondary text-sm" style="display:none;">
+                <span x-text="$t('ads_no_accounts')"></span>
+            </div>
+
+            <!-- Account grid -->
+            <div x-show="!loadingAccounts && adAccounts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style="display:none;">
+                <template x-for="account in adAccounts" :key="account.id">
+                    <button
+                        @click="selectAccount(account.id)"
+                        class="p-5 bg-wa-bg-panel border border-wa-border rounded-xl hover:border-wa-green/50 transition-all text-left group"
+                    >
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-medium text-sm truncate group-hover:text-wa-green transition-colors" x-text="account.name"></div>
+                                <div class="text-xs text-wa-text-secondary" x-text="account.id"></div>
+                            </div>
+                        </div>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- STATE 3: Campaign dashboard -->
+        <div x-show="fbUser && selectedAccountId" style="display:none;">
+            <!-- Controls bar -->
+            <div class="flex flex-wrap items-center gap-4 mb-6">
+                <!-- Account selector -->
+                <select
+                    x-model="selectedAccountId"
+                    @change="loadCampaigns()"
+                    class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green"
+                >
+                    <template x-for="account in adAccounts" :key="account.id">
+                        <option :value="account.id" x-text="account.name"></option>
+                    </template>
+                </select>
+
+                <!-- Date range presets -->
+                <div class="flex bg-wa-bg-panel border border-wa-border rounded-lg overflow-hidden">
+                    <button
+                        @click="setDatePreset('last_7d')"
+                        class="px-3 py-2 text-xs transition-colors"
+                        :class="datePreset === 'last_7d' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('ads_last_7d')"
+                    ></button>
+                    <button
+                        @click="setDatePreset('last_30d')"
+                        class="px-3 py-2 text-xs transition-colors"
+                        :class="datePreset === 'last_30d' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('ads_last_30d')"
+                    ></button>
+                    <button
+                        @click="datePreset = 'custom'; showCustomRange = true"
+                        class="px-3 py-2 text-xs transition-colors"
+                        :class="datePreset === 'custom' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('ads_custom_range')"
+                    ></button>
+                </div>
+
+                <!-- Custom date range -->
+                <div x-show="showCustomRange" class="flex items-center gap-2" style="display:none;">
+                    <input
+                        type="date"
+                        x-model="customFrom"
+                        class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green"
+                    />
+                    <span class="text-wa-text-secondary text-xs">—</span>
+                    <input
+                        type="date"
+                        x-model="customTo"
+                        class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green"
+                    />
+                    <button
+                        @click="loadCampaigns()"
+                        class="px-3 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover transition-colors"
+                        x-text="$t('ads_apply')"
+                    ></button>
+                </div>
+
+                <!-- Refresh -->
+                <button
+                    @click="loadCampaigns()"
+                    class="ml-auto p-2 text-wa-text-secondary hover:text-white transition-colors"
+                    :class="loadingCampaigns && 'animate-spin'"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Summary cards -->
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <div class="p-4 bg-wa-bg-panel border border-wa-border rounded-xl">
+                    <div class="text-xs text-wa-green font-medium mb-2" x-text="$t('ads_total_spend')"></div>
+                    <div class="text-2xl font-light" x-text="formatCurrency(summary.totalSpend)">$0.00</div>
+                </div>
+                <div class="p-4 bg-wa-bg-panel border border-wa-border rounded-xl">
+                    <div class="text-xs text-wa-green font-medium mb-2" x-text="$t('ads_conversations')"></div>
+                    <div class="text-2xl font-light" x-text="formatNumber(summary.totalConversations)">0</div>
+                </div>
+                <div class="p-4 bg-wa-bg-panel border border-wa-border rounded-xl">
+                    <div class="text-xs text-wa-green font-medium mb-2" x-text="$t('ads_cost_per_conversation')"></div>
+                    <div class="text-2xl font-light" x-text="summary.totalConversations > 0 ? formatCurrency(summary.totalSpend / summary.totalConversations) : '—'">—</div>
+                </div>
+            </div>
+
+            <!-- Loading campaigns -->
+            <div x-show="loadingCampaigns" class="flex items-center gap-3 text-wa-text-secondary text-sm py-12 justify-center" style="display:none;">
+                <div class="animate-spin w-5 h-5 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                <span x-text="$t('ads_loading_campaigns')"></span>
+            </div>
+
+            <!-- No campaigns -->
+            <div x-show="!loadingCampaigns && campaigns.length === 0" class="text-center py-12 text-wa-text-secondary text-sm" style="display:none;">
+                <span x-text="$t('ads_no_campaigns')"></span>
+            </div>
+
+            <!-- Campaigns table -->
+            <div x-show="!loadingCampaigns && campaigns.length > 0" class="border border-wa-border rounded-xl overflow-hidden" style="display:none;">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                <th class="text-left px-4 py-3 font-medium" x-text="$t('ads_campaign_name')"></th>
+                                <th class="text-left px-4 py-3 font-medium" x-text="$t('ads_phone')"></th>
+                                <th class="text-left px-4 py-3 font-medium" x-text="$t('ads_status')"></th>
+                                <th class="text-right px-4 py-3 font-medium" x-text="$t('ads_conversations')"></th>
+                                <th class="text-right px-4 py-3 font-medium" x-text="$t('ads_spend')"></th>
+                                <th class="text-right px-4 py-3 font-medium" x-text="$t('ads_cost_per_conversation')"></th>
+                                <th class="px-4 py-3 font-medium w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="c in campaigns" :key="c.id">
+                                <tr class="border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors">
+                                    <td class="px-4 py-3">
+                                        <div class="font-medium text-white" x-text="c.name"></div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span x-show="c.phone" class="text-xs text-wa-text-secondary font-mono" x-text="c.phone"></span>
+                                        <span x-show="!c.phone" class="text-xs text-wa-text-secondary">—</span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                            :class="statusBadgeClass(c.status)"
+                                            x-text="c.status"
+                                        ></span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right text-wa-text-secondary" x-text="formatNumber(c.conversations)"></td>
+                                    <td class="px-4 py-3 text-right text-white font-medium" x-text="formatCurrency(c.spend)"></td>
+                                    <td class="px-4 py-3 text-right text-wa-text-secondary" x-text="c.conversations > 0 ? formatCurrency(c.costPerConversation) : '—'"></td>
+                                    <td class="px-4 py-3 text-center">
+                                        <a
+                                            x-show="c.postUrl"
+                                            :href="c.postUrl"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="inline-flex text-blue-400 hover:text-blue-300 transition-colors"
+                                            :title="$t('ads_view_post')"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                        </a>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script>
+    const FB_APP_ID = (import.meta as any).env?.PUBLIC_FB_APP_ID || "1184660606783733";
+    const GRAPH_URL = "https://graph.facebook.com/v21.0";
+    const STORAGE_KEY = "fb_ads_auth";
+
+    document.addEventListener("alpine:init", () => {
+        // @ts-ignore
+        const Alpine = window.Alpine;
+
+        Alpine.data("fbAdsMonitor", () => ({
+            // Auth
+            fbReady: false,
+            fbUser: null as null | { id: string; accessToken: string; name: string; picture: string },
+            tokenExpiry: 0,
+            tokenExpired: false,
+
+            // Ad Accounts
+            adAccounts: [] as { id: string; name: string }[],
+            selectedAccountId: "",
+            loadingAccounts: false,
+
+            // Campaigns + Insights
+            campaigns: [] as any[],
+            loadingCampaigns: false,
+            error: "",
+
+            // Date range
+            datePreset: "last_7d" as "last_7d" | "last_30d" | "custom",
+            customFrom: "",
+            customTo: "",
+            showCustomRange: false,
+
+            // Summary
+            summary: { totalSpend: 0, totalReach: 0, totalImpressions: 0, totalClicks: 0, totalConversations: 0 },
+
+            async init() {
+                // Restore from localStorage
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        if (data.tokenExpiry && data.tokenExpiry > Date.now() / 1000) {
+                            this.fbUser = data;
+                            this.tokenExpiry = data.tokenExpiry;
+                        } else {
+                            localStorage.removeItem(STORAGE_KEY);
+                        }
+                    } catch {
+                        localStorage.removeItem(STORAGE_KEY);
+                    }
+                }
+
+                await this.initFbSdk();
+                this.fbReady = true;
+
+                if (this.fbUser) {
+                    await this.loadAdAccounts();
+                }
+            },
+
+            initFbSdk(): Promise<void> {
+                return new Promise((resolve) => {
+                    if ((window as any).FB) {
+                        resolve();
+                        return;
+                    }
+
+                    (window as any).fbAsyncInit = () => {
+                        (window as any).FB.init({
+                            appId: FB_APP_ID,
+                            cookie: true,
+                            xfbml: false,
+                            version: "v21.0",
+                        });
+                        resolve();
+                    };
+
+                    const script = document.createElement("script");
+                    script.src = "https://connect.facebook.net/en_US/sdk.js";
+                    script.async = true;
+                    script.defer = true;
+                    document.head.appendChild(script);
+                });
+            },
+
+            fbLogin() {
+                const FB = (window as any).FB;
+                if (!FB) return;
+
+                FB.login(
+                    (response: any) => {
+                        if (response.authResponse) {
+                            this.handleAuthResponse(response.authResponse);
+                        }
+                    },
+                    { scope: "ads_read,pages_read_engagement,pages_show_list" }
+                );
+            },
+
+            async handleAuthResponse(authResponse: any) {
+                const { accessToken, expiresIn, userID } = authResponse;
+                this.tokenExpiry = Date.now() / 1000 + expiresIn;
+                this.tokenExpired = false;
+
+                // Fetch user info
+                try {
+                    const res = await fetch(`${GRAPH_URL}/me?fields=name,picture.width(80)&access_token=${accessToken}`);
+                    const user = await res.json();
+
+                    this.fbUser = {
+                        id: userID,
+                        accessToken,
+                        name: user.name,
+                        picture: user.picture?.data?.url || "",
+                    };
+
+                    // Save to localStorage
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        ...this.fbUser,
+                        tokenExpiry: this.tokenExpiry,
+                    }));
+
+                    await this.loadAdAccounts();
+                } catch (e) {
+                    console.error("FB auth error:", e);
+                    this.error = "Failed to authenticate with Facebook";
+                }
+            },
+
+            async fbGet(path: string) {
+                if (!this.fbUser) throw new Error("Not authenticated");
+
+                const separator = path.includes("?") ? "&" : "?";
+                const url = `${GRAPH_URL}${path}${separator}access_token=${this.fbUser.accessToken}`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.error) {
+                    if (data.error.code === 190) {
+                        // Token expired
+                        this.tokenExpired = true;
+                        this.fbUser = null;
+                        this.selectedAccountId = "";
+                        this.adAccounts = [];
+                        this.campaigns = [];
+                        localStorage.removeItem(STORAGE_KEY);
+                        throw new Error("Token expired");
+                    }
+                    throw new Error(data.error.message || "Facebook API error");
+                }
+
+                return data;
+            },
+
+            async loadAdAccounts() {
+                this.loadingAccounts = true;
+                this.error = "";
+                try {
+                    const data = await this.fbGet("/me/adaccounts?fields=id,name,account_status&limit=50");
+                    // Filter to active accounts only (account_status === 1)
+                    this.adAccounts = (data.data || []).filter((a: any) => a.account_status === 1);
+                } catch (e: any) {
+                    if (!this.tokenExpired) {
+                        this.error = e.message || (this as any).$t("ads_error_loading");
+                    }
+                } finally {
+                    this.loadingAccounts = false;
+                }
+            },
+
+            selectAccount(accountId: string) {
+                this.selectedAccountId = accountId;
+                this.loadCampaigns();
+            },
+
+            setDatePreset(preset: "last_7d" | "last_30d") {
+                this.datePreset = preset;
+                this.showCustomRange = false;
+                this.loadCampaigns();
+            },
+
+            buildTimeRange(): { since: string; until: string } {
+                const today = new Date();
+                const fmt = (d: Date) => d.toISOString().split("T")[0];
+
+                if (this.datePreset === "custom" && this.customFrom && this.customTo) {
+                    return { since: this.customFrom, until: this.customTo };
+                }
+
+                const days = this.datePreset === "last_30d" ? 30 : 7;
+                const since = new Date(today);
+                since.setDate(since.getDate() - days);
+                return { since: fmt(since), until: fmt(today) };
+            },
+
+            async loadCampaigns() {
+                if (!this.selectedAccountId) return;
+
+                this.loadingCampaigns = true;
+                this.error = "";
+                this.campaigns = [];
+                this.summary = { totalSpend: 0, totalReach: 0, totalImpressions: 0, totalClicks: 0, totalConversations: 0 };
+
+                try {
+                    const filtering = encodeURIComponent(
+                        JSON.stringify([{ field: "objective", operator: "IN", value: ["POST_ENGAGEMENT", "OUTCOME_ENGAGEMENT"] }])
+                    );
+                    const data = await this.fbGet(
+                        `/${this.selectedAccountId}/campaigns?fields=id,name,status,objective&filtering=${filtering}&limit=100`
+                    );
+
+                    const campaignList = data.data || [];
+                    if (campaignList.length === 0) {
+                        this.loadingCampaigns = false;
+                        return;
+                    }
+
+                    // Fetch insights + post URLs for all campaigns in parallel
+                    const timeRange = this.buildTimeRange();
+                    const timeRangeParam = encodeURIComponent(JSON.stringify(timeRange));
+
+                    const enrichedPromises = campaignList.map(async (campaign: any) => {
+                        // Fetch insights and ad (with creative + adset) in parallel
+                        const [insightsRes, adsRes] = await Promise.all([
+                            this.fbGet(
+                                `/${campaign.id}/insights?fields=impressions,reach,clicks,spend,cpm,cpc,ctr,actions,cost_per_action_type&time_range=${timeRangeParam}`
+                            ).catch(() => ({ data: [] })),
+                            this.fbGet(
+                                `/${campaign.id}/ads?fields=creative{effective_object_story_id},adset{promoted_object}&limit=1`
+                            ).catch(() => ({ data: [] })),
+                        ]);
+
+                        const insights = insightsRes.data?.[0] || {};
+                        const ad = adsRes.data?.[0] || {};
+
+                        // Extract post URL from ad creative
+                        let postUrl = "";
+                        const storyId = ad.creative?.effective_object_story_id;
+                        if (storyId) {
+                            const parts = storyId.split("_");
+                            if (parts.length >= 2) {
+                                postUrl = `https://www.facebook.com/${parts[0]}/posts/${parts.slice(1).join("_")}`;
+                            }
+                        }
+
+                        // Extract WhatsApp phone from adset's promoted_object
+                        const phone = ad.adset?.promoted_object?.whatsapp_phone_number || "";
+
+                        // Extract messaging conversations from actions array
+                        const conversationTypes = [
+                            "onsite_conversion.messaging_conversation_started_7d",
+                            "onsite_conversion.messaging_first_reply",
+                            "messaging_conversation_started_7d",
+                        ];
+                        const conversations = this.extractAction(insights.actions, conversationTypes);
+                        const costPerConversation = this.extractAction(insights.cost_per_action_type, conversationTypes);
+
+                        return { ...campaign, ...insights, postUrl, phone, conversations, costPerConversation };
+                    });
+
+                    const results = await Promise.all(enrichedPromises);
+
+                    this.campaigns = results.map((c: any) => ({
+                        id: c.id,
+                        name: c.name,
+                        status: c.status,
+                        impressions: parseFloat(c.impressions || "0"),
+                        reach: parseFloat(c.reach || "0"),
+                        clicks: parseFloat(c.clicks || "0"),
+                        spend: parseFloat(c.spend || "0"),
+                        cpm: parseFloat(c.cpm || "0"),
+                        cpc: parseFloat(c.cpc || "0"),
+                        ctr: parseFloat(c.ctr || "0"),
+                        conversations: parseFloat(c.conversations || "0"),
+                        costPerConversation: parseFloat(c.costPerConversation || "0"),
+                        postUrl: c.postUrl || "",
+                        phone: c.phone || "",
+                    }));
+
+                    // Calculate summary
+                    this.summary = this.campaigns.reduce(
+                        (acc: any, c: any) => ({
+                            totalSpend: acc.totalSpend + c.spend,
+                            totalReach: acc.totalReach + c.reach,
+                            totalImpressions: acc.totalImpressions + c.impressions,
+                            totalClicks: acc.totalClicks + c.clicks,
+                            totalConversations: acc.totalConversations + c.conversations,
+                        }),
+                        { totalSpend: 0, totalReach: 0, totalImpressions: 0, totalClicks: 0, totalConversations: 0 }
+                    );
+                } catch (e: any) {
+                    if (!this.tokenExpired) {
+                        this.error = e.message || (this as any).$t("ads_error_loading");
+                    }
+                } finally {
+                    this.loadingCampaigns = false;
+                }
+            },
+
+            // Extract a value from Facebook's actions/cost_per_action_type arrays
+            extractAction(actions: any[] | undefined, actionTypes: string[]): string {
+                if (!actions || !Array.isArray(actions)) return "0";
+                for (const type of actionTypes) {
+                    const found = actions.find((a: any) => a.action_type === type);
+                    if (found) return found.value;
+                }
+                return "0";
+            },
+
+            fbLogout() {
+                try {
+                    (window as any).FB?.logout();
+                } catch {}
+
+                this.fbUser = null;
+                this.selectedAccountId = "";
+                this.adAccounts = [];
+                this.campaigns = [];
+                this.tokenExpired = false;
+                this.error = "";
+                this.summary = { totalSpend: 0, totalReach: 0, totalImpressions: 0, totalClicks: 0, totalConversations: 0 };
+                localStorage.removeItem(STORAGE_KEY);
+            },
+
+            // Formatters
+            formatCurrency(val: number): string {
+                return "$" + val.toFixed(2);
+            },
+
+            formatNumber(val: number): string {
+                return val.toLocaleString();
+            },
+
+            formatPercent(val: number): string {
+                return val.toFixed(2) + "%";
+            },
+
+            statusBadgeClass(status: string): string {
+                switch (status) {
+                    case "ACTIVE":
+                        return "bg-green-500/20 text-green-400";
+                    case "PAUSED":
+                        return "bg-yellow-500/20 text-yellow-400";
+                    default:
+                        return "bg-wa-bg-hover text-wa-text-secondary";
+                }
+            },
+        }));
+    });
+</script>
