@@ -303,7 +303,7 @@ import Layout from "../layouts/Layout.astro";
             showCustomRange: false,
 
             // Summary
-            summary: { totalSpend: 0, totalReach: 0, totalImpressions: 0, totalClicks: 0, totalConversations: 0 },
+            summary: { totalSpend: 0, totalConversations: 0 },
 
             async init() {
                 // Restore from localStorage
@@ -322,7 +322,11 @@ import Layout from "../layouts/Layout.astro";
                     }
                 }
 
-                await this.initFbSdk();
+                try {
+                    await this.initFbSdk();
+                } catch (e: any) {
+                    this.error = e.message;
+                }
                 this.fbReady = true;
 
                 if (this.fbUser) {
@@ -331,13 +335,18 @@ import Layout from "../layouts/Layout.astro";
             },
 
             initFbSdk(): Promise<void> {
-                return new Promise((resolve) => {
+                return new Promise((resolve, reject) => {
                     if ((window as any).FB) {
                         resolve();
                         return;
                     }
 
+                    const timeout = setTimeout(() => {
+                        reject(new Error("Facebook SDK failed to load"));
+                    }, 15000);
+
                     (window as any).fbAsyncInit = () => {
+                        clearTimeout(timeout);
                         (window as any).FB.init({
                             appId: FB_APP_ID,
                             cookie: true,
@@ -351,6 +360,10 @@ import Layout from "../layouts/Layout.astro";
                     script.src = "https://connect.facebook.net/en_US/sdk.js";
                     script.async = true;
                     script.defer = true;
+                    script.onerror = () => {
+                        clearTimeout(timeout);
+                        reject(new Error("Facebook SDK failed to load"));
+                    };
                     document.head.appendChild(script);
                 });
             },
@@ -471,7 +484,7 @@ import Layout from "../layouts/Layout.astro";
                 this.loadingCampaigns = true;
                 this.error = "";
                 this.campaigns = [];
-                this.summary = { totalSpend: 0, totalReach: 0, totalImpressions: 0, totalClicks: 0, totalConversations: 0 };
+                this.summary = { totalSpend: 0, totalConversations: 0 };
 
                 try {
                     const filtering = encodeURIComponent(
@@ -495,7 +508,7 @@ import Layout from "../layouts/Layout.astro";
                         // Fetch insights and ad (with creative + adset) in parallel
                         const [insightsRes, adsRes] = await Promise.all([
                             this.fbGet(
-                                `/${campaign.id}/insights?fields=impressions,reach,clicks,spend,cpm,cpc,ctr,actions,cost_per_action_type&time_range=${timeRangeParam}`
+                                `/${campaign.id}/insights?fields=spend,actions,cost_per_action_type&time_range=${timeRangeParam}`
                             ).catch(() => ({ data: [] })),
                             this.fbGet(
                                 `/${campaign.id}/ads?fields=creative{effective_object_story_id},adset{promoted_object}&limit=1`
@@ -536,13 +549,7 @@ import Layout from "../layouts/Layout.astro";
                         id: c.id,
                         name: c.name,
                         status: c.status,
-                        impressions: parseFloat(c.impressions || "0"),
-                        reach: parseFloat(c.reach || "0"),
-                        clicks: parseFloat(c.clicks || "0"),
                         spend: parseFloat(c.spend || "0"),
-                        cpm: parseFloat(c.cpm || "0"),
-                        cpc: parseFloat(c.cpc || "0"),
-                        ctr: parseFloat(c.ctr || "0"),
                         conversations: parseFloat(c.conversations || "0"),
                         costPerConversation: parseFloat(c.costPerConversation || "0"),
                         postUrl: c.postUrl || "",
@@ -553,12 +560,9 @@ import Layout from "../layouts/Layout.astro";
                     this.summary = this.campaigns.reduce(
                         (acc: any, c: any) => ({
                             totalSpend: acc.totalSpend + c.spend,
-                            totalReach: acc.totalReach + c.reach,
-                            totalImpressions: acc.totalImpressions + c.impressions,
-                            totalClicks: acc.totalClicks + c.clicks,
                             totalConversations: acc.totalConversations + c.conversations,
                         }),
-                        { totalSpend: 0, totalReach: 0, totalImpressions: 0, totalClicks: 0, totalConversations: 0 }
+                        { totalSpend: 0, totalConversations: 0 }
                     );
                 } catch (e: any) {
                     if (!this.tokenExpired) {
@@ -590,7 +594,7 @@ import Layout from "../layouts/Layout.astro";
                 this.campaigns = [];
                 this.tokenExpired = false;
                 this.error = "";
-                this.summary = { totalSpend: 0, totalReach: 0, totalImpressions: 0, totalClicks: 0, totalConversations: 0 };
+                this.summary = { totalSpend: 0, totalConversations: 0 };
                 localStorage.removeItem(STORAGE_KEY);
             },
 
