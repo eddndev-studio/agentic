@@ -18,12 +18,8 @@ jobs:
           script: |
             set -e
 
-            # Ensure Bun is in path (Standard location for bun install script)
-            export BUN_INSTALL="$HOME/.bun"
-            export PATH="$BUN_INSTALL/bin:$PATH"
-
             echo "Starting Deployment..."
-            
+
             cd /var/www/agentic
 
             echo "Pulling latest code..."
@@ -32,19 +28,18 @@ jobs:
 
             echo "Building Backend..."
             cd backend
-            bun install --production
-            bunx prisma migrate deploy
-            bunx prisma generate
-            bun run prisma/seed.ts
-            bun run build
-            
+            npm install
+            npx prisma migrate deploy
+            npx prisma generate
+            npx tsx prisma/seed.ts
+            npm run build
+
             echo "Building Frontend..."
             cd ../frontend
-            bun install
-            # Ensure PUBLIC_API_URL is set if needed for the build
+            npm install
             export PUBLIC_API_URL="https://agentic-api.w-gateway.cc"
-            bun run build
-            
+            npm run build
+
             echo "Restarting PM2..."
             cd ..
             pm2 startOrReload ecosystem.config.cjs
