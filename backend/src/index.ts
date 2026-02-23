@@ -132,14 +132,28 @@ import { toolController } from "./api/tool.controller";
 import { sessionController } from "./api/session.controller";
 import { eventsController } from "./api/events.controller";
 import { automationController } from "./api/automation.controller";
-import { cors } from "@elysiajs/cors";
+const ALLOWED_ORIGINS = new Set([
+    'https://agentic.w-gateway.cc',
+    'http://localhost:4321',
+    'http://localhost:5173',
+]);
 
 const app = new Elysia({ adapter: node() })
-    .use(cors({
-        origin: true,
-        allowedHeaders: ['Content-Type', 'Authorization'],
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-    }))
+    .onRequest(({ request, set }) => {
+        const origin = request.headers.get('origin') || request.headers.get('Origin') || '';
+        if (ALLOWED_ORIGINS.has(origin)) {
+            set.headers['Access-Control-Allow-Origin'] = origin;
+        }
+        set.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+        set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+        set.headers['Access-Control-Allow-Credentials'] = 'true';
+        set.headers['Vary'] = 'Origin';
+
+        if (request.method === 'OPTIONS') {
+            set.status = 204;
+            return '';
+        }
+    })
     .use(webhookController)
     .use(uploadController)
     .use(flowController)
