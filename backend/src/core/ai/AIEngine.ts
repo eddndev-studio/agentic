@@ -18,8 +18,9 @@ const PENDING_QUEUE_KEY = (sid: string) => `ai:pending:${sid}`;
 const MAX_PENDING_RETRIES = 3;
 
 /** Maps primary model to a cheaper Gemini fallback */
-const FALLBACK_MAP: Record<string, { provider: "GEMINI"; model: string }> = {
+const FALLBACK_MAP: Record<string, { provider: "GEMINI" | "OPENAI"; model: string }> = {
     GEMINI: { provider: "GEMINI", model: "gemini-2.5-flash" },
+    OPENAI: { provider: "OPENAI", model: "gpt-5-nano" },
 };
 
 export class AIEngine {

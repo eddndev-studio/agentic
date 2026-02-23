@@ -236,8 +236,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('ai_provider')">Provider</label>
                         <select x-model="aiConfig.aiProvider"
                             class="w-full bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                            <option value="OPENAI">OpenAI (GPT-5-mini)</option>
                             <option value="GEMINI">Google Gemini</option>
-                            <option value="OPENAI">OpenAI (Fallback)</option>
                         </select>
                     </div>
 
@@ -246,7 +246,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('ai_model')">Model</label>
                         <input type="text" x-model="aiConfig.aiModel"
                             class="w-full bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg"
-                            placeholder="gpt-4o-mini" />
+                            placeholder="gpt-5-mini" />
                     </div>
 
                     <!-- System Prompt -->
@@ -1209,8 +1209,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             // AI Config State
             aiConfig: {
                 aiEnabled: false,
-                aiProvider: "GEMINI",
-                aiModel: "gemini-3-flash-preview",
+                aiProvider: "OPENAI",
+                aiModel: "gpt-5-mini",
                 systemPrompt: "",
                 temperature: 0.7,
                 messageDelay: 0,
@@ -1268,8 +1268,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     // Initialize AI config from bot data
                     this.aiConfig = {
                         aiEnabled: this.bot.aiEnabled || false,
-                        aiProvider: this.bot.aiProvider || "GEMINI",
-                        aiModel: this.bot.aiModel || "gemini-3-flash-preview",
+                        aiProvider: this.bot.aiProvider || "OPENAI",
+                        aiModel: this.bot.aiModel || "gpt-5-mini",
                         systemPrompt: this.bot.systemPrompt || "",
                         temperature: this.bot.temperature ?? 0.7,
                         messageDelay: this.bot.messageDelay ?? 0,

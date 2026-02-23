@@ -1,6 +1,5 @@
 import { prisma } from "../../services/postgres.service";
 import { BaileysService } from "../../services/baileys.service";
-import { EncryptionService } from "../../services/encryption.service";
 import { isBuiltinTool } from "./builtin-tools";
 import type { Session } from "@prisma/client";
 
@@ -169,117 +168,6 @@ export class ToolExecutor {
         const builtinName = tool.name || (tool.actionConfig as any)?.builtinName;
 
         switch (builtinName) {
-            case "lookup_client": {
-                const client = await prisma.client.findFirst({
-                    where: {
-                        botId,
-                        OR: [
-                            { curp: args.curp || undefined },
-                            { phoneNumber: args.phoneNumber || session.identifier },
-                            { email: args.email || undefined },
-                        ].filter(c => Object.values(c).some(v => v !== undefined)),
-                    },
-                    select: {
-                        id: true, email: true, phoneNumber: true,
-                        curp: true, status: true, createdAt: true,
-                    },
-                });
-                return { success: !!client, data: client ?? "Cliente no encontrado." };
-            }
-
-            case "register_client": {
-                if (!args.curp || !args.email || !args.phoneNumber) {
-                    return { success: false, data: "Faltan campos obligatorios: curp, email, phoneNumber. NO inventes datos, pídelos al usuario." };
-                }
-
-                // Validate email format
-                if (!args.email.includes("@") || args.email.length < 5) {
-                    return { success: false, data: "El email proporcionado no es válido. Pide un email real al usuario." };
-                }
-
-                // Validate phone format (only digits, 10-15 chars)
-                const cleanPhone = String(args.phoneNumber).replace(/\D/g, "");
-                if (cleanPhone.length < 10 || cleanPhone.length > 15) {
-                    return { success: false, data: "El número de teléfono no es válido (debe tener 10-15 dígitos). Pide un número real al usuario." };
-                }
-
-                // Validate CURP format (18 alphanumeric chars)
-                if (!/^[A-Z0-9]{18}$/i.test(args.curp)) {
-                    return { success: false, data: "La CURP no es válida (debe tener 18 caracteres alfanuméricos)." };
-                }
-
-                // Upsert: if a client with this CURP already exists, update their data
-                const client = await prisma.client.upsert({
-                    where: {
-                        curp: args.curp.toUpperCase(),
-                    },
-                    update: {
-                        email: args.email,
-                        phoneNumber: cleanPhone,
-                    },
-                    create: {
-                        botId,
-                        curp: args.curp.toUpperCase(),
-                        email: args.email,
-                        phoneNumber: cleanPhone,
-                    },
-                    select: { id: true, email: true, curp: true, phoneNumber: true, status: true },
-                });
-                return { success: true, data: client };
-            }
-
-            case "save_credentials": {
-                if (!args.email || !args.password) {
-                    return { success: false, data: "Faltan campos obligatorios: email y password de Llave CDMX. Pídelos al usuario." };
-                }
-
-                if (!args.email.includes("@") || args.email.length < 5) {
-                    return { success: false, data: "El email no es válido. Pide el correo real de Llave CDMX al usuario." };
-                }
-
-                // Find existing client by email, phone, or CURP
-                const existing = await prisma.client.findFirst({
-                    where: {
-                        botId,
-                        OR: [
-                            { email: args.email },
-                            { phoneNumber: session.identifier.replace("@s.whatsapp.net", "") },
-                            ...(args.curp ? [{ curp: args.curp.toUpperCase() }] : []),
-                        ],
-                    },
-                });
-
-                const encrypted = EncryptionService.encrypt(args.password);
-
-                if (existing) {
-                    // Update existing client with credentials
-                    const updated = await prisma.client.update({
-                        where: { id: existing.id },
-                        data: {
-                            encryptedPassword: encrypted,
-                            email: args.email,
-                            ...(args.curp ? { curp: args.curp.toUpperCase() } : {}),
-                        },
-                        select: { id: true, email: true, curp: true, status: true },
-                    });
-                    return { success: true, data: { ...updated, message: "Credenciales guardadas correctamente." } };
-                } else {
-                    // Create new client with credentials
-                    const phoneFromSession = session.identifier.replace("@s.whatsapp.net", "");
-                    const created = await prisma.client.create({
-                        data: {
-                            botId,
-                            email: args.email,
-                            phoneNumber: phoneFromSession,
-                            encryptedPassword: encrypted,
-                            curp: args.curp?.toUpperCase() || null,
-                        },
-                        select: { id: true, email: true, curp: true, status: true },
-                    });
-                    return { success: true, data: { ...created, message: "Cliente registrado con credenciales." } };
-                }
-            }
-
             case "get_current_time": {
                 const tz = args.timezone || "America/Mexico_City";
                 const now = new Date().toLocaleString("es-MX", { timeZone: tz });
@@ -392,9 +280,6 @@ export class ToolExecutor {
                                         type: true,
                                     },
                                 },
-                                client: {
-                                    select: { id: true, phoneNumber: true, email: true },
-                                },
                             },
                         },
                     },
@@ -404,7 +289,6 @@ export class ToolExecutor {
                     sessionId: sl.session.id,
                     name: sl.session.name,
                     identifier: sl.session.identifier,
-                    client: sl.session.client,
                     lastMessageAt: sl.session.messages[0]?.createdAt ?? null,
                     lastMessages: sl.session.messages.reverse().map(m => ({
                         content: m.content,
