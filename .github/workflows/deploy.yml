@@ -9,8 +9,14 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Deploy via SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
-          ssh -o StrictHostKeyChecking=no -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'DEPLOY'
+          KEY_FILE=$(mktemp)
+          echo "$VPS_SSH_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+
+          ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'DEPLOY'
           set -e
 
           echo "Starting Deployment..."
@@ -41,3 +47,5 @@ jobs:
 
           echo "Deployment Complete!"
           DEPLOY
+
+          rm -f "$KEY_FILE"
