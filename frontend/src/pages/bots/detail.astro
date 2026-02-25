@@ -354,7 +354,24 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </a>
                 </div>
 
-                <!-- Tool List -->
+                <!-- Built-in Tools -->
+                <div class="mb-6">
+                    <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('builtin_tools') || 'Built-in Tools'">Built-in Tools</h4>
+                    <div class="space-y-2">
+                        <template x-for="bt in builtinTools" :key="bt.name">
+                            <div class="p-3 bg-wa-bg-deep border border-wa-border/50 rounded-lg opacity-80">
+                                <div class="flex items-center gap-2 mb-0.5">
+                                    <span class="font-bold font-mono text-sm text-white" x-text="bt.name"></span>
+                                    <span class="text-[10px] font-sans bg-wa-green/10 text-wa-green px-2 py-0.5 rounded-md">BUILTIN</span>
+                                </div>
+                                <p class="text-xs text-wa-text-secondary" x-text="bt.description"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Custom Tools -->
+                <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('custom_tools') || 'Custom Tools'">Custom Tools</h4>
                 <template x-if="tools.length > 0">
                     <div class="space-y-3">
                         <template x-for="tool in tools" :key="tool.id">
@@ -399,15 +416,9 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </div>
                 </template>
 
-                <!-- Empty State -->
+                <!-- Empty Custom Tools hint -->
                 <template x-if="tools.length === 0">
-                    <div class="text-center py-12 border border-dashed border-wa-border mt-4 rounded-xl">
-                        <p class="text-xs font-sans text-wa-text-secondary mb-4" x-text="$t('no_tools')">No tools configured</p>
-                        <a :href="'/tool-editor?botId=' + botId"
-                            class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg">
-                            + <span x-text="$t('new_tool')">New Tool</span>
-                        </a>
-                    </div>
+                    <p class="text-xs text-wa-text-secondary text-center py-4" x-text="$t('no_custom_tools') || 'No custom tools yet. Built-in tools are always active.'"></p>
                 </template>
             </div>
         </div>
@@ -1233,6 +1244,16 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             },
 
             // Tools State
+            builtinTools: [
+                { name: "get_current_time", description: "Obtiene la fecha y hora actual en la zona horaria especificada." },
+                { name: "clear_conversation", description: "Limpia el historial de conversación de la sesión actual." },
+                { name: "get_labels", description: "Obtiene todas las etiquetas disponibles del bot con la cantidad de chats asignados." },
+                { name: "assign_label", description: "Asigna una etiqueta existente al chat actual." },
+                { name: "remove_label", description: "Remueve una etiqueta del chat actual." },
+                { name: "get_sessions_by_label", description: "Busca todos los chats que tienen una etiqueta específica, con sus últimos mensajes." },
+                { name: "reply_to_message", description: "Responde citando un mensaje específico del usuario (quote-reply de WhatsApp)." },
+                { name: "send_followup_message", description: "Envía un mensaje de seguimiento a otra sesión/chat del bot." },
+            ],
             tools: [] as any[],
 
             // Logs State
