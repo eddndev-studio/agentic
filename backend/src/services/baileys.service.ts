@@ -564,11 +564,17 @@ export class BaileysService {
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
 
-        // Clear local app state version to force a full snapshot re-download
-        // Otherwise resyncAppState only fetches new patches since the last sync
+        // Delete the local app state version file to force a full snapshot re-download.
+        // resyncAppState only fetches patches newer than the cached version,
+        // so if labels were already synced before the DB table existed, no events fire.
+        const versionFile = path.join(AUTH_DIR, botId, 'app-state-sync-version-regular_high.json');
+        try { fs.unlinkSync(versionFile); } catch {}
+
+        // Also clear the in-memory cache
         await (sock as any).authState.keys.set({
             'app-state-sync-version': { 'regular_high': null }
         });
+
         await (sock as any).resyncAppState(['regular_high'], true);
     }
 
