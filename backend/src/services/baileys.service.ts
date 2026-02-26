@@ -429,10 +429,10 @@ export class BaileysService {
             if (bot.ignoredLabels.length > 0) {
                 const sessionLabels = await prisma.sessionLabel.findMany({
                     where: { sessionId: session.id },
-                    include: { label: { select: { name: true } } },
+                    select: { labelId: true },
                 });
-                const labelNames = sessionLabels.map(sl => sl.label.name);
-                if (labelNames.some(name => bot.ignoredLabels.includes(name))) {
+                const labelIds = sessionLabels.map(sl => sl.labelId);
+                if (labelIds.some(id => bot.ignoredLabels.includes(id))) {
                     return;
                 }
             }

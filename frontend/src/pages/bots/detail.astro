@@ -307,26 +307,32 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
                             <!-- Selected labels as chips -->
                             <div class="flex flex-wrap gap-2 mb-3" x-show="aiConfig.ignoredLabels.length > 0">
-                                <template x-for="(label, idx) in aiConfig.ignoredLabels" :key="idx">
+                                <template x-for="(labelId, idx) in aiConfig.ignoredLabels" :key="labelId">
                                     <span class="inline-flex items-center gap-1 px-2 py-1 bg-wa-green/20 text-wa-green text-xs rounded-md">
-                                        <span x-text="label"></span>
+                                        <span x-text="getLabelName(labelId)"></span>
                                         <button type="button" @click="aiConfig.ignoredLabels.splice(idx, 1)" class="hover:text-red-400">&times;</button>
                                     </span>
                                 </template>
                             </div>
 
-                            <!-- Add label from bot's labels -->
+                            <!-- Add labels from bot's labels -->
                             <div class="flex gap-2">
-                                <select @change="if ($event.target.value && !aiConfig.ignoredLabels.includes($event.target.value)) { aiConfig.ignoredLabels.push($event.target.value); } $event.target.value = '';"
-                                    class="flex-1 bg-wa-bg-hover border border-wa-border text-white text-sm p-2 focus:border-wa-green focus:outline-none rounded-lg">
-                                    <option value="">+ Add label...</option>
+                                <div class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2 flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                                     <template x-for="lbl in botLabels" :key="lbl.id">
-                                        <option :value="lbl.name" x-text="lbl.name" :disabled="aiConfig.ignoredLabels.includes(lbl.name)"></option>
+                                        <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                            <input type="checkbox"
+                                                :value="lbl.id"
+                                                :checked="aiConfig.ignoredLabels.includes(lbl.id)"
+                                                @change="toggleIgnoredLabel(lbl.id)"
+                                                class="accent-wa-green w-3.5 h-3.5" />
+                                            <span class="text-white text-xs" x-text="lbl.name"></span>
+                                        </label>
                                     </template>
-                                </select>
+                                    <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs">No labels synced</span>
+                                </div>
                                 <button type="button" @click="syncLabels()"
                                     :disabled="syncingLabels"
-                                    class="px-3 py-2 border border-wa-border text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover disabled:opacity-30 transition-colors rounded-lg text-sm"
+                                    class="px-3 py-2 border border-wa-border text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover disabled:opacity-30 transition-colors rounded-lg text-sm self-start"
                                     title="Sync labels from WhatsApp">
                                     <span :class="{'animate-spin': syncingLabels}">⟳</span>
                                 </button>
@@ -1504,6 +1510,20 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     alert("Import failed: " + (e.message || "Unknown error"));
                 } finally {
                     this.loadingImport = false;
+                }
+            },
+
+            getLabelName(labelId: string) {
+                const lbl = this.botLabels.find((l: any) => l.id === labelId);
+                return lbl ? lbl.name : labelId;
+            },
+
+            toggleIgnoredLabel(labelId: string) {
+                const idx = this.aiConfig.ignoredLabels.indexOf(labelId);
+                if (idx >= 0) {
+                    this.aiConfig.ignoredLabels.splice(idx, 1);
+                } else {
+                    this.aiConfig.ignoredLabels.push(labelId);
                 }
             },
 
