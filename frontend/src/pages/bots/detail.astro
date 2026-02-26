@@ -302,40 +302,41 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
                         <!-- Ignored Labels -->
                         <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
-                            <label class="block text-sm font-medium text-white mb-1" x-text="$t('ignored_labels')">Ignored Labels</label>
-                            <p class="text-xs text-wa-text-secondary mb-3" x-text="$t('ignored_labels_desc')"></p>
-
-                            <!-- Selected labels as chips -->
-                            <div class="flex flex-wrap gap-2 mb-3" x-show="aiConfig.ignoredLabels.length > 0">
-                                <template x-for="(labelId, idx) in aiConfig.ignoredLabels" :key="labelId">
-                                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-wa-green/20 text-wa-green text-xs rounded-md">
-                                        <span x-text="getLabelName(labelId)"></span>
-                                        <button type="button" @click="aiConfig.ignoredLabels.splice(idx, 1)" class="hover:text-red-400">&times;</button>
-                                    </span>
-                                </template>
-                            </div>
-
-                            <!-- Add labels from bot's labels -->
-                            <div class="flex gap-2">
-                                <div class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2 flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                                    <template x-for="lbl in botLabels" :key="lbl.id">
-                                        <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
-                                            <input type="checkbox"
-                                                :value="lbl.id"
-                                                :checked="aiConfig.ignoredLabels.includes(lbl.id)"
-                                                @change="toggleIgnoredLabel(lbl.id)"
-                                                class="accent-wa-green w-3.5 h-3.5" />
-                                            <span class="text-white text-xs" x-text="lbl.name"></span>
-                                        </label>
-                                    </template>
-                                    <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs">No labels synced</span>
-                                </div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-sm font-medium text-white" x-text="$t('ignored_labels')">Ignored Labels</label>
                                 <button type="button" @click="syncLabels()"
                                     :disabled="syncingLabels"
-                                    class="px-3 py-2 border border-wa-border text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover disabled:opacity-30 transition-colors rounded-lg text-sm self-start"
+                                    class="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] text-wa-text-secondary hover:text-white transition-colors rounded"
                                     title="Sync labels from WhatsApp">
                                     <span :class="{'animate-spin': syncingLabels}">⟳</span>
+                                    <span>Sync</span>
                                 </button>
+                            </div>
+                            <p class="text-xs text-wa-text-secondary mb-3" x-text="$t('ignored_labels_desc')"></p>
+
+                            <!-- Label grid -->
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="lbl in botLabels" :key="lbl.id">
+                                    <button type="button"
+                                        @click="toggleIgnoredLabel(lbl.id)"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+                                        :class="aiConfig.ignoredLabels.includes(lbl.id)
+                                            ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                                            : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+                                    >
+                                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                        <span x-text="lbl.name"></span>
+                                        <span x-show="aiConfig.ignoredLabels.includes(lbl.id)" class="text-red-400/70 text-[10px] ml-0.5">✕</span>
+                                    </button>
+                                </template>
+                                <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No labels synced</span>
+                            </div>
+
+                            <!-- Summary -->
+                            <div x-show="aiConfig.ignoredLabels.length > 0" class="mt-3 pt-2 border-t border-wa-border/50">
+                                <p class="text-[10px] text-red-400/70">
+                                    <span x-text="aiConfig.ignoredLabels.length"></span> label(s) ignored — AI will not respond to sessions with these labels
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -1516,6 +1517,11 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             getLabelName(labelId: string) {
                 const lbl = this.botLabels.find((l: any) => l.id === labelId);
                 return lbl ? lbl.name : labelId;
+            },
+
+            getLabelColor(color: number) {
+                const colors = ['#00a884','#53bdeb','#009de2','#ff9a00','#d13b3b','#a552a1','#5bc5d1','#fc7e7e','#e8b830','#e354c5','#00d0b6','#349ded','#8c68e0','#e56e56','#a0d669','#62c5e1','#7e90e5','#e89844','#e873b0','#6ccb78'];
+                return colors[color % colors.length];
             },
 
             toggleIgnoredLabel(labelId: string) {
