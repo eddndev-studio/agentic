@@ -341,6 +341,7 @@ export class ToolExecutor {
                 // Validate session belongs to the same bot
                 const targetSession = await prisma.session.findFirst({
                     where: { id: targetSessionId, botId },
+                    include: { bot: true },
                 });
                 if (!targetSession) {
                     return { success: false, data: `Sesión '${targetSessionId}' no encontrada o no pertenece a este bot.` };
@@ -357,6 +358,7 @@ export class ToolExecutor {
                         fromMe: true,
                         type: "TEXT",
                         externalId: null,
+                        sender: targetSession.bot.identifier || "bot",
                     },
                 });
 
