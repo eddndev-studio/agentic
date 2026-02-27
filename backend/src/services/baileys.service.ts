@@ -62,6 +62,58 @@ const AUTH_DIR = 'auth_info_baileys';
 
 export class BaileysService {
 
+    /**
+     * Update a session's name from a contact object (used by contacts.update, contacts.upsert, messaging-history.set).
+     * Returns true if the name was changed.
+     */
+    private static async updateContactName(botId: string, contact: { id?: string; notify?: string; verifiedName?: string; name?: string }): Promise<boolean> {
+        if (!contact.id) return false;
+        const name = contact.notify || contact.verifiedName || contact.name;
+        if (!name) return false;
+        const jid = jidNormalizedUser(contact.id);
+        const session = await prisma.session.findUnique({
+            where: { botId_identifier: { botId, identifier: jid } },
+        });
+        if (session && session.name !== name) {
+            await prisma.session.update({ where: { id: session.id }, data: { name } });
+            eventBus.emitBotEvent({ type: 'session:updated', botId, sessionId: session.id, name });
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Find-or-create a session from a chat JID (used by chats.upsert, messaging-history.set).
+     * Returns the session and whether it was newly created.
+     */
+    private static async upsertSessionFromChat(botId: string, jid: string, name?: string): Promise<{ session: any; created: boolean }> {
+        const identifier = jidNormalizedUser(jid);
+        let session = await prisma.session.findUnique({
+            where: { botId_identifier: { botId, identifier } },
+        });
+        if (session) return { session, created: false };
+        try {
+            session = await prisma.session.create({
+                data: {
+                    botId,
+                    platform: Platform.WHATSAPP,
+                    identifier,
+                    name: name || identifier.split('@')[0],
+                    status: SessionStatus.CONNECTED,
+                },
+            });
+            return { session, created: true };
+        } catch (e: any) {
+            if (e.code === 'P2002') {
+                session = await prisma.session.findUnique({
+                    where: { botId_identifier: { botId, identifier } },
+                });
+                return { session, created: false };
+            }
+            throw e;
+        }
+    }
+
     static async startSession(botId: string) {
         if (sessions.has(botId)) {
             return sessions.get(botId);
@@ -302,8 +354,172 @@ export class BaileysService {
                         });
                         console.log(`[Baileys] Label "${label.name}" removed from session ${resolvedJid}`);
                     }
+
+                    // Emit SSE so the frontend updates in real-time
+                    const updatedLabels = await prisma.sessionLabel.findMany({
+                        where: { sessionId: session.id },
+                        include: { label: true },
+                    });
+                    eventBus.emitBotEvent({
+                        type: 'session:labels',
+                        botId,
+                        sessionId: session.id,
+                        labels: updatedLabels.map(sl => ({
+                            id: sl.label.id,
+                            name: sl.label.name,
+                            color: sl.label.color,
+                            waLabelId: sl.label.waLabelId,
+                        })),
+                    });
                 } catch (e) {
                     console.error(`[Baileys] labels.association error:`, e);
+                }
+            });
+
+            // --- contacts.update: update session names when contacts change ---
+            sock.ev.on('contacts.update', async (updates: any[]) => {
+                for (const contact of updates) {
+                    try {
+                        await BaileysService.updateContactName(botId, contact);
+                    } catch (e: any) {
+                        console.warn(`[Baileys] contacts.update error:`, e.message);
+                    }
+                }
+            });
+
+            // --- contacts.upsert: initial sync delivers full contact objects ---
+            sock.ev.on('contacts.upsert', async (contacts: any[]) => {
+                for (const contact of contacts) {
+                    try {
+                        await BaileysService.updateContactName(botId, contact);
+                    } catch (e: any) {
+                        console.warn(`[Baileys] contacts.upsert error:`, e.message);
+                    }
+                }
+            });
+
+            // --- chats.upsert: create sessions for existing chats on reconnect ---
+            sock.ev.on('chats.upsert', async (chats: any[]) => {
+                const bot = await prisma.bot.findUnique({ where: { id: botId } });
+                for (const chat of chats) {
+                    try {
+                        if (!chat.id || chat.id === 'status@broadcast') continue;
+                        const jid = jidNormalizedUser(chat.id);
+                        if (bot?.excludeGroups && jid.endsWith('@g.us')) continue;
+                        const name = chat.name || chat.subject || undefined;
+                        const { session, created } = await BaileysService.upsertSessionFromChat(botId, jid, name);
+                        if (created && session) {
+                            eventBus.emitBotEvent({ type: 'session:created', botId, session });
+                        }
+                    } catch (e: any) {
+                        console.warn(`[Baileys] chats.upsert error:`, e.message);
+                    }
+                }
+            });
+
+            // --- messaging-history.set: bulk import historical messages ---
+            sock.ev.on('messaging-history.set', async (data: any) => {
+                const { chats: histChats, contacts: histContacts, messages: histMessages } = data;
+                const bot = await prisma.bot.findUnique({ where: { id: botId } });
+                console.log(`[Baileys] History sync for Bot ${botId}: ${histChats?.length || 0} chats, ${histContacts?.length || 0} contacts, ${histMessages?.length || 0} messages`);
+
+                // Upsert sessions from chats
+                if (histChats?.length) {
+                    for (const chat of histChats) {
+                        try {
+                            if (!chat.id || chat.id === 'status@broadcast') continue;
+                            const jid = jidNormalizedUser(chat.id);
+                            if (bot?.excludeGroups && jid.endsWith('@g.us')) continue;
+                            await BaileysService.upsertSessionFromChat(botId, jid, chat.name || chat.subject);
+                        } catch {}
+                    }
+                }
+
+                // Update contact names
+                if (histContacts?.length) {
+                    for (const contact of histContacts) {
+                        try {
+                            await BaileysService.updateContactName(botId, contact);
+                        } catch {}
+                    }
+                }
+
+                // Persist messages (isProcessed: true — MUST NOT trigger AI/flows)
+                if (histMessages?.length) {
+                    let imported = 0;
+                    for (const msg of histMessages) {
+                        try {
+                            if (!msg.message || !msg.key?.remoteJid || msg.key.remoteJid === 'status@broadcast') continue;
+                            const jid = jidNormalizedUser(msg.key.remoteJid);
+                            if (bot?.excludeGroups && jid.endsWith('@g.us')) continue;
+
+                            const session = await prisma.session.findUnique({
+                                where: { botId_identifier: { botId, identifier: jid } },
+                            });
+                            if (!session) continue;
+
+                            const externalId = msg.key.id;
+                            if (!externalId) continue;
+
+                            const content = msg.message.conversation ||
+                                msg.message.extendedTextMessage?.text ||
+                                msg.message.imageMessage?.caption || '';
+
+                            const msgType = msg.message.imageMessage ? 'IMAGE' :
+                                msg.message.audioMessage ? 'AUDIO' :
+                                msg.message.documentMessage ? 'DOCUMENT' : 'TEXT';
+
+                            // Use original WhatsApp timestamp for correct ordering
+                            const timestamp = msg.messageTimestamp
+                                ? new Date(typeof msg.messageTimestamp === 'number'
+                                    ? msg.messageTimestamp * 1000
+                                    : Number(msg.messageTimestamp) * 1000)
+                                : new Date();
+
+                            await prisma.message.upsert({
+                                where: { externalId },
+                                update: {},
+                                create: {
+                                    externalId,
+                                    sessionId: session.id,
+                                    sender: jid,
+                                    fromMe: msg.key.fromMe || false,
+                                    content,
+                                    type: msgType,
+                                    isProcessed: true,
+                                    createdAt: timestamp,
+                                },
+                            });
+                            imported++;
+                        } catch {}
+                    }
+                    console.log(`[Baileys] History sync imported ${imported} messages for Bot ${botId}`);
+                }
+            });
+
+            // --- messages.update: handle edited messages ---
+            sock.ev.on('messages.update', async (updates: any[]) => {
+                for (const { key, update } of updates) {
+                    try {
+                        if (!key?.id) continue;
+                        const editedMessage = update?.message;
+                        if (!editedMessage) continue;
+
+                        const newContent = editedMessage.conversation ||
+                            editedMessage.extendedTextMessage?.text ||
+                            editedMessage.editedMessage?.message?.protocolMessage?.editedMessage?.conversation ||
+                            editedMessage.editedMessage?.message?.protocolMessage?.editedMessage?.extendedTextMessage?.text;
+
+                        if (!newContent) continue;
+
+                        await prisma.message.updateMany({
+                            where: { externalId: key.id },
+                            data: { content: newContent },
+                        });
+                        console.log(`[Baileys] Message ${key.id} edited for Bot ${botId}`);
+                    } catch (e: any) {
+                        console.warn(`[Baileys] messages.update error:`, e.message);
+                    }
                 }
             });
 
@@ -453,6 +669,12 @@ export class BaileysService {
                 console.log(`[Baileys] Duplicate message ${messageExternalId}, skipping processing.`);
                 return;
             }
+
+            // Touch session so it sorts to top of the list
+            await prisma.session.update({
+                where: { id: session.id },
+                data: { updatedAt: new Date() },
+            });
 
             eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
 

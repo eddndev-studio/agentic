@@ -7,7 +7,9 @@ export type BotEvent =
     | { type: 'bot:disconnected'; botId: string; statusCode: number | undefined }
     | { type: 'message:received'; botId: string; sessionId: string; message: any }
     | { type: 'message:sent';     botId: string; sessionId: string; content: string }
-    | { type: 'session:created';  botId: string; session: any };
+    | { type: 'session:created';  botId: string; session: any }
+    | { type: 'session:updated';  botId: string; sessionId: string; name: string }
+    | { type: 'session:labels';   botId: string; sessionId: string; labels: any[] };
 
 export type SystemEvent = { type: 'system:log'; log: LogEntry };
 

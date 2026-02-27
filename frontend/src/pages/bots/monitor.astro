@@ -482,11 +482,16 @@ import Layout from "../../layouts/Layout.astro";
                             this.messages.push(data.message);
                             this.$nextTick(() => this.scrollToBottom());
                         }
-                        // Update session list lastMessage
+                        // Update session list lastMessage + move to top
                         const s = this.sessions.find((s: any) => s.id === data.sessionId);
                         if (s) {
                             s.lastMessage = data.message;
                             s.messageCount = (s.messageCount || 0) + 1;
+                            const idx = this.sessions.indexOf(s);
+                            if (idx > 0) {
+                                this.sessions.splice(idx, 1);
+                                this.sessions.unshift(s);
+                            }
                         }
                     })
                     .on('message:sent', (data: any) => {
@@ -504,6 +509,20 @@ import Layout from "../../layouts/Layout.astro";
                     .on('session:created', (data: any) => {
                         if (data.session?.id && !this.sessions.some((s: any) => s.id === data.session.id)) {
                             this.sessions.unshift(data.session);
+                        }
+                    })
+                    .on('session:labels', (data: any) => {
+                        const s = this.sessions.find((s: any) => s.id === data.sessionId);
+                        if (s) s.labels = data.labels;
+                        if (this.selectedSession?.id === data.sessionId) {
+                            this.selectedSession.labels = data.labels;
+                        }
+                    })
+                    .on('session:updated', (data: any) => {
+                        const s = this.sessions.find((s: any) => s.id === data.sessionId);
+                        if (s) s.name = data.name;
+                        if (this.selectedSession?.id === data.sessionId) {
+                            this.selectedSession.name = data.name;
                         }
                     });
                 this.sseClient.connect();
