@@ -33,6 +33,29 @@ const reconnectAttempts = new Map<string, number>();
 // Track reconnect timers so they can be cancelled on shutdown
 const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+// Signal Protocol auto-recovery: track decryption failures per bot
+const decryptFailures = new Map<string, { count: number; lastPurge: number }>();
+const DECRYPT_FAILURE_THRESHOLD = 5;
+const PURGE_COOLDOWN = 6 * 60 * 60 * 1000; // 6 hours
+
+// Simple CacheStore implementation for Baileys msgRetryCounterCache
+class MapCacheStore {
+    private cache = new Map<string, { value: any; expires: number }>();
+    private ttl: number;
+    constructor(ttlMs = 5 * 60 * 1000) { this.ttl = ttlMs; }
+    get<T>(key: string): T | undefined {
+        const entry = this.cache.get(key);
+        if (!entry) return undefined;
+        if (Date.now() > entry.expires) { this.cache.delete(key); return undefined; }
+        return entry.value as T;
+    }
+    set<T>(key: string, value: T): void {
+        this.cache.set(key, { value, expires: Date.now() + this.ttl });
+    }
+    del(key: string): void { this.cache.delete(key); }
+    flushAll(): void { this.cache.clear(); }
+}
+
 let shuttingDown = false;
 
 const AUTH_DIR = 'auth_info_baileys';
@@ -87,6 +110,8 @@ export class BaileysService {
                 },
                 generateHighQualityLinkPreview: true,
                 qrTimeout: 60000,
+                // Enable automatic retry for failed message decryption (Bad MAC recovery)
+                msgRetryCounterCache: new MapCacheStore(),
                 // Custom Agent for IPv6 Binding
                 ...(socketAgent && {
                     agent: socketAgent,
@@ -167,9 +192,15 @@ export class BaileysService {
                 if (type !== 'notify') return;
 
                 for (const msg of messages) {
-                    if (!msg.message) continue;
-                    // Avoid processing status updates or broadcast messages if needed
                     if (msg.key.remoteJid === 'status@broadcast') continue;
+
+                    // Detect decryption failures (Bad MAC / corrupted Signal sessions)
+                    if (!msg.message && msg.key.remoteJid) {
+                        this.trackDecryptionFailure(botId);
+                        continue;
+                    }
+
+                    if (!msg.message) continue;
 
                     // @ts-ignore
                     await this.handleIncomingMessage(botId, msg);
@@ -470,6 +501,50 @@ export class BaileysService {
 
         } catch (e) {
             console.error(`[${new Date().toISOString()}] [Baileys] Error processing message:`, e);
+        }
+    }
+
+    /**
+     * Track decryption failures per bot. After DECRYPT_FAILURE_THRESHOLD failures,
+     * purge Signal session files to force renegotiation (auto-recovery from Bad MAC).
+     */
+    private static trackDecryptionFailure(botId: string): void {
+        const now = Date.now();
+        const tracker = decryptFailures.get(botId) || { count: 0, lastPurge: 0 };
+
+        tracker.count++;
+        decryptFailures.set(botId, tracker);
+
+        if (tracker.count >= DECRYPT_FAILURE_THRESHOLD && now - tracker.lastPurge > PURGE_COOLDOWN) {
+            this.purgeSignalSessions(botId);
+            tracker.count = 0;
+            tracker.lastPurge = now;
+        }
+    }
+
+    /**
+     * Delete corrupted Signal Protocol session files for a bot.
+     * Preserves creds.json (no QR re-scan needed) and app-state files.
+     * Sessions renegotiate automatically on the next message exchange.
+     */
+    static purgeSignalSessions(botId: string): void {
+        const sessionDir = path.join(AUTH_DIR, botId);
+        if (!fs.existsSync(sessionDir)) return;
+
+        const files = fs.readdirSync(sessionDir);
+        let purged = 0;
+
+        for (const file of files) {
+            if (file.startsWith('session-') || file.startsWith('sender-key-')) {
+                try {
+                    fs.unlinkSync(path.join(sessionDir, file));
+                    purged++;
+                } catch {}
+            }
+        }
+
+        if (purged > 0) {
+            console.log(`[Baileys] Auto-purged ${purged} Signal session files for Bot ${botId} (Bad MAC recovery)`);
         }
     }
 
