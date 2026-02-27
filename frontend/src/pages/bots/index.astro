@@ -66,15 +66,26 @@ import Layout from "../../layouts/Layout.astro";
 			<template x-for="bot in bots" :key="bot.id">
 				<a
 					:href="`/bots/detail?id=${bot.id}`"
-					class="block bg-wa-bg-panel border border-wa-border rounded-xl p-6 relative group hover:border-wa-green/30 transition-all duration-300"
+					class="block bg-wa-bg-panel border rounded-xl p-6 relative group transition-all duration-300"
+					:class="bot.paused
+						? 'border-yellow-500/30 opacity-60 hover:opacity-80'
+						: 'border-wa-border hover:border-wa-green/30'"
 				>
 					<!-- Platform Badge -->
 					<div class="flex justify-between items-start mb-4">
-						<span
-							class="text-[10px] text-wa-green bg-wa-green/10 px-2 py-0.5 rounded-md"
-							x-text="bot.platform"
-						>
-						</span>
+						<div class="flex items-center gap-2">
+							<span
+								class="text-[10px] text-wa-green bg-wa-green/10 px-2 py-0.5 rounded-md"
+								x-text="bot.platform"
+							>
+							</span>
+							<span
+								x-show="bot.paused"
+								class="text-[10px] text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded-md"
+							>
+								PAUSED
+							</span>
+						</div>
 						<svg
 							class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green transition-colors"
 							fill="none"

@@ -49,6 +49,8 @@ export class AIEngine {
             return;
         }
 
+        if (session.bot.paused) return;
+
         // 2. Backward compatibility: delegate to FlowEngine if AI not enabled
         if (!session.bot.aiEnabled) {
             for (const msg of messages) {

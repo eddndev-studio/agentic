@@ -61,7 +61,26 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 </p>
             </div>
 
-            <div class="flex gap-3 flex-wrap">
+            <div class="flex gap-3 flex-wrap items-start">
+                <!-- Pause Toggle -->
+                <button
+                    @click="togglePause()"
+                    class="px-4 py-2 font-sans text-xs tracking-normal transition-colors flex items-center gap-2 rounded-lg border"
+                    :class="bot.paused
+                        ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20'
+                        : 'border-wa-border text-wa-text-secondary hover:bg-wa-bg-hover'"
+                    :title="bot.paused ? 'Unpause bot' : 'Pause bot'"
+                >
+                    <svg x-show="!bot.paused" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <svg x-show="bot.paused" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span x-text="bot.paused ? 'Paused' : 'Pause'"></span>
+                </button>
+
                 <div class="flex gap-3 flex-wrap">
                     <a
                         :href="'/bots/monitor?botId=' + botId"
@@ -1662,6 +1681,17 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     console.error("Failed to sync labels", e);
                 } finally {
                     this.syncingLabels = false;
+                }
+            },
+
+            async togglePause() {
+                try {
+                    const updated = await ApiClient.put(`/bots/${this.botId}`, {
+                        paused: !this.bot.paused,
+                    });
+                    this.bot = updated;
+                } catch (e: any) {
+                    alert("Failed to toggle pause: " + (e.message || "Unknown error"));
                 }
             },
 

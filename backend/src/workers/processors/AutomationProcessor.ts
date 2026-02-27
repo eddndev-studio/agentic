@@ -13,6 +13,7 @@ export class AutomationProcessor {
         console.log(`[Automation] Processing ${automations.length} active automation(s)`);
 
         for (const automation of automations) {
+            if (automation.bot.paused) continue;
             if (!automation.bot.aiEnabled) continue;
 
             try {

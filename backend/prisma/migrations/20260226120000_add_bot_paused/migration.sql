@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Bot" ADD COLUMN "paused" BOOLEAN NOT NULL DEFAULT false;

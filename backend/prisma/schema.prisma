@@ -32,6 +32,7 @@ model Bot {
   aiProvider   AIProvider @default(OPENAI)
   systemPrompt String?
   temperature  Float      @default(0.7)
+  paused       Boolean    @default(false)
   messageDelay Int        @default(0)
   clients      Client[]
   flows        Flow[]

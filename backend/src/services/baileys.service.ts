@@ -456,6 +456,9 @@ export class BaileysService {
 
             eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
 
+            // Skip all processing when bot is paused
+            if (bot.paused) return;
+
             // Filter: skip AI for sessions with ignored labels
             if (bot.ignoredLabels.length > 0) {
                 const sessionLabels = await prisma.sessionLabel.findMany({
