@@ -1,24 +1,14 @@
 import { Elysia, t } from "elysia";
 import { node } from "@elysiajs/node";
-import { Redis } from "ioredis";
 import { initSystemLogger } from "./services/system-logger";
+import { redis } from "./services/redis.service";
 
 // --- System Logger (intercept console before anything else) ---
 initSystemLogger();
 
 // --- Configuration ---
-const REDIS_URL = process.env['REDIS_URL'] || "redis://localhost:6379";
 const PORT = process.env.PORT || 8080;
 const AUTOMATION_INTERVAL = Number(process.env['AUTOMATION_CHECK_INTERVAL_MS']) || 30 * 60 * 1000;
-
-// --- Services ---
-// Redis Connection
-const redis = new Redis(REDIS_URL, {
-    maxRetriesPerRequest: null // Required for BullMQ
-});
-
-redis.on("error", (err) => console.error("Redis Client Error", err));
-redis.on("connect", () => console.log("Redis Connected"));
 
 // --- Global Error Handlers (Prevent Crash) ---
 process.on('uncaughtException', (err) => {

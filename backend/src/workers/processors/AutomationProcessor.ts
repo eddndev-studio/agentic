@@ -10,20 +10,20 @@ export class AutomationProcessor {
             include: { bot: true },
         });
 
-        console.log(`[Automation] Processing ${automations.length} active automation(s)`);
+        const active = automations.filter(a => !a.bot.paused && a.bot.aiEnabled);
+        console.log(`[Automation] Processing ${active.length} active automation(s) (${automations.length} total)`);
 
-        for (const automation of automations) {
-            if (automation.bot.paused) continue;
-            if (!automation.bot.aiEnabled) continue;
+        const results = await Promise.allSettled(
+            active.map(automation =>
+                automation.labelName
+                    ? this.processWithLabel(automation)
+                    : this.processWithoutLabel(automation)
+            )
+        );
 
-            try {
-                if (automation.labelName) {
-                    await this.processWithLabel(automation);
-                } else {
-                    await this.processWithoutLabel(automation);
-                }
-            } catch (err) {
-                console.error(`[Automation] Error processing automation "${automation.name}":`, err);
+        for (let i = 0; i < results.length; i++) {
+            if (results[i].status === "rejected") {
+                console.error(`[Automation] Error in "${active[i].name}":`, (results[i] as PromiseRejectedResult).reason);
             }
         }
     }
@@ -63,9 +63,9 @@ export class AutomationProcessor {
 
         const cutoff = Date.now() - automation.timeoutMs;
 
-        for (const sl of sessionLabels) {
-            await this.triggerIfInactive(automation, sl.session, cutoff);
-        }
+        await Promise.allSettled(
+            sessionLabels.map(sl => this.triggerIfInactive(automation, sl.session, cutoff))
+        );
     }
 
     /** Sessions that have NO labels at all and are inactive */
@@ -87,9 +87,9 @@ export class AutomationProcessor {
 
         const cutoff = Date.now() - automation.timeoutMs;
 
-        for (const session of sessions) {
-            await this.triggerIfInactive(automation, session, cutoff);
-        }
+        await Promise.allSettled(
+            sessions.map(session => this.triggerIfInactive(automation, session, cutoff))
+        );
     }
 
     private static async triggerIfInactive(automation: any, session: any, cutoff: number): Promise<void> {
