@@ -177,30 +177,6 @@ export class FlowEngine {
     }
 
     /**
-     * Initializes a new Flow Execution and schedules Step 0.
-     * @deprecated Now handled atomically inside processIncomingMessage transaction
-     */
-    private async startFlow(trigger: Trigger, userId: string, sessionId: string) {
-        console.log(`[FlowEngine] Starting flow ${trigger.flowId} for user ${userId}`);
-
-        // Create tracking record
-        const execution = await prisma.execution.create({
-            data: {
-                sessionId,
-                flowId: trigger.flowId,
-                platformUserId: userId,
-                status: "RUNNING",
-                currentStep: 0,
-                variableContext: {}, // Could inject captured regex groups here
-                trigger: trigger.keyword
-            }
-        });
-
-        // Schedule the first step
-        await this.scheduleStep(execution.id, 0);
-    }
-
-    /**
      * Pushes a job to the BullMQ queue to execute a specific step.
      * Calculates delay with Jitter.
      */
