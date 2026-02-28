@@ -83,15 +83,47 @@ export class BaileysService {
     }
 
     /**
-     * Find-or-create a session from a chat JID (used by chats.upsert, messaging-history.set).
-     * Returns the session and whether it was newly created.
+     * Find-or-create a session from a chat JID (used by chats.upsert, messaging-history.set, labels, messages).
+     * Handles LID↔phone normalization and P2002 race conditions.
+     * @param altIdentifier Optional fallback identifier to search (e.g. raw LID when primary is resolved phone)
      */
-    private static async upsertSessionFromChat(botId: string, jid: string, name?: string): Promise<{ session: any; created: boolean }> {
+    private static async upsertSessionFromChat(botId: string, jid: string, name?: string, altIdentifier?: string): Promise<{ session: any; created: boolean }> {
         const identifier = jidNormalizedUser(jid);
         let session = await prisma.session.findUnique({
             where: { botId_identifier: { botId, identifier } },
         });
         if (session) return { session, created: false };
+
+        // Fallback: check if session exists under an alternate identifier (e.g. LID vs phone)
+        if (altIdentifier && altIdentifier !== identifier) {
+            session = await prisma.session.findUnique({
+                where: { botId_identifier: { botId, identifier: altIdentifier } },
+            });
+            if (session) {
+                // Migrate session to the canonical identifier (phone > LID)
+                if (!identifier.endsWith('@lid')) {
+                    try {
+                        session = await prisma.session.update({
+                            where: { id: session.id },
+                            data: { identifier },
+                        });
+                        console.log(`[Baileys] Migrated session identifier from ${altIdentifier} to ${identifier}`);
+                    } catch (e: any) {
+                        if (e.code === 'P2002') {
+                            // Another session already has this identifier — merge by deleting the old one
+                            const canonical = await prisma.session.findUnique({
+                                where: { botId_identifier: { botId, identifier } },
+                            });
+                            if (canonical) {
+                                session = canonical;
+                            }
+                        }
+                    }
+                }
+                return { session, created: false };
+            }
+        }
+
         try {
             session = await prisma.session.create({
                 data: {
@@ -309,28 +341,17 @@ export class BaileysService {
                         }
                     }
 
-                    // Find session by resolved JID, fallback to raw chatId
-                    let session = await prisma.session.findUnique({
-                        where: { botId_identifier: { botId, identifier: resolvedJid } },
-                    });
-                    if (!session && resolvedJid !== rawChatId) {
-                        session = await prisma.session.findUnique({
-                            where: { botId_identifier: { botId, identifier: rawChatId } },
-                        });
-                    }
-                    // Auto-create session if it doesn't exist yet
+                    // Find-or-create session, passing rawChatId as alt so LID↔phone dedup works
+                    const altId = resolvedJid !== rawChatId ? rawChatId : undefined;
+                    const { session, created: sessionCreated } = await BaileysService.upsertSessionFromChat(
+                        botId, resolvedJid, undefined, altId
+                    );
                     if (!session) {
-                        const identifier = resolvedJid.endsWith('@lid') ? rawChatId : resolvedJid;
-                        session = await prisma.session.create({
-                            data: {
-                                botId,
-                                platform: Platform.WHATSAPP,
-                                identifier,
-                                name: identifier.split('@')[0],
-                                status: SessionStatus.CONNECTED,
-                            },
-                        });
-                        console.log(`[Baileys] Auto-created session for ${identifier} (label association)`);
+                        console.warn(`[Baileys] labels.association: Could not resolve session for ${rawChatId}`);
+                        return;
+                    }
+                    if (sessionCreated) {
+                        eventBus.emitBotEvent({ type: 'session:created', botId, session });
                     }
 
                     const label = await prisma.label.findUnique({
@@ -545,13 +566,14 @@ export class BaileysService {
         const rawFrom = msg.key.remoteJid;
         if (!rawFrom) return;
 
-        // CRITICAL: Normalize JID (convert @lid to @s.whatsapp.net) to identify user consistently
-        let from = jidNormalizedUser(rawFrom);
-
-        // Fix: If it's an LID, try to find the phone number in the undocumented 'remoteJidAlt' field
+        // CRITICAL: Normalize JID and resolve LID → phone when possible
+        const normalizedRaw = jidNormalizedUser(rawFrom);
+        let from = normalizedRaw;
         if (from.includes('@lid') && (msg.key as any).remoteJidAlt) {
             from = jidNormalizedUser((msg.key as any).remoteJidAlt);
         }
+        // Keep the original LID as alt identifier for session dedup
+        const altFrom = from !== normalizedRaw ? normalizedRaw : undefined;
 
         // Extract content
         const content = msg.message.conversation ||
@@ -597,44 +619,13 @@ export class BaileysService {
                 return;
             }
 
-            // 2. Resolve Session (User Connection)
-            let session = await prisma.session.findUnique({
-                where: {
-                    botId_identifier: {
-                        botId: bot.id,
-                        identifier: from
-                    }
-                }
-            });
-
-            if (!session) {
-                console.log(`[Baileys] New Session for user ${from} on bot ${bot.name}`);
-                try {
-                    session = await prisma.session.create({
-                        data: {
-                            botId: bot.id,
-                            platform: Platform.WHATSAPP,
-                            identifier: from,
-                            name: msg.pushName || `User ${from.slice(0, 6)}`,
-                            status: SessionStatus.CONNECTED
-                        }
-                    });
-                    eventBus.emitBotEvent({ type: 'session:created', botId, session });
-                } catch (e: any) {
-                    // Handle Race Condition: Another request created the session ms ago
-                    if (e.code === 'P2002') {
-                        console.log(`[Baileys] Session race condition detected for ${from}, fetching existing...`);
-                        const existing = await prisma.session.findUnique({
-                            where: {
-                                botId_identifier: { botId: bot.id, identifier: from }
-                            }
-                        });
-                        if (!existing) throw e; // Should not happen if P2002 occurred
-                        session = existing;
-                    } else {
-                        throw e;
-                    }
-                }
+            // 2. Resolve Session (with LID↔phone dedup)
+            const { session, created: sessionCreated } = await BaileysService.upsertSessionFromChat(
+                bot.id, from, msg.pushName || undefined, altFrom
+            );
+            if (!session) throw new Error(`Could not resolve session for ${from}`);
+            if (sessionCreated) {
+                eventBus.emitBotEvent({ type: 'session:created', botId, session });
             }
 
             // 3. Persist Message (atomic upsert — no TOCTOU race)

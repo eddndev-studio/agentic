@@ -44,28 +44,38 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
                 return "Invalid webhook secret";
             }
 
-            // 2. Resolve Session (User Connection)
-            // Session is now the USER's session with the specific BOT
+            // 2. Resolve Session (with race-condition handling)
             let session = await prisma.session.findUnique({
                 where: {
                     botId_identifier: {
                         botId: bot.id,
-                        identifier: from // User's ID (Phone)
+                        identifier: from
                     }
                 }
             });
 
             if (!session) {
                 console.log(`[Webhook] New Session for user ${from} on bot ${bot.name}`);
-                session = await prisma.session.create({
-                    data: {
-                        botId: bot.id,
-                        platform: platformEnum,
-                        identifier: from,
-                        name: `User ${from}`, // We don't know name yet
-                        status: SessionStatus.CONNECTED
+                try {
+                    session = await prisma.session.create({
+                        data: {
+                            botId: bot.id,
+                            platform: platformEnum,
+                            identifier: from,
+                            name: `User ${from}`,
+                            status: SessionStatus.CONNECTED
+                        }
+                    });
+                } catch (e: any) {
+                    if (e.code === 'P2002') {
+                        session = await prisma.session.findUnique({
+                            where: { botId_identifier: { botId: bot.id, identifier: from } },
+                        });
+                        if (!session) throw e;
+                    } else {
+                        throw e;
                     }
-                });
+                }
             }
 
             // 3. Persist Message
