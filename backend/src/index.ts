@@ -95,6 +95,7 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 // --- Baileys Init ---
 import { prisma } from "./services/postgres.service";
 import { BaileysService } from "./services/baileys.service";
+import { ToolExecutor } from "./core/ai/ToolExecutor";
 import { Platform } from "@prisma/client";
 
 // Reconnect WhatsApp Sessions
@@ -174,6 +175,21 @@ const app = new Elysia({ adapter: node() })
         try {
             await BaileysService.sendMessage(botId, target, payload);
             return { ok: true };
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+    // Internal endpoint for the standalone worker to execute tools via the main process
+    .post("/internal/tool", async ({ body, set }) => {
+        const { botId, sessionId, toolName, toolArgs } = body as {
+            botId: string; sessionId: string; toolName: string; toolArgs: Record<string, any>;
+        };
+        try {
+            const session = await prisma.session.findUnique({ where: { id: sessionId } });
+            if (!session) { set.status = 404; return { error: "Session not found" }; }
+            const result = await ToolExecutor.execute(botId, session, { name: toolName, arguments: toolArgs });
+            return result;
         } catch (e: any) {
             set.status = 500;
             return { error: e.message };

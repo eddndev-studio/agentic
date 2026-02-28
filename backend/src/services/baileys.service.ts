@@ -342,11 +342,15 @@ export class BaileysService {
                     }
 
                     if (event.type === 'add') {
-                        await prisma.sessionLabel.upsert({
-                            where: { sessionId_labelId: { sessionId: session.id, labelId: label.id } },
-                            update: {},
-                            create: { sessionId: session.id, labelId: label.id },
-                        });
+                        try {
+                            await prisma.sessionLabel.upsert({
+                                where: { sessionId_labelId: { sessionId: session.id, labelId: label.id } },
+                                update: {},
+                                create: { sessionId: session.id, labelId: label.id },
+                            });
+                        } catch (e: any) {
+                            if (e.code !== 'P2002') throw e; // Ignore duplicate race condition
+                        }
                         console.log(`[Baileys] Label "${label.name}" added to session ${resolvedJid}`);
                     } else {
                         await prisma.sessionLabel.deleteMany({

@@ -3,7 +3,6 @@ import { prisma } from "../../services/postgres.service";
 import { flowEngine } from "../../core/flow";
 import { Step, Execution, Session, Platform } from "@prisma/client";
 import { sendMessage } from "../../services/message-sender";
-import { ToolExecutor } from "../../core/ai/ToolExecutor";
 
 interface StepJobData {
     executionId: string;
@@ -115,11 +114,24 @@ export class StepProcessor {
 
         console.log(`[StepProcessor] Executing TOOL step: ${toolName}`);
 
-        const result = await ToolExecutor.execute(
-            execution.session.botId,
-            execution.session,
-            { name: toolName, arguments: metadata.toolArgs || {} },
-        );
+        // Execute via HTTP to the main process (which owns Baileys sessions)
+        const API_BASE = `http://127.0.0.1:${process.env['PORT'] || 8080}`;
+        const res = await fetch(`${API_BASE}/internal/tool`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                botId: execution.session.botId,
+                sessionId: execution.session.id,
+                toolName,
+                toolArgs: metadata.toolArgs || {},
+            }),
+            signal: AbortSignal.timeout(30_000),
+        });
+
+        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(`[StepProcessor] Tool '${toolName}' HTTP ${res.status}: ${result.error || 'Unknown error'}`);
+        }
 
         console.log(`[StepProcessor] Tool '${toolName}' result:`, result);
     }

@@ -933,7 +933,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                     order: this.flow.steps.length,
                 };
                 if (type === 'TOOL') {
-                    step.metadata = { toolName: '' };
+                    step.metadata = { toolName: '', toolArgs: {} };
                 }
                 this.flow.steps.push(step);
 
