@@ -3,8 +3,9 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/index.ts",
-        "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outdir=dist --packages=external",
+        "build": "esbuild src/index.ts src/worker.ts --bundle --platform=node --format=esm --outdir=dist --packages=external",
         "start": "node dist/index.js",
+        "start:worker": "node dist/worker.js",
         "test": "vitest run"
     },
     "dependencies": {

@@ -2,7 +2,7 @@ import { Job } from "bullmq";
 import { prisma } from "../../services/postgres.service";
 import { flowEngine } from "../../core/flow";
 import { Step, Execution, Session, Platform } from "@prisma/client";
-import { BaileysService } from "../../services/baileys.service";
+import { sendMessage } from "../../services/message-sender";
 
 interface StepJobData {
     executionId: string;
@@ -68,11 +68,11 @@ export class StepProcessor {
         if (platform === Platform.WHATSAPP) {
             switch (step.type) {
                 case 'TEXT':
-                    await BaileysService.sendMessage(botId, target, { text: step.content || "" });
+                    await sendMessage(botId, target, { text: step.content || "" });
                     break;
                 case 'IMAGE':
                     if (step.mediaUrl) {
-                        await BaileysService.sendMessage(botId, target, { image: { url: step.mediaUrl }, caption: step.content || "" });
+                        await sendMessage(botId, target, { image: { url: step.mediaUrl }, caption: step.content || "" });
                     } else {
                         console.warn(`[StepProcessor] IMAGE step ${step.id} has no mediaUrl, skipping`);
                     }
@@ -80,7 +80,7 @@ export class StepProcessor {
                 case 'AUDIO':
                 case 'PTT':
                     if (step.mediaUrl) {
-                        await BaileysService.sendMessage(botId, target, { audio: { url: step.mediaUrl }, ptt: step.type === 'PTT' });
+                        await sendMessage(botId, target, { audio: { url: step.mediaUrl }, ptt: step.type === 'PTT' });
                     } else {
                         console.warn(`[StepProcessor] ${step.type} step ${step.id} has no mediaUrl, skipping`);
                     }
@@ -161,7 +161,7 @@ export class StepProcessor {
                 }
 
                 if (Object.keys(payload).length > 0) {
-                    await BaileysService.sendMessage(botId, target, payload);
+                    await sendMessage(botId, target, payload);
                 }
                 break; // Stop after first match
             }
@@ -183,7 +183,7 @@ export class StepProcessor {
             }
 
             if (Object.keys(payload).length > 0) {
-                await BaileysService.sendMessage(botId, target, payload);
+                await sendMessage(botId, target, payload);
             }
         }
     }

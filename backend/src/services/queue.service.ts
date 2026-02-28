@@ -1,5 +1,4 @@
 import { Queue } from "bullmq";
-import { redis } from "./redis.service";
 
 export const QUEUE_NAME = "agentic-message-queue";
 
@@ -7,7 +6,6 @@ class QueueService {
     private queue: Queue;
 
     constructor() {
-        // Reuse the internal IORedis connection if possible, or let BullMQ handle it
         this.queue = new Queue(QUEUE_NAME, {
             connection: {
                 url: process.env['REDIS_URL'] || "redis://localhost:6379"
@@ -19,11 +17,13 @@ class QueueService {
         return this.queue.add("execute_step", { executionId, stepId }, { delay: delayMs });
     }
 
-    async scheduleAutomationCheck(intervalMs = Number(process.env['AUTOMATION_CHECK_INTERVAL_MS']) || 30 * 60 * 1000) {
-        return this.queue.add("check_automations", {}, {
-            repeat: { every: intervalMs },
-            removeOnComplete: true,
-        });
+    /** Remove legacy BullMQ repeating jobs (automations moved to in-process setInterval) */
+    async removeRepeatableJobs() {
+        const repeatableJobs = await this.queue.getRepeatableJobs();
+        for (const job of repeatableJobs) {
+            await this.queue.removeRepeatableByKey(job.key);
+            console.log(`[Queue] Removed repeatable job: ${job.name} (${job.key})`);
+        }
     }
 
     async close() {

@@ -1,6 +1,5 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { node } from "@elysiajs/node";
-import { Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { initSystemLogger } from "./services/system-logger";
 
@@ -10,6 +9,7 @@ initSystemLogger();
 // --- Configuration ---
 const REDIS_URL = process.env['REDIS_URL'] || "redis://localhost:6379";
 const PORT = process.env.PORT || 8080;
+const AUTOMATION_INTERVAL = Number(process.env['AUTOMATION_CHECK_INTERVAL_MS']) || 30 * 60 * 1000;
 
 // --- Services ---
 // Redis Connection
@@ -19,10 +19,6 @@ const redis = new Redis(REDIS_URL, {
 
 redis.on("error", (err) => console.error("Redis Client Error", err));
 redis.on("connect", () => console.log("Redis Connected"));
-
-// --- Workers ---
-import { startAgenticWorker } from "./workers/message.worker";
-const worker = startAgenticWorker();
 
 // --- Global Error Handlers (Prevent Crash) ---
 process.on('uncaughtException', (err) => {
@@ -41,13 +37,17 @@ import { aiEngine } from "./core/ai";
 import { queueService } from "./services/queue.service";
 
 let isShuttingDown = false;
+let automationTimer: ReturnType<typeof setInterval> | null = null;
 
 async function gracefulShutdown(signal: string) {
     if (isShuttingDown) return;
     isShuttingDown = true;
     console.log(`[Shutdown] Received ${signal}, starting graceful shutdown...`);
 
-    // 1. Stop accepting new WhatsApp messages + cancel reconnect timers
+    // 1. Stop automation timer
+    if (automationTimer) clearInterval(automationTimer);
+
+    // 2. Stop accepting new WhatsApp messages + cancel reconnect timers
     try {
         console.log("[Shutdown] Shutting down Baileys sessions...");
         await BaileysService.shutdownAll();
@@ -56,7 +56,7 @@ async function gracefulShutdown(signal: string) {
         console.error("[Shutdown] Error shutting down Baileys:", e);
     }
 
-    // 2. Flush pending message accumulator buffers (from Redis + active timers)
+    // 3. Flush pending message accumulator buffers (from Redis + active timers)
     try {
         console.log("[Shutdown] Flushing accumulator buffers...");
         await MessageAccumulator.flushAll((sid, msgs) => {
@@ -68,17 +68,16 @@ async function gracefulShutdown(signal: string) {
         console.error("[Shutdown] Error flushing accumulator:", e);
     }
 
-    // 3. Close BullMQ worker + queue (stop accepting new jobs, finish current)
+    // 4. Close BullMQ queue (step jobs enqueued for the standalone worker)
     try {
-        console.log("[Shutdown] Closing BullMQ worker...");
-        await worker.close();
+        console.log("[Shutdown] Closing BullMQ queue...");
         await queueService.close();
-        console.log("[Shutdown] BullMQ worker + queue closed.");
+        console.log("[Shutdown] BullMQ queue closed.");
     } catch (e) {
         console.error("[Shutdown] Error closing BullMQ:", e);
     }
 
-    // 4. Disconnect Redis
+    // 5. Disconnect Redis
     try {
         console.log("[Shutdown] Disconnecting Redis...");
         await redis.quit();
@@ -87,7 +86,7 @@ async function gracefulShutdown(signal: string) {
         console.error("[Shutdown] Error disconnecting Redis:", e);
     }
 
-    // 5. Disconnect Prisma
+    // 6. Disconnect Prisma
     try {
         console.log("[Shutdown] Disconnecting Prisma...");
         await prisma.$disconnect();
@@ -118,12 +117,21 @@ prisma.bot.findMany({ where: { platform: Platform.WHATSAPP } }).then(bots => {
     }
 });
 
-// Schedule automation check every 30 minutes
-queueService.scheduleAutomationCheck().then(() => {
-    console.log("[Init] Automation check scheduled (every 30 min)");
-}).catch(err => {
-    console.error("[Init] Failed to schedule automation check:", err);
-});
+// --- Automation Scheduler (in-process, no BullMQ) ---
+import { AutomationProcessor } from "./workers/processors/AutomationProcessor";
+
+// Clean up any old BullMQ repeating automation jobs
+queueService.removeRepeatableJobs().catch(() => {});
+
+automationTimer = setInterval(() => {
+    if (isShuttingDown) return;
+    console.log("[Automation] Running scheduled automation check...");
+    AutomationProcessor.processAll().catch(err => {
+        console.error("[Automation] Error in scheduled check:", err);
+    });
+}, AUTOMATION_INTERVAL);
+
+console.log(`[Init] Automation check scheduled (every ${AUTOMATION_INTERVAL / 60000} min)`);
 
 // --- API ---
 import { webhookController } from "./api/webhook.controller";
@@ -168,6 +176,17 @@ const app = new Elysia({ adapter: node() })
         if (request.method === 'OPTIONS') {
             set.status = 204;
             return '';
+        }
+    })
+    // Internal endpoint for the standalone worker to send messages via Baileys
+    .post("/internal/send", async ({ body, set }) => {
+        const { botId, target, payload } = body as { botId: string; target: string; payload: any };
+        try {
+            await BaileysService.sendMessage(botId, target, payload);
+            return { ok: true };
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
         }
     })
     .use(webhookController)
