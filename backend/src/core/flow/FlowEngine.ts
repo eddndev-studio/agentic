@@ -1,8 +1,9 @@
 import { prisma } from "../../services/postgres.service";
-import { Message, Trigger, TriggerScope } from "@prisma/client";
+import { Message, Trigger, TriggerScope, TriggerTarget } from "@prisma/client";
 import { TriggerMatcher } from "../matcher/TriggerMatcher";
 import { redis } from "../../services/redis.service";
 import { queueService } from "../../services/queue.service";
+import { ToolExecutor } from "../ai/ToolExecutor";
 
 /**
  * Orchestrates the lifecycle of Flow Executions.
@@ -49,130 +50,149 @@ export class FlowEngine {
 
         const match = TriggerMatcher.findMatch(message.content, activeTriggers);
 
-        if (match) {
-            // Cast to include relation (Prisma return type was narrowed by Matcher)
-            const trigger = match.trigger as Trigger & { flow: any };
-            const lockKey = `flow:lock:${sessionId}:${trigger.flowId}`;
+        if (!match) return;
 
-            // 3. Acquire distributed lock to prevent race conditions
-            // SETNX with 30 second expiry - if lock exists, another execution is in progress
-            const lockAcquired = await redis.set(lockKey, "1", "EX", 30, "NX");
+        const trigger = match.trigger as Trigger & { flow: any };
 
-            if (!lockAcquired) {
-                console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Lock already held (concurrent execution in progress)`);
+        // ── TOOL trigger: execute tool directly, no flow machinery ──
+        if (trigger.targetType === TriggerTarget.TOOL) {
+            if (!trigger.toolName) {
+                console.error(`[FlowEngine] TOOL trigger '${trigger.keyword}' has no toolName`);
                 return;
             }
 
-            try {
-                // 4. Atomic validation and execution creation using Prisma transaction
-                const execution = await prisma.$transaction(async (tx) => {
-                    // 4a. Validate Cooldown
-                    // 4a. Validate Cooldown
-                    if (trigger.flow.cooldownMs > 0) {
-                        const lastExecution = await tx.execution.findFirst({
-                            where: { sessionId, flowId: trigger.flowId },
-                            orderBy: { startedAt: 'desc' }
-                        });
+            const fullSession = await prisma.session.findUnique({ where: { id: sessionId } });
+            if (!fullSession) return;
 
-                        if (lastExecution) {
-                            const elapsed = Date.now() - lastExecution.startedAt.getTime();
-                            if (elapsed < trigger.flow.cooldownMs) {
-                                throw new Error(`COOLDOWN:${elapsed}/${trigger.flow.cooldownMs}`);
-                            }
+            console.log(`[FlowEngine] Matched Trigger '${trigger.keyword}' -> Tool ${trigger.toolName}`);
+
+            const result = await ToolExecutor.execute(
+                session.botId,
+                fullSession,
+                { name: trigger.toolName, arguments: {} },
+            );
+
+            console.log(`[FlowEngine] Tool '${trigger.toolName}' result:`, result);
+            return;
+        }
+
+        // ── FLOW trigger (default): existing logic ──
+        if (!trigger.flowId || !trigger.flow) {
+            console.error(`[FlowEngine] FLOW trigger '${trigger.keyword}' has no flowId`);
+            return;
+        }
+
+        const lockKey = `flow:lock:${sessionId}:${trigger.flowId}`;
+
+        // 3. Acquire distributed lock to prevent race conditions
+        // SETNX with 30 second expiry - if lock exists, another execution is in progress
+        const lockAcquired = await redis.set(lockKey, "1", "EX", 30, "NX");
+
+        if (!lockAcquired) {
+            console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Lock already held (concurrent execution in progress)`);
+            return;
+        }
+
+        try {
+            // 4. Atomic validation and execution creation using Prisma transaction
+            const execution = await prisma.$transaction(async (tx) => {
+                // 4a. Validate Cooldown
+                if (trigger.flow.cooldownMs > 0) {
+                    const lastExecution = await tx.execution.findFirst({
+                        where: { sessionId, flowId: trigger.flowId! },
+                        orderBy: { startedAt: 'desc' }
+                    });
+
+                    if (lastExecution) {
+                        const elapsed = Date.now() - lastExecution.startedAt.getTime();
+                        if (elapsed < trigger.flow.cooldownMs) {
+                            throw new Error(`COOLDOWN:${elapsed}/${trigger.flow.cooldownMs}`);
                         }
                     }
+                }
 
-                    // 4b. Validate Usage Limit
-                    if (trigger.flow.usageLimit > 0) {
-                        const usageCount = await tx.execution.count({
-                            where: { sessionId, flowId: trigger.flowId }
-                        });
+                // 4b. Validate Usage Limit
+                if (trigger.flow.usageLimit > 0) {
+                    const usageCount = await tx.execution.count({
+                        where: { sessionId, flowId: trigger.flowId! }
+                    });
 
-                        if (usageCount >= trigger.flow.usageLimit) {
-                            throw new Error(`LIMIT:${usageCount}/${trigger.flow.usageLimit}`);
-                        }
+                    if (usageCount >= trigger.flow.usageLimit) {
+                        throw new Error(`LIMIT:${usageCount}/${trigger.flow.usageLimit}`);
                     }
+                }
 
-                    // 4c. Validate Exclusions (Mutually Exclusive Flows)
-                    if (trigger.flow.excludesFlows && trigger.flow.excludesFlows.length > 0) {
-                        const conflictCount = await tx.execution.count({
-                            where: {
-                                sessionId,
-                                flowId: { in: trigger.flow.excludesFlows }
-                            }
-                        });
-
-                        if (conflictCount > 0) {
-                            throw new Error(`EXCLUDED: Mutually exclusive flow already executed.`);
-                        }
-                    }
-
-                    // 4d. Create execution atomically (inside same transaction)
-                    console.log(`[FlowEngine] Matched Trigger '${trigger.keyword}' -> Flow ${trigger.flowId}`);
-
-                    return await tx.execution.create({
-                        data: {
+                // 4c. Validate Exclusions (Mutually Exclusive Flows)
+                if (trigger.flow.excludesFlows && trigger.flow.excludesFlows.length > 0) {
+                    const conflictCount = await tx.execution.count({
+                        where: {
                             sessionId,
-                            flowId: trigger.flowId,
-                            platformUserId: message.sender,
-                            status: "RUNNING",
-                            currentStep: 0,
-                            variableContext: {},
-                            trigger: trigger.keyword
+                            flowId: { in: trigger.flow.excludesFlows }
                         }
                     });
+
+                    if (conflictCount > 0) {
+                        throw new Error(`EXCLUDED: Mutually exclusive flow already executed.`);
+                    }
+                }
+
+                // 4d. Create execution atomically (inside same transaction)
+                console.log(`[FlowEngine] Matched Trigger '${trigger.keyword}' -> Flow ${trigger.flowId}`);
+
+                return await tx.execution.create({
+                    data: {
+                        sessionId,
+                        flowId: trigger.flowId!,
+                        platformUserId: message.sender,
+                        status: "RUNNING",
+                        currentStep: 0,
+                        variableContext: {},
+                        trigger: trigger.keyword
+                    }
                 });
+            });
 
-                // 5. Schedule the first step (outside transaction, after successful commit)
-                await this.scheduleStep(execution.id, 0);
+            // 5. Schedule the first step (outside transaction, after successful commit)
+            await this.scheduleStep(execution.id, 0);
 
-            } catch (error: any) {
-                // Handle validation errors gracefully
-                let errorMessage = error.message;
+        } catch (error: any) {
+            // Handle validation errors gracefully
+            let errorMessage = error.message;
 
-                if (error.message?.startsWith('COOLDOWN:')) {
-                    console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Cooldown active (${error.message.replace('COOLDOWN:', '')}ms)`);
-                    errorMessage = `Cooldown active (${error.message.replace('COOLDOWN:', '')}ms)`;
-                } else if (error.message?.startsWith('LIMIT:')) {
-                    console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Usage limit reached (${error.message.replace('LIMIT:', '')})`);
-                    errorMessage = `Usage limit reached (${error.message.replace('LIMIT:', '')})`;
-                } else if (error.message?.startsWith('EXCLUDED:')) {
-                    console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: ${error.message}`);
-                    errorMessage = error.message;
-                } else {
-                    console.error(`[FlowEngine] Error starting flow:`, error);
-                }
-
-                // Log the failed attempt if we can (requires session context)
-                // Note: We can't update the transaction-based execution if the transaction failed. 
-                // We should record a separate FAILED execution check.
-                // However, creating a FAILED record might also trigger limits if logic is not careful.
-                // For now, let's just log failures for non-validation errors (unexpected crashes).
-                // Validation errors (limit/cooldown) are technically "ignored" triggers, not "failed" executions in the crash sense.
-                // But the user wants execution logs. Let's create a FAILED record if it was a limit issue, OUTSIDE the transaction.
-
-                if (['COOLDOWN:', 'LIMIT:', 'EXCLUDED:'].some(p => error.message?.startsWith(p))) {
-                    try {
-                        await prisma.execution.create({
-                            data: {
-                                sessionId,
-                                flowId: trigger.flowId,
-                                platformUserId: message.sender,
-                                status: "FAILED",
-                                currentStep: 0,
-                                variableContext: {},
-                                trigger: trigger.keyword,
-                                error: errorMessage,
-                                completedAt: new Date()
-                            }
-                        });
-                    } catch (e) { /* Ignore log failure */ }
-                }
-
-            } finally {
-                // 6. Always release the lock
-                await redis.del(lockKey);
+            if (error.message?.startsWith('COOLDOWN:')) {
+                console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Cooldown active (${error.message.replace('COOLDOWN:', '')}ms)`);
+                errorMessage = `Cooldown active (${error.message.replace('COOLDOWN:', '')}ms)`;
+            } else if (error.message?.startsWith('LIMIT:')) {
+                console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Usage limit reached (${error.message.replace('LIMIT:', '')})`);
+                errorMessage = `Usage limit reached (${error.message.replace('LIMIT:', '')})`;
+            } else if (error.message?.startsWith('EXCLUDED:')) {
+                console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: ${error.message}`);
+                errorMessage = error.message;
+            } else {
+                console.error(`[FlowEngine] Error starting flow:`, error);
             }
+
+            if (['COOLDOWN:', 'LIMIT:', 'EXCLUDED:'].some(p => error.message?.startsWith(p))) {
+                try {
+                    await prisma.execution.create({
+                        data: {
+                            sessionId,
+                            flowId: trigger.flowId!,
+                            platformUserId: message.sender,
+                            status: "FAILED",
+                            currentStep: 0,
+                            variableContext: {},
+                            trigger: trigger.keyword,
+                            error: errorMessage,
+                            completedAt: new Date()
+                        }
+                    });
+                } catch (e) { /* Ignore log failure */ }
+            }
+
+        } finally {
+            // 6. Always release the lock
+            await redis.del(lockKey);
         }
     }
 

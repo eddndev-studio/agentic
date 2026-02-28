@@ -89,6 +89,14 @@ export const BUILTIN_TOOLS: AIToolDefinition[] = [
             required: ["session_id", "message"],
         },
     },
+    {
+        name: "toggle_session_ai",
+        description: "Activa o desactiva el procesamiento de AI para la sesión actual.",
+        parameters: {
+            type: "object",
+            properties: {},
+        },
+    },
 ];
 
 /** Set of all built-in tool names for fast collision checks */

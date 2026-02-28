@@ -365,6 +365,16 @@ export class ToolExecutor {
                 return { success: true, data: `Mensaje de seguimiento enviado a ${targetSession.name || targetSession.identifier}.` };
             }
 
+            case "toggle_session_ai": {
+                const updated = await prisma.session.update({
+                    where: { id: session.id },
+                    data: { aiEnabled: !session.aiEnabled },
+                });
+                const state = updated.aiEnabled ? "activada" : "desactivada";
+                console.log(`[ToolExecutor] toggle_session_ai: session ${session.id} -> ${state}`);
+                return { success: true, data: `AI ${state} para esta sesión.` };
+            }
+
             default:
                 return { success: false, data: `Unknown builtin: ${builtinName}` };
         }
