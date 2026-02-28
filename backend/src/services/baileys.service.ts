@@ -374,6 +374,8 @@ export class BaileysService {
                             color: sl.label.color,
                             waLabelId: sl.label.waLabelId,
                         })),
+                        changedLabelId: label.id,
+                        action: event.type as 'add' | 'remove',
                     });
                 } catch (e) {
                     console.error(`[Baileys] labels.association error:`, e);

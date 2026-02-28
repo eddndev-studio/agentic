@@ -9,7 +9,11 @@ export type BotEvent =
     | { type: 'message:sent';     botId: string; sessionId: string; content: string }
     | { type: 'session:created';  botId: string; session: any }
     | { type: 'session:updated';  botId: string; sessionId: string; name: string }
-    | { type: 'session:labels';   botId: string; sessionId: string; labels: any[] };
+    | { type: 'session:labels';   botId: string; sessionId: string; labels: any[]; changedLabelId?: string; action?: 'add' | 'remove' }
+    | { type: 'flow:started';     botId: string; flowName: string; sessionId: string }
+    | { type: 'flow:completed';   botId: string; flowName: string; sessionId: string }
+    | { type: 'flow:failed';      botId: string; flowName: string; sessionId: string; error: string }
+    | { type: 'tool:executed';    botId: string; toolName: string; sessionId: string; success: boolean };
 
 export type SystemEvent = { type: 'system:log'; log: LogEntry };
 
@@ -29,6 +33,11 @@ class EventBus extends EventEmitter {
         };
         this.on('bot-event', handler);
         return () => this.off('bot-event', handler);
+    }
+
+    subscribeAll(callback: (event: BotEvent) => void): () => void {
+        this.on('bot-event', callback);
+        return () => this.off('bot-event', callback);
     }
 
     emitSystemEvent(payload: SystemEvent): boolean {

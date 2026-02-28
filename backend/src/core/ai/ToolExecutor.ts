@@ -391,6 +391,66 @@ export class ToolExecutor {
                 return { success: true, data: "AI desactivada para esta sesión." };
             }
 
+            case "set_notification_channel": {
+                await prisma.bot.update({
+                    where: { id: botId },
+                    data: { notificationSessionId: session.id },
+                });
+                // Invalidate notification cache
+                const { notificationService } = await import("../../services/notification.service");
+                notificationService.invalidateCache(botId);
+                return {
+                    success: true,
+                    data: `Canal de notificaciones configurado: ${session.name || session.identifier}`,
+                };
+            }
+
+            case "notify": {
+                const notifyMessage = args.message;
+                if (!notifyMessage) {
+                    return { success: false, data: "Falta el parámetro message." };
+                }
+
+                const bot = await prisma.bot.findUnique({
+                    where: { id: botId },
+                    select: { notificationSessionId: true },
+                });
+
+                if (!bot?.notificationSessionId) {
+                    return {
+                        success: false,
+                        data: "No hay canal de notificaciones configurado. Usa set_notification_channel primero.",
+                    };
+                }
+
+                const notifSession = await prisma.session.findUnique({
+                    where: { id: bot.notificationSessionId },
+                });
+
+                if (!notifSession) {
+                    return { success: false, data: "La sesión de notificaciones ya no existe." };
+                }
+
+                const priority = args.priority || "normal";
+                const prefix = priority === "high" ? "\u{1F534}" : priority === "low" ? "\u26AA" : "\u{1F535}";
+                const formattedMsg = `${prefix} *Notificación*\n\n${notifyMessage}`;
+
+                await BaileysService.sendMessage(botId, notifSession.identifier, { text: formattedMsg });
+
+                await prisma.message.create({
+                    data: {
+                        sessionId: notifSession.id,
+                        content: formattedMsg,
+                        fromMe: true,
+                        type: "TEXT",
+                        externalId: `notify_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                        sender: notifSession.identifier || "bot",
+                    },
+                });
+
+                return { success: true, data: `Notificación enviada al canal (${priority}).` };
+            }
+
             default:
                 return { success: false, data: `Unknown builtin: ${builtinName}` };
         }

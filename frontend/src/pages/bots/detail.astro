@@ -391,6 +391,116 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </div>
                     </div>
 
+                    <!-- Notifications Section -->
+                    <div class="border-t border-wa-border pt-6 mt-6">
+                        <h4 class="text-xs text-wa-green tracking-normal mb-4">Notificaciones</h4>
+
+                        <!-- Notification Channel -->
+                        <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
+                            <label class="block text-sm font-medium text-white mb-1">Canal de notificaciones</label>
+                            <p class="text-xs text-wa-text-secondary mb-3">
+                                Sesión de WhatsApp donde se enviarán notificaciones del sistema.
+                                También se puede configurar desde el chat con <code class="text-wa-green">set_notification_channel</code>.
+                            </p>
+
+                            <!-- Current channel display -->
+                            <div x-show="notificationConfig.notificationSessionId" class="flex items-center gap-3 mb-3">
+                                <span class="w-2 h-2 rounded-full bg-wa-green flex-shrink-0"></span>
+                                <span class="text-sm text-white" x-text="notificationChannelName"></span>
+                                <button type="button" @click="clearNotifChannel()"
+                                    class="text-red-400 text-xs hover:text-red-300 transition-colors">
+                                    ✕ Quitar
+                                </button>
+                            </div>
+
+                            <!-- Session picker -->
+                            <div x-show="!notificationConfig.notificationSessionId">
+                                <button type="button" @click="loadNotifSessions()"
+                                    class="px-3 py-2 text-xs border border-wa-border text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover rounded-lg transition-colors">
+                                    Seleccionar sesión
+                                </button>
+                                <div x-show="notifSessions.length > 0" class="mt-2 max-h-48 overflow-y-auto border border-wa-border rounded-lg">
+                                    <template x-for="sess in notifSessions" :key="sess.id">
+                                        <button type="button"
+                                            @click="selectNotifSession(sess.id)"
+                                            class="w-full text-left px-3 py-2 text-xs text-wa-text-secondary hover:bg-wa-bg-hover hover:text-white transition-colors border-b border-wa-border/50 last:border-0">
+                                            <span x-text="sess.name || sess.identifier"></span>
+                                            <span class="text-[10px] text-wa-text-secondary ml-2" x-text="sess.identifier"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Event checkboxes -->
+                        <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+                            <label class="block text-sm font-medium text-white mb-1">Eventos a notificar</label>
+                            <p class="text-xs text-wa-text-secondary mb-3">Selecciona qué eventos del sistema generan una notificación.</p>
+
+                            <div class="space-y-2">
+                                <template x-for="evt in [
+                                    { key: 'flow:completed', label: 'Flujo completado' },
+                                    { key: 'flow:failed', label: 'Flujo fallido' },
+                                    { key: 'session:created', label: 'Nueva sesión creada' },
+                                    { key: 'session:labels', label: 'Etiquetas actualizadas' },
+                                    { key: 'bot:connected', label: 'Bot conectado' },
+                                    { key: 'bot:disconnected', label: 'Bot desconectado' },
+                                ]" :key="evt.key">
+                                    <label class="flex items-center gap-3 cursor-pointer group">
+                                        <button type="button"
+                                            @click="toggleNotifEvent(evt.key)"
+                                            class="w-5 h-5 rounded border flex items-center justify-center transition-colors flex-shrink-0"
+                                            :class="notificationConfig.notificationEvents.includes(evt.key)
+                                                ? 'bg-wa-green border-wa-green'
+                                                : 'border-wa-border group-hover:border-wa-text-secondary'">
+                                            <svg x-show="notificationConfig.notificationEvents.includes(evt.key)"
+                                                class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </button>
+                                        <span class="text-sm text-wa-text-secondary group-hover:text-white transition-colors"
+                                            x-text="evt.label"></span>
+                                    </label>
+                                </template>
+                            </div>
+
+                            <div x-show="notificationConfig.notificationEvents.length > 0" class="mt-3 pt-2 border-t border-wa-border/50">
+                                <p class="text-[10px] text-wa-green/70">
+                                    <span x-text="notificationConfig.notificationEvents.length"></span> evento(s) seleccionado(s)
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Per-label filter (visible when session:labels is enabled) -->
+                        <div x-show="notificationConfig.notificationEvents.includes('session:labels')" x-transition
+                            class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg mt-4">
+                            <label class="block text-sm font-medium text-white mb-1">Filtrar por etiquetas</label>
+                            <p class="text-xs text-wa-text-secondary mb-3">Si seleccionas etiquetas, solo se notificará cuando estas cambien. Si no seleccionas ninguna, se notifican todas.</p>
+
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="lbl in botLabels" :key="lbl.id">
+                                    <button type="button"
+                                        @click="toggleNotifLabel(lbl.id)"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+                                        :class="notificationConfig.notificationLabels.includes(lbl.id)
+                                            ? 'bg-wa-green/15 border-wa-green/40 text-wa-green'
+                                            : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+                                    >
+                                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                        <span x-text="lbl.name"></span>
+                                    </button>
+                                </template>
+                                <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No labels synced</span>
+                            </div>
+
+                            <div x-show="notificationConfig.notificationLabels.length > 0" class="mt-3 pt-2 border-t border-wa-border/50">
+                                <p class="text-[10px] text-wa-green/70">
+                                    <span x-text="notificationConfig.notificationLabels.length"></span> etiqueta(s) seleccionada(s)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Actions -->
                     <div class="flex gap-3 pt-4 flex-wrap">
                         <button type="submit" :disabled="savingAI"
@@ -1382,6 +1492,15 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             botLabels: [] as any[],
             syncingLabels: false,
 
+            // Notification Config State
+            notificationConfig: {
+                notificationSessionId: null as string | null,
+                notificationEvents: [] as string[],
+                notificationLabels: [] as string[],
+            },
+            notificationChannelName: "",
+            notifSessions: [] as any[],
+
             // Automations State
             automations: [] as any[],
             showAutomationModal: false,
@@ -1405,6 +1524,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 { name: "get_sessions_by_label", description: "Busca todos los chats que tienen una etiqueta específica, con sus últimos mensajes." },
                 { name: "reply_to_message", description: "Responde citando un mensaje específico del usuario (quote-reply de WhatsApp)." },
                 { name: "send_followup_message", description: "Envía un mensaje de seguimiento a otra sesión/chat del bot." },
+                { name: "set_notification_channel", description: "Marca la sesión actual como canal de notificaciones del bot." },
+                { name: "notify", description: "Envía un mensaje al canal de notificaciones configurado del bot." },
             ],
             tools: [] as any[],
 
@@ -1451,11 +1572,32 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         ignoredLabels: this.bot.ignoredLabels || [],
                     };
 
+                    // Initialize notification config from bot data
+                    this.notificationConfig = {
+                        notificationSessionId: this.bot.notificationSessionId || null,
+                        notificationEvents: this.bot.notificationEvents || [],
+                        notificationLabels: this.bot.notificationLabels || [],
+                    };
+
                     // Load bot labels for selectors
                     try {
                         this.botLabels = await ApiClient.get(`/sessions/labels?botId=${this.botId}`);
                     } catch (e) {
                         console.error("Failed to load labels", e);
+                    }
+
+                    // Load notification channel name if set
+                    if (this.notificationConfig.notificationSessionId) {
+                        try {
+                            const sessData = await ApiClient.get(`/sessions?botId=${this.botId}`);
+                            const sessions = sessData.data || sessData;
+                            const notifSess = (Array.isArray(sessions) ? sessions : []).find(
+                                (s: any) => s.id === this.notificationConfig.notificationSessionId
+                            );
+                            this.notificationChannelName = notifSess?.name || notifSess?.identifier || "Sesión desconocida";
+                        } catch (e) {
+                            this.notificationChannelName = "Error al cargar";
+                        }
                     }
 
                     // Generate connection component HTML (will be hydrated by Alpine)
@@ -1731,6 +1873,9 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         messageDelay: this.aiConfig.messageDelay,
                         excludeGroups: this.aiConfig.excludeGroups,
                         ignoredLabels: this.aiConfig.ignoredLabels,
+                        notificationSessionId: this.notificationConfig.notificationSessionId,
+                        notificationEvents: this.notificationConfig.notificationEvents,
+                        notificationLabels: this.notificationConfig.notificationLabels,
                     });
                     this.bot = updated;
                     alert("AI config saved!");
@@ -1750,6 +1895,45 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     alert(this.$t('conversations_cleared') || 'Conversations cleared');
                 } catch (e: any) {
                     alert("Failed: " + (e.message || "Unknown error"));
+                }
+            },
+
+            async loadNotifSessions() {
+                try {
+                    const sessData = await ApiClient.get(`/sessions?botId=${this.botId}`);
+                    this.notifSessions = sessData.data || sessData || [];
+                } catch (e) {
+                    console.error("Failed to load sessions", e);
+                }
+            },
+
+            selectNotifSession(sessionId: string) {
+                this.notificationConfig.notificationSessionId = sessionId;
+                const sess = this.notifSessions.find((s: any) => s.id === sessionId);
+                this.notificationChannelName = sess?.name || sess?.identifier || sessionId;
+                this.notifSessions = []; // Close picker
+            },
+
+            clearNotifChannel() {
+                this.notificationConfig.notificationSessionId = null;
+                this.notificationChannelName = "";
+            },
+
+            toggleNotifEvent(eventType: string) {
+                const idx = this.notificationConfig.notificationEvents.indexOf(eventType);
+                if (idx >= 0) {
+                    this.notificationConfig.notificationEvents.splice(idx, 1);
+                } else {
+                    this.notificationConfig.notificationEvents.push(eventType);
+                }
+            },
+
+            toggleNotifLabel(labelId: string) {
+                const idx = this.notificationConfig.notificationLabels.indexOf(labelId);
+                if (idx >= 0) {
+                    this.notificationConfig.notificationLabels.splice(idx, 1);
+                } else {
+                    this.notificationConfig.notificationLabels.push(labelId);
                 }
             },
 

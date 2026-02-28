@@ -113,6 +113,30 @@ export const BUILTIN_TOOLS: AIToolDefinition[] = [
             properties: {},
         },
     },
+    {
+        name: "set_notification_channel",
+        description: "Marca la sesión actual como canal de notificaciones del bot. Las notificaciones del sistema se enviarán a este chat.",
+        parameters: {
+            type: "object",
+            properties: {},
+        },
+    },
+    {
+        name: "notify",
+        description: "Envía un mensaje al canal de notificaciones configurado del bot.",
+        parameters: {
+            type: "object",
+            properties: {
+                message: { type: "string", description: "Texto del mensaje de notificación" },
+                priority: {
+                    type: "string",
+                    enum: ["low", "normal", "high"],
+                    description: "Prioridad de la notificación (default: normal)",
+                },
+            },
+            required: ["message"],
+        },
+    },
 ];
 
 /** Set of all built-in tool names for fast collision checks */

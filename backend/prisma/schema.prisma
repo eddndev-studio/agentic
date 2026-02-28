@@ -44,6 +44,9 @@ model Bot {
   tools        Tool[]
   triggers     Trigger[]
   automations  Automation[]
+  notificationSessionId  String?
+  notificationEvents     String[]  @default([])
+  notificationLabels     String[]  @default([])
 }
 
 model Session {

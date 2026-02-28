@@ -108,6 +108,10 @@ prisma.bot.findMany({ where: { platform: Platform.WHATSAPP } }).then(bots => {
     }
 });
 
+// --- Notification Service ---
+import { notificationService } from "./services/notification.service";
+notificationService.init();
+
 // --- Automation Scheduler (in-process, no BullMQ) ---
 import { AutomationProcessor } from "./workers/processors/AutomationProcessor";
 

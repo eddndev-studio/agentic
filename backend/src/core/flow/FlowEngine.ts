@@ -3,6 +3,7 @@ import { Message, Trigger, TriggerScope } from "@prisma/client";
 import { TriggerMatcher } from "../matcher/TriggerMatcher";
 import { redis } from "../../services/redis.service";
 import { queueService } from "../../services/queue.service";
+import { eventBus } from "../../services/event-bus";
 
 /**
  * Orchestrates the lifecycle of Flow Executions.
@@ -128,7 +129,15 @@ export class FlowEngine {
                 });
             });
 
-            // 5. Schedule the first step (outside transaction, after successful commit)
+            // 5. Emit flow:started event
+            eventBus.emitBotEvent({
+                type: 'flow:started',
+                botId: session.botId,
+                flowName: trigger.flow.name,
+                sessionId,
+            });
+
+            // 6. Schedule the first step (outside transaction, after successful commit)
             await this.scheduleStep(execution.id, 0);
 
         } catch (error: any) {
@@ -164,6 +173,14 @@ export class FlowEngine {
                         }
                     });
                 } catch (e) { /* Ignore log failure */ }
+
+                eventBus.emitBotEvent({
+                    type: 'flow:failed',
+                    botId: session.botId,
+                    flowName: trigger.flow.name,
+                    sessionId,
+                    error: errorMessage,
+                });
             }
 
         } finally {
@@ -179,7 +196,7 @@ export class FlowEngine {
     async scheduleStep(executionId: string, stepOrder: number) {
         const execution = await prisma.execution.findUnique({
             where: { id: executionId },
-            include: { flow: { include: { steps: true } } }
+            include: { flow: { include: { steps: true } }, session: true }
         });
 
         if (!execution || execution.status !== 'RUNNING') return;
@@ -191,6 +208,13 @@ export class FlowEngine {
             await prisma.execution.update({
                 where: { id: executionId },
                 data: { status: "COMPLETED", completedAt: new Date() }
+            });
+
+            eventBus.emitBotEvent({
+                type: 'flow:completed',
+                botId: execution.session.botId,
+                flowName: execution.flow.name,
+                sessionId: execution.sessionId,
             });
             return;
         }

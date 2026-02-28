@@ -113,7 +113,8 @@ export const botController = new Elysia({ prefix: "/bots" })
     .put("/:id", async ({ params: { id }, body, set }) => {
         const { name, identifier, platform, credentials, ipv6Address,
             aiEnabled, aiProvider, aiModel, systemPrompt, temperature, messageDelay,
-            excludeGroups, ignoredLabels, paused, thinkingLevel } = body as any;
+            excludeGroups, ignoredLabels, paused, thinkingLevel,
+            notificationSessionId, notificationEvents, notificationLabels } = body as any;
 
         try {
             // Check if system prompt or provider/model changed — if so, clear conversations
@@ -144,8 +145,17 @@ export const botController = new Elysia({ prefix: "/bots" })
             if (ignoredLabels !== undefined) data.ignoredLabels = ignoredLabels;
             if (paused !== undefined) data.paused = paused;
             if (thinkingLevel !== undefined) data.thinkingLevel = thinkingLevel;
+            if (notificationSessionId !== undefined) data.notificationSessionId = notificationSessionId;
+            if (notificationEvents !== undefined) data.notificationEvents = notificationEvents;
+            if (notificationLabels !== undefined) data.notificationLabels = notificationLabels;
 
             const bot = await prisma.bot.update({ where: { id }, data });
+
+            // Invalidate notification cache on config change
+            if (notificationSessionId !== undefined || notificationEvents !== undefined || notificationLabels !== undefined) {
+                const { notificationService } = await import("../services/notification.service");
+                notificationService.invalidateCache(id);
+            }
 
             // Auto-clear conversation histories when AI config changes
             if (shouldClearConversations) {
@@ -224,6 +234,8 @@ export const botController = new Elysia({ prefix: "/bots" })
                         messageDelay: source.messageDelay,
                         excludeGroups: source.excludeGroups,
                         ignoredLabels: [],
+                        notificationEvents: source.notificationEvents,
+                        notificationLabels: source.notificationLabels,
                     },
                 });
 
