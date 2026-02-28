@@ -17,9 +17,6 @@ export const startAgenticWorker = () => {
                 case "execute_step":
                     await StepProcessor.process(job);
                     break;
-                case "incoming":
-                    console.log("[Worker] Incoming message job (TODO)");
-                    break;
                 case "check_automations":
                     await AutomationProcessor.processAll();
                     break;

@@ -15,10 +15,6 @@ class QueueService {
         });
     }
 
-    async addIncomingMessage(messageId: string) {
-        return this.queue.add("incoming", { messageId });
-    }
-
     async scheduleStepExecution(executionId: string, stepId: string, delayMs: number) {
         return this.queue.add("execute_step", { executionId, stepId }, { delay: delayMs });
     }

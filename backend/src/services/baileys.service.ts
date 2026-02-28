@@ -719,7 +719,7 @@ export class BaileysService {
                     (sid, msgs) => {
                         aiEngine.processMessages(sid, msgs).catch(err => handleAIError(err, sid));
                     }
-                );
+                ).catch(err => console.error(`[Baileys] Accumulator error:`, err));
             } else {
                 aiEngine.processMessage(session.id, message).catch(err => handleAIError(err, session.id));
             }

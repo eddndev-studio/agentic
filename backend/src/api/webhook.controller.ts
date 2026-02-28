@@ -97,7 +97,7 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
                             console.error("[Webhook] AI Engine Error:", err);
                         });
                     }
-                );
+                ).catch(err => console.error("[Webhook] Accumulator error:", err));
             } else {
                 aiEngine.processMessage(session.id, message).catch(err => {
                     console.error("[Webhook] AI Engine Error:", err);

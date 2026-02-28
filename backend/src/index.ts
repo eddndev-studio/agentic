@@ -56,14 +56,16 @@ async function gracefulShutdown(signal: string) {
         console.error("[Shutdown] Error shutting down Baileys:", e);
     }
 
-    // 2. Flush pending message accumulator buffers
-    if (MessageAccumulator.pendingCount > 0) {
-        console.log(`[Shutdown] Flushing ${MessageAccumulator.pendingCount} pending accumulator buffer(s)...`);
-        MessageAccumulator.flushAll((sid, msgs) => {
+    // 2. Flush pending message accumulator buffers (from Redis + active timers)
+    try {
+        console.log("[Shutdown] Flushing accumulator buffers...");
+        await MessageAccumulator.flushAll((sid, msgs) => {
             aiEngine.processMessages(sid, msgs).catch(err => {
                 console.error(`[Shutdown] Failed to process flushed messages for ${sid}:`, err);
             });
         });
+    } catch (e) {
+        console.error("[Shutdown] Error flushing accumulator:", e);
     }
 
     // 3. Close BullMQ worker + queue (stop accepting new jobs, finish current)
