@@ -73,7 +73,17 @@ class NotificationService {
             if (!config.labels.includes(event.changedLabelId)) return;
         }
 
-        const message = this.formatMessage(event);
+        // Resolve session name for events that carry a sessionId
+        let sessionName: string | undefined;
+        if ('sessionId' in event && event.sessionId) {
+            const src = await prisma.session.findUnique({
+                where: { id: event.sessionId },
+                select: { name: true, identifier: true },
+            });
+            sessionName = src?.name || src?.identifier?.split('@')[0] || undefined;
+        }
+
+        const message = this.formatMessage(event, sessionName);
         if (!message) return;
 
         const session = await prisma.session.findUnique({ where: { id: config.sessionId } });
@@ -97,17 +107,18 @@ class NotificationService {
         }
     }
 
-    private formatMessage(event: BotEvent): string | null {
+    private formatMessage(event: BotEvent, sessionName?: string): string | null {
         const label = EVENT_LABELS[event.type] || event.type;
         const ts = new Date().toLocaleString("es-MX", { timeZone: "America/Mexico_City" });
+        const chatLine = sessionName ? `\nChat: ${sessionName}` : '';
 
         switch (event.type) {
             case 'flow:started':
-                return `\u{1F4CB} *${label}*\nFlujo: ${event.flowName}\n\u{1F550} ${ts}`;
+                return `\u{1F4CB} *${label}*\nFlujo: ${event.flowName}${chatLine}\n\u{1F550} ${ts}`;
             case 'flow:completed':
-                return `\u2705 *${label}*\nFlujo: ${event.flowName}\n\u{1F550} ${ts}`;
+                return `\u2705 *${label}*\nFlujo: ${event.flowName}${chatLine}\n\u{1F550} ${ts}`;
             case 'flow:failed':
-                return `\u274C *${label}*\nFlujo: ${event.flowName}\nError: ${event.error}\n\u{1F550} ${ts}`;
+                return `\u274C *${label}*\nFlujo: ${event.flowName}${chatLine}\nError: ${event.error}\n\u{1F550} ${ts}`;
             case 'session:created':
                 return `\u{1F464} *${label}*\nNombre: ${event.session?.name || 'Desconocido'}\nIdentificador: ${event.session?.identifier || 'N/A'}\n\u{1F550} ${ts}`;
             case 'session:labels': {
@@ -118,14 +129,14 @@ class NotificationService {
                 const detail = changedLabel
                     ? `Etiqueta: ${changedLabel.name} (${actionText})`
                     : `Etiquetas: ${event.labels.map((l: any) => l.name).join(', ') || 'ninguna'}`;
-                return `\u{1F3F7}\uFE0F *${label}*\n${detail}\n\u{1F550} ${ts}`;
+                return `\u{1F3F7}\uFE0F *${label}*${chatLine}\n${detail}\n\u{1F550} ${ts}`;
             }
             case 'bot:connected':
                 return `\u{1F7E2} *${label}*\n\u{1F550} ${ts}`;
             case 'bot:disconnected':
                 return `\u{1F534} *${label}*\nCódigo: ${event.statusCode ?? 'N/A'}\n\u{1F550} ${ts}`;
             case 'tool:executed':
-                return `\u{1F527} *${label}*\nHerramienta: ${event.toolName}\nResultado: ${event.success ? '\u2705 Éxito' : '\u274C Error'}\n\u{1F550} ${ts}`;
+                return `\u{1F527} *${label}*\nHerramienta: ${event.toolName}${chatLine}\nResultado: ${event.success ? '\u2705 Éxito' : '\u274C Error'}\n\u{1F550} ${ts}`;
             default:
                 return null;
         }
