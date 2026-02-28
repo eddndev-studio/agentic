@@ -419,6 +419,8 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                     <option value="">-- Select tool --</option>
                                                     <optgroup label="Built-in">
                                                         <option value="toggle_session_ai">toggle_session_ai</option>
+                                                        <option value="activate_session_ai">activate_session_ai</option>
+                                                        <option value="deactivate_session_ai">deactivate_session_ai</option>
                                                         <option value="clear_conversation">clear_conversation</option>
                                                         <option value="get_current_time">get_current_time</option>
                                                         <option value="get_labels">get_labels</option>
@@ -436,7 +438,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                 </select>
 
                                                 <!-- Tool Args: No config tools -->
-                                                <div x-show="['toggle_session_ai', 'clear_conversation', 'get_labels'].includes(step.metadata.toolName)" class="mt-3">
+                                                <div x-show="['toggle_session_ai', 'activate_session_ai', 'deactivate_session_ai', 'clear_conversation', 'get_labels'].includes(step.metadata.toolName)" class="mt-3">
                                                     <span class="inline-block bg-wa-bg-deep/50 border border-wa-border text-wa-text-secondary text-[10px] font-mono px-2 py-1 rounded-lg">No requiere configuración</span>
                                                 </div>
 
@@ -531,7 +533,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                 </div>
 
                                                 <!-- Tool Args: Custom tools (JSON textarea) -->
-                                                <div x-show="step.metadata.toolName && !['toggle_session_ai','clear_conversation','get_labels','assign_label','remove_label','get_current_time','get_sessions_by_label','reply_to_message','send_followup_message'].includes(step.metadata.toolName)" class="mt-3 space-y-2">
+                                                <div x-show="step.metadata.toolName && !['toggle_session_ai','activate_session_ai','deactivate_session_ai','clear_conversation','get_labels','assign_label','remove_label','get_current_time','get_sessions_by_label','reply_to_message','send_followup_message'].includes(step.metadata.toolName)" class="mt-3 space-y-2">
                                                     <label class="text-[10px] text-wa-text-secondary font-sans">Arguments (JSON)</label>
                                                     <textarea
                                                         :value="JSON.stringify(step.metadata.toolArgs, null, 2)"

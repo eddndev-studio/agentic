@@ -375,6 +375,22 @@ export class ToolExecutor {
                 return { success: true, data: `AI ${state} para esta sesión.` };
             }
 
+            case "activate_session_ai": {
+                await prisma.session.update({
+                    where: { id: session.id },
+                    data: { aiEnabled: true },
+                });
+                return { success: true, data: "AI activada para esta sesión." };
+            }
+
+            case "deactivate_session_ai": {
+                await prisma.session.update({
+                    where: { id: session.id },
+                    data: { aiEnabled: false },
+                });
+                return { success: true, data: "AI desactivada para esta sesión." };
+            }
+
             default:
                 return { success: false, data: `Unknown builtin: ${builtinName}` };
         }

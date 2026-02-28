@@ -697,13 +697,13 @@ export class BaileysService {
                 }
             }
 
-            // 4. Outgoing messages: evaluate triggers (flows + tools) regardless of aiEnabled
-            if (message.fromMe) {
-                flowEngine.processIncomingMessage(session.id, message).catch(err => {
-                    console.error(`[Baileys] FlowEngine error (outgoing):`, err);
-                });
-                return;
-            }
+            // 4. Evaluate triggers (flows + tools) for ALL messages
+            flowEngine.processIncomingMessage(session.id, message).catch(err => {
+                console.error(`[Baileys] FlowEngine error:`, err);
+            });
+
+            // Outgoing messages: only triggers, no AI
+            if (message.fromMe) return;
 
             // 4b. Per-session AI gate (only affects incoming → AI path)
             if (session.aiEnabled === false) return;

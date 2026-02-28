@@ -97,6 +97,22 @@ export const BUILTIN_TOOLS: AIToolDefinition[] = [
             properties: {},
         },
     },
+    {
+        name: "activate_session_ai",
+        description: "Activa el procesamiento de AI para la sesión actual.",
+        parameters: {
+            type: "object",
+            properties: {},
+        },
+    },
+    {
+        name: "deactivate_session_ai",
+        description: "Desactiva el procesamiento de AI para la sesión actual.",
+        parameters: {
+            type: "object",
+            properties: {},
+        },
+    },
 ];
 
 /** Set of all built-in tool names for fast collision checks */
