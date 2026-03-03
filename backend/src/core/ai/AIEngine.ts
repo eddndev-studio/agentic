@@ -215,7 +215,7 @@ export class AIEngine {
                             console.log(`[AIEngine] Skipping duplicate reply_to_message for ${toolCall.arguments.message_id}`);
                             toolMessages.push({
                                 role: "tool",
-                                content: "Ya respondiste a este mensaje. No lo repitas. No llames más herramientas, responde con texto vacío.",
+                                content: "Ya respondiste a este mensaje. No lo repitas. Responde únicamente [NO_RESPONSE].",
                                 toolCallId: toolCall.id,
                                 name: toolCall.name,
                             });
@@ -291,14 +291,18 @@ export class AIEngine {
             // Skip final message if reply_to_message already sent the response directly
             const alreadyReplied = executedTools.has("reply_to_message");
 
-            if (response.content && !alreadyReplied) {
-                await BaileysService.sendMessage(bot.id, session.identifier, { text: response.content });
-                eventBus.emitBotEvent({ type: 'message:sent', botId: bot.id, sessionId, content: response.content });
+            // Filter out [NO_RESPONSE] marker — the LLM uses it to signal "nothing to send"
+            const finalContent = response.content?.trim();
+            const isSuppressed = !finalContent || finalContent === "[NO_RESPONSE]";
+
+            if (!isSuppressed && !alreadyReplied) {
+                await BaileysService.sendMessage(bot.id, session.identifier, { text: finalContent });
+                eventBus.emitBotEvent({ type: 'message:sent', botId: bot.id, sessionId, content: finalContent });
             }
 
-            if (response.content) {
-                // Always persist to history, even if we didn't send via WhatsApp
-                const assistantMsg: AIMessage = { role: "assistant", content: response.content };
+            if (finalContent && !isSuppressed) {
+                // Persist to history only if there's actual content
+                const assistantMsg: AIMessage = { role: "assistant", content: finalContent };
                 await ConversationService.addMessage(sessionId, assistantMsg);
             }
 

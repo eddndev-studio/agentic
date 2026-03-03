@@ -328,7 +328,7 @@ export class ToolExecutor {
                     },
                 });
 
-                return { success: true, data: `Mensaje enviado. No respondas de nuevo a este mensaje, ya fue contestado.` };
+                return { success: true, data: `Mensaje enviado correctamente. Si no necesitas enviar otro mensaje, responde únicamente [NO_RESPONSE].` };
             }
 
             case "send_followup_message": {
