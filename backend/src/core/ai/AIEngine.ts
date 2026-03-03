@@ -11,6 +11,7 @@ import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICo
 import type { Message } from "@prisma/client";
 import { eventBus } from "../../services/event-bus";
 import { BUILTIN_TOOLS } from "./builtin-tools";
+import { sanitizeOutgoing } from "./sanitize";
 
 const MAX_TOOL_ITERATIONS = 10;
 const LOCK_TTL = 60; // seconds
@@ -191,7 +192,7 @@ export class AIEngine {
 
             // 8. Tool call loop
             let iterations = 0;
-            const executedTools = new Set<string>();
+            let messageSentByTool = false;
             const repliedMessageIds = new Set<string>();
             while (response.toolCalls.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
                 iterations++;
@@ -215,7 +216,7 @@ export class AIEngine {
                             console.log(`[AIEngine] Skipping duplicate reply_to_message for ${toolCall.arguments.message_id}`);
                             toolMessages.push({
                                 role: "tool",
-                                content: "Ya respondiste a este mensaje. No lo repitas. Responde únicamente [NO_RESPONSE].",
+                                content: "Mensaje duplicado, omitido.",
                                 toolCallId: toolCall.id,
                                 name: toolCall.name,
                             });
@@ -234,7 +235,7 @@ export class AIEngine {
                     );
 
                     anyToolExecuted = true;
-                    executedTools.add(toolCall.name);
+                    if (result.sentMessages) messageSentByTool = true;
 
                     const resultStr = typeof result.data === "string"
                         ? result.data
@@ -288,21 +289,19 @@ export class AIEngine {
             // 9. Stop typing + send final response
             await BaileysService.sendPresence(bot.id, session.identifier, "paused");
 
-            // Skip final message if reply_to_message already sent the response directly
-            const alreadyReplied = executedTools.has("reply_to_message");
-
-            // Filter out [NO_RESPONSE] marker — the LLM uses it to signal "nothing to send"
+            // If a tool already sent messages to the user (flow, reply_to_message),
+            // suppress the LLM's final response — it's not meant for the user.
             const finalContent = response.content?.trim();
-            const isSuppressed = !finalContent || finalContent === "[NO_RESPONSE]";
+            const sanitized = finalContent ? sanitizeOutgoing(finalContent) : "";
+            const hasContent = sanitized.length > 0;
 
-            if (!isSuppressed && !alreadyReplied) {
-                await BaileysService.sendMessage(bot.id, session.identifier, { text: finalContent });
-                eventBus.emitBotEvent({ type: 'message:sent', botId: bot.id, sessionId, content: finalContent });
+            if (hasContent && !messageSentByTool) {
+                await BaileysService.sendMessage(bot.id, session.identifier, { text: sanitized });
+                eventBus.emitBotEvent({ type: 'message:sent', botId: bot.id, sessionId, content: sanitized });
             }
 
-            if (finalContent && !isSuppressed) {
-                // Persist to history only if there's actual content
-                const assistantMsg: AIMessage = { role: "assistant", content: finalContent };
+            if (hasContent) {
+                const assistantMsg: AIMessage = { role: "assistant", content: sanitized };
                 await ConversationService.addMessage(sessionId, assistantMsg);
             }
 

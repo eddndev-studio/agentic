@@ -6,6 +6,8 @@ import type { Session } from "@prisma/client";
 export interface ToolResult {
     success: boolean;
     data: any;
+    /** True when this tool already sent messages to the user (flows, reply_to_message) */
+    sentMessages?: boolean;
 }
 
 export class ToolExecutor {
@@ -119,7 +121,8 @@ export class ToolExecutor {
 
         return {
             success: true,
-            data: `[Flujo ejecutado: ${flow.name}]${flow.description ? ` ${flow.description}` : ""}`,
+            data: `Flujo "${flow.name}" ejecutado.`,
+            sentMessages: true,
         };
     }
 
@@ -328,7 +331,7 @@ export class ToolExecutor {
                     },
                 });
 
-                return { success: true, data: `Mensaje enviado correctamente. Si no necesitas enviar otro mensaje, responde únicamente [NO_RESPONSE].` };
+                return { success: true, data: "Mensaje enviado.", sentMessages: true };
             }
 
             case "send_followup_message": {
