@@ -241,8 +241,12 @@ export class BaileysService {
                     if (shouldReconnect && !shuttingDown) {
                         const attempt = reconnectAttempts.get(botId) || 0;
                         // Conflict (440) gets a longer base delay to avoid fight with other instance
-                        const baseDelay = statusCode === 440 ? 15000 : 5000;
-                        const delay = Math.min(baseDelay * Math.pow(2, attempt), 120000);
+                        const baseDelay = statusCode === 440 ? 10000 : 3000;
+                        const maxDelay = 30000; // cap at 30s (was 120s — too many lost messages)
+                        const exponential = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+                        // Add jitter (±25%) to prevent thundering herd
+                        const jitter = exponential * (0.75 + Math.random() * 0.5);
+                        const delay = Math.round(jitter);
                         reconnectAttempts.set(botId, attempt + 1);
                         console.log(`[Baileys] Reconnecting Bot ${botId} in ${delay / 1000}s (attempt ${attempt + 1})`);
                         const timer = setTimeout(() => {
@@ -585,27 +589,7 @@ export class BaileysService {
             msg.message.audioMessage ? 'AUDIO' :
             msg.message.documentMessage ? 'DOCUMENT' : 'TEXT';
 
-        // Download media if present
-        let mediaUrl: string | undefined;
-        if (['IMAGE', 'AUDIO', 'DOCUMENT'].includes(msgType)) {
-            try {
-                const buffer = await downloadMediaMessage(msg, 'buffer', {});
-                if (buffer) {
-                    const ext = msgType === 'IMAGE' ? '.jpg' :
-                        msgType === 'AUDIO' ? '.ogg' :
-                        (msg.message.documentMessage?.fileName?.split('.').pop() || 'pdf');
-                    const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext.replace('.', '')}`;
-                    const uploadDir = path.resolve('uploads');
-                    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-                    const filePath = path.join(uploadDir, filename);
-                    fs.writeFileSync(filePath, buffer as Buffer);
-                    mediaUrl = filePath;
-                    console.log(`[Baileys] Media saved: ${filePath}`);
-                }
-            } catch (mediaErr) {
-                console.error(`[Baileys] Failed to download media:`, mediaErr);
-            }
-        }
+        const hasMedia = ['IMAGE', 'AUDIO', 'DOCUMENT'].includes(msgType);
 
         console.log(`[${new Date().toISOString()}] [Baileys] Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${content.substring(0, 50)}...`);
 
@@ -616,6 +600,7 @@ export class BaileysService {
 
             // Filter: exclude group messages
             if (bot.excludeGroups && from.endsWith("@g.us")) {
+                console.log(`[Filter] Group message from ${from} excluded for Bot ${bot.name}`);
                 return;
             }
 
@@ -628,7 +613,7 @@ export class BaileysService {
                 eventBus.emitBotEvent({ type: 'session:created', botId, session });
             }
 
-            // 3. Persist Message (atomic upsert — no TOCTOU race)
+            // 3. Persist Message FIRST, then download media in background
             const messageExternalId = msg.key.id || `msg_${Date.now()}`;
             const messageData = {
                 sessionId: session.id,
@@ -636,47 +621,45 @@ export class BaileysService {
                 fromMe: msg.key.fromMe || false,
                 content,
                 type: msgType,
-                metadata: mediaUrl ? { mediaUrl } : undefined,
                 isProcessed: false,
             };
 
-            const { message, created } = await (async () => {
-                const beforeUpsert = Date.now();
-                try {
-                    const msg = await prisma.message.upsert({
-                        where: { externalId: messageExternalId },
-                        update: {},  // no-op on conflict — keeps existing record
-                        create: { externalId: messageExternalId, ...messageData },
-                    });
-                    // A message is "new" if its createdAt is very recent (within our upsert window)
-                    const isNew = msg.createdAt.getTime() >= beforeUpsert - 1000;
-                    return { message: msg, created: isNew };
-                } catch (e: any) {
-                    // Fallback for edge cases
-                    console.error(`[Baileys] Message upsert error for ${messageExternalId}:`, e);
-                    const existing = await prisma.message.findUnique({ where: { externalId: messageExternalId } });
-                    return { message: existing, created: false };
+            let message: any;
+            let created: boolean;
+            try {
+                message = await prisma.message.create({
+                    data: { externalId: messageExternalId, ...messageData },
+                });
+                created = true;
+            } catch (e: any) {
+                if (e.code === 'P2002') {
+                    // Duplicate — already persisted by a previous event
+                    console.log(`[Baileys] Duplicate message ${messageExternalId}, skipping processing.`);
+                    return;
                 }
-            })();
+                throw e;
+            }
 
-            if (!message) return;
-
-            // Skip duplicate messages — already processed by a previous event
-            if (!created) {
-                console.log(`[Baileys] Duplicate message ${messageExternalId}, skipping processing.`);
-                return;
+            // Download media in background (non-blocking) and update message metadata
+            if (hasMedia) {
+                BaileysService.downloadAndAttachMedia(msg, msgType, message.id).catch(mediaErr => {
+                    console.error(`[Baileys] Background media download failed for ${messageExternalId}:`, mediaErr);
+                });
             }
 
             // Touch session so it sorts to top of the list
-            await prisma.session.update({
+            prisma.session.update({
                 where: { id: session.id },
                 data: { updatedAt: new Date() },
-            });
+            }).catch(() => {}); // fire-and-forget
 
             eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
 
             // Skip all processing when bot is paused
-            if (bot.paused) return;
+            if (bot.paused) {
+                console.log(`[Filter] Bot ${bot.name} is paused, skipping message from ${from}`);
+                return;
+            }
 
             // Filter: skip AI for sessions with ignored labels
             if (bot.ignoredLabels.length > 0) {
@@ -686,6 +669,7 @@ export class BaileysService {
                 });
                 const labelIds = sessionLabels.map(sl => sl.labelId);
                 if (labelIds.some(id => bot.ignoredLabels.includes(id))) {
+                    console.log(`[Filter] Session ${from} has ignored label, skipping AI for Bot ${bot.name}`);
                     return;
                 }
             }
@@ -699,7 +683,10 @@ export class BaileysService {
             if (message.fromMe) return;
 
             // 4b. Per-session AI gate (only affects incoming → AI path)
-            if (session.aiEnabled === false) return;
+            if (session.aiEnabled === false) {
+                console.log(`[Filter] AI disabled for session ${from}, skipping AI processing`);
+                return;
+            }
 
             // 5. Process with AI Engine (with optional message accumulation)
             const handleAIError = async (err: any, sid: string) => {
@@ -745,6 +732,30 @@ export class BaileysService {
             tracker.count = 0;
             tracker.lastPurge = now;
         }
+    }
+
+    /**
+     * Download media from a WhatsApp message and attach it to the persisted message.
+     * Runs in background (fire-and-forget) to avoid blocking the message pipeline.
+     */
+    static async downloadAndAttachMedia(msg: WAMessage & { message: any }, msgType: string, messageId: string): Promise<void> {
+        const buffer = await downloadMediaMessage(msg, 'buffer', {});
+        if (!buffer) return;
+
+        const ext = msgType === 'IMAGE' ? '.jpg' :
+            msgType === 'AUDIO' ? '.ogg' :
+            (msg.message.documentMessage?.fileName?.split('.').pop() || 'pdf');
+        const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext.replace('.', '')}`;
+        const uploadDir = path.resolve('uploads');
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        const filePath = path.join(uploadDir, filename);
+        fs.writeFileSync(filePath, buffer as Buffer);
+
+        await prisma.message.update({
+            where: { id: messageId },
+            data: { metadata: { mediaUrl: filePath } },
+        });
+        console.log(`[Baileys] Media saved and attached: ${filePath}`);
     }
 
     /**
