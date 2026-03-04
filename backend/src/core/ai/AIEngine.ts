@@ -294,16 +294,12 @@ export class AIEngine {
             // 9. Stop typing + send final response
             await BaileysService.sendPresence(bot.id, session.identifier, "paused");
 
-            // If a tool already sent messages to the user (flow, reply_to_message),
-            // suppress the LLM's final response — it's not meant for the user.
+            // AI is tool/flow-oriented: NEVER send the LLM's text response to the user.
+            // Only tools (reply_to_message, flows, etc.) can send messages to the end user.
+            // We still persist the response in conversation history so the AI has context.
             const finalContent = response.content?.trim();
             const sanitized = finalContent ? sanitizeOutgoing(finalContent) : "";
             const hasContent = sanitized.length > 0;
-
-            if (hasContent && !messageSentByTool) {
-                await BaileysService.sendMessage(bot.id, session.identifier, { text: sanitized });
-                eventBus.emitBotEvent({ type: 'message:sent', botId: bot.id, sessionId, content: sanitized });
-            }
 
             if (hasContent) {
                 const assistantMsg: AIMessage = { role: "assistant", content: sanitized };
@@ -315,15 +311,7 @@ export class AIEngine {
 
         } catch (error: any) {
             console.error(`[AIEngine] Error processing message for session ${sessionId}:`, error);
-
-            // Try to send error message to user
-            try {
-                await BaileysService.sendMessage(
-                    session.bot.id,
-                    session.identifier,
-                    { text: "Lo siento, ocurrió un error procesando tu mensaje. Intenta de nuevo." }
-                );
-            } catch {}
+            // Tool-oriented mode: do NOT send error messages to the end user
         } finally {
             // 11. Stop heartbeat + release lock
             clearInterval(lockHeartbeat);

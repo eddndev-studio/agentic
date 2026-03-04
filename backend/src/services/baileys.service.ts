@@ -691,11 +691,7 @@ export class BaileysService {
             // 5. Process with AI Engine (with optional message accumulation)
             const handleAIError = async (err: any, sid: string) => {
                 console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error for session ${sid}:`, err);
-                try {
-                    await BaileysService.sendMessage(botId, from, {
-                        text: "Lo siento, ocurrió un error procesando tu mensaje. Intenta de nuevo en unos momentos."
-                    });
-                } catch {}
+                // Tool-oriented mode: do NOT send error messages to the end user
             };
 
             if (bot.messageDelay > 0) {
