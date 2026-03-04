@@ -14,7 +14,7 @@ import { BUILTIN_TOOLS } from "./builtin-tools";
 import { sanitizeOutgoing } from "./sanitize";
 
 const MAX_TOOL_ITERATIONS = 10;
-const LOCK_TTL = 60; // seconds
+const LOCK_TTL = 300; // seconds (5 min — high-effort thinking models can take a while)
 const PENDING_QUEUE_KEY = (sid: string) => `ai:pending:${sid}`;
 const MAX_PENDING_RETRIES = 3;
 
