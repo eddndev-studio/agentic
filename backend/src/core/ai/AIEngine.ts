@@ -75,6 +75,11 @@ export class AIEngine {
             return;
         }
 
+        // Heartbeat: renew lock TTL periodically to survive long processing (transcription + tools)
+        const lockHeartbeat = setInterval(() => {
+            redis.expire(lockKey, LOCK_TTL).catch(() => {});
+        }, (LOCK_TTL / 3) * 1000);
+
         try {
             // 4. Mark all messages as read + show typing indicator
             const msgIds = messages.map(m => m.externalId).filter(Boolean);
@@ -320,7 +325,8 @@ export class AIEngine {
                 );
             } catch {}
         } finally {
-            // 11. Release lock
+            // 11. Stop heartbeat + release lock
+            clearInterval(lockHeartbeat);
             await redis.del(lockKey);
 
             // 12. Drain pending queue — process messages that arrived while lock was held
@@ -368,17 +374,31 @@ export class AIEngine {
 
     /**
      * Drain queued messages that arrived while the AI lock was held.
-     * Loads message IDs from Redis, fetches them from DB, and re-processes.
+     * Loops until the pending queue is empty to avoid orphaned batches.
      */
     private async drainPending(sessionId: string): Promise<void> {
         const pendingKey = PENDING_QUEUE_KEY(sessionId);
-        const item = await redis.lpop(pendingKey);
-        if (!item) return;
 
         try {
-            const messageIds: string[] = JSON.parse(item);
+            // Collect ALL pending batches in one pass
+            const allMessageIds: string[] = [];
+            let item: string | null;
+            while ((item = await redis.lpop(pendingKey))) {
+                try {
+                    const ids: string[] = JSON.parse(item);
+                    allMessageIds.push(...ids);
+                } catch (parseErr) {
+                    console.error(`[AIEngine] drainPending: invalid JSON in pending queue:`, parseErr);
+                }
+            }
+
+            if (allMessageIds.length === 0) return;
+
+            // Deduplicate IDs (same message could have been queued twice in edge cases)
+            const uniqueIds = [...new Set(allMessageIds)];
+
             const messages = await prisma.message.findMany({
-                where: { id: { in: messageIds } },
+                where: { id: { in: uniqueIds } },
                 orderBy: { createdAt: "asc" },
             });
 
@@ -387,7 +407,7 @@ export class AIEngine {
                 await this.processMessages(sessionId, messages);
             }
         } catch (e) {
-            console.error(`[AIEngine] drainPending parse/process error:`, e);
+            console.error(`[AIEngine] drainPending error:`, e);
         }
     }
 
