@@ -98,6 +98,16 @@ import { BaileysService } from "./services/baileys.service";
 import { ToolExecutor } from "./core/ai/ToolExecutor";
 import { Platform } from "@prisma/client";
 
+// Recover orphaned accumulator messages from a previous crash (Redis keys without in-memory timers)
+MessageAccumulator.flushAll((sid, msgs) => {
+    console.log(`[Init] Recovering ${msgs.length} orphaned message(s) for session ${sid}`);
+    aiEngine.processMessages(sid, msgs).catch(err => {
+        console.error(`[Init] Failed to process recovered messages for ${sid}:`, err);
+    });
+}).catch(err => {
+    console.error("[Init] Accumulator recovery error:", err);
+});
+
 // Reconnect WhatsApp Sessions
 prisma.bot.findMany({ where: { platform: Platform.WHATSAPP } }).then(bots => {
     console.log(`[Init] Found ${bots.length} WhatsApp bots to reconnect...`);
