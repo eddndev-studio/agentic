@@ -660,14 +660,13 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     <template x-if="flows.length > 0">
                         <div class="space-y-3">
                             <template x-for="flow in flows" :key="flow.id">
-                                <a
-                                    :href="'/editor?id=' + flow.id"
-                                    class="block p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-lg"
+                                <div
+                                    class="p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-lg"
                                 >
                                     <div
                                         class="flex justify-between items-start"
                                     >
-                                        <div class="flex-1">
+                                        <a :href="'/editor?id=' + flow.id" class="flex-1 min-w-0">
                                             <h4
                                                 class="font-bold tracking-tight group-hover:text-wa-green transition-colors"
                                                 x-text="flow.name"
@@ -697,21 +696,34 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                                                     x-text="'+' + (flow.triggers.length - 3) + ' more'"
                                                 ></span>
                                             </div>
+                                        </a>
+                                        <div class="flex items-center gap-2 flex-shrink-0 mt-1">
+                                            <button
+                                                @click.prevent.stop="deleteFlow(flow.id, flow.name)"
+                                                class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors"
+                                                :title="$t('delete_flow') || 'Delete Flow'"
+                                            >
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                            <a :href="'/editor?id=' + flow.id" class="p-1 text-wa-text-secondary group-hover:text-wa-green transition-colors">
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M9 5l7 7-7 7"></path>
+                                                </svg>
+                                            </a>
                                         </div>
-                                        <svg
-                                            class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green transition-colors flex-shrink-0 mt-1"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 5l7 7-7 7"></path>
-                                        </svg>
                                     </div>
-                                </a>
+                                </div>
                             </template>
                         </div>
                     </template>
@@ -1831,6 +1843,17 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     alert("Import failed: " + (e.message || "Unknown error"));
                 } finally {
                     this.loadingImport = false;
+                }
+            },
+
+            async deleteFlow(flowId: string, flowName: string) {
+                // @ts-ignore
+                if (!confirm(this.$t('delete_flow_confirm') || `Delete flow "${flowName}"?`)) return;
+                try {
+                    await ApiClient.delete(`/flows/${flowId}`);
+                    this.flows = await ApiClient.get(`/flows?botId=${this.botId}`);
+                } catch (e: any) {
+                    alert("Failed to delete flow: " + (e.message || "Unknown error"));
                 }
             },
 

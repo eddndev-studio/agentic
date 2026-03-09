@@ -187,6 +187,8 @@ export default {
     hours: "horas",
     days: "días",
     delete_confirm: "¿Estás seguro de que deseas eliminar esto?",
+    delete_flow: "Eliminar Flujo",
+    delete_flow_confirm: "¿Estás seguro de que deseas eliminar este flujo?",
 
     // Ads (Monitor de Boost de Facebook)
     ads: "Anuncios",
