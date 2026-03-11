@@ -199,6 +199,7 @@ export class AIEngine {
             let iterations = 0;
             let messageSentByTool = false;
             const repliedMessageIds = new Set<string>();
+            const executedFlowTools = new Set<string>();
             while (response.toolCalls.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
                 iterations++;
 
@@ -230,6 +231,18 @@ export class AIEngine {
                         repliedMessageIds.add(toolCall.arguments.message_id);
                     }
 
+                    // Prevent duplicate flow executions: skip if same tool already sent messages
+                    if (executedFlowTools.has(toolCall.name)) {
+                        console.log(`[AIEngine] Skipping duplicate flow tool '${toolCall.name}'`);
+                        toolMessages.push({
+                            role: "tool",
+                            content: `El flujo "${toolCall.name}" ya fue ejecutado en este turno y el cliente ya recibió esa respuesta.`,
+                            toolCallId: toolCall.id,
+                            name: toolCall.name,
+                        });
+                        continue;
+                    }
+
                     console.log(`[AIEngine] Executing tool: ${toolCall.name}(${JSON.stringify(toolCall.arguments)})`);
 
                     const result = await ToolExecutor.execute(
@@ -240,7 +253,10 @@ export class AIEngine {
                     );
 
                     anyToolExecuted = true;
-                    if (result.sentMessages) messageSentByTool = true;
+                    if (result.sentMessages) {
+                        messageSentByTool = true;
+                        executedFlowTools.add(toolCall.name);
+                    }
 
                     const resultStr = typeof result.data === "string"
                         ? result.data

@@ -121,7 +121,7 @@ export class ToolExecutor {
 
         return {
             success: true,
-            data: `Flujo "${flow.name}" ejecutado.`,
+            data: `Flujo "${flow.name}" ejecutado y el cliente ya recibió la respuesta.`,
             sentMessages: true,
         };
     }
