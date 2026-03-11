@@ -71,11 +71,53 @@ export class ConversationService {
         const items = await redis.lrange(k, 0, -1);
 
         if (items.length > 0) {
-            return items.map((item) => JSON.parse(item));
+            return this.sanitize(items.map((item) => JSON.parse(item)));
         }
 
         // Fallback: reconstruct from Postgres
         return this.reconstructFromPostgres(sessionId);
+    }
+
+    /**
+     * Ensure structural validity for LLM APIs after Redis ltrim may have
+     * sliced the history mid-sequence:
+     * - Drop orphaned `tool` messages that lack a preceding `assistant` with `toolCalls`
+     * - Drop trailing `assistant` with `toolCalls` if no tool results follow
+     */
+    private static sanitize(messages: AIMessage[]): AIMessage[] {
+        const result: AIMessage[] = [];
+        let inToolSequence = false;
+
+        for (const msg of messages) {
+            if (msg.role === "tool") {
+                if (inToolSequence) {
+                    result.push(msg);
+                }
+                // else: orphaned tool message — skip
+            } else {
+                inToolSequence =
+                    msg.role === "assistant" &&
+                    Array.isArray(msg.toolCalls) &&
+                    msg.toolCalls.length > 0;
+                result.push(msg);
+            }
+        }
+
+        // Remove trailing assistant+toolCalls whose tool results were never recorded
+        while (result.length > 0) {
+            const last = result[result.length - 1];
+            if (
+                last.role === "assistant" &&
+                Array.isArray(last.toolCalls) &&
+                last.toolCalls.length > 0
+            ) {
+                result.pop();
+            } else {
+                break;
+            }
+        }
+
+        return result;
     }
 
     static async reconstructFromPostgres(sessionId: string): Promise<AIMessage[]> {
