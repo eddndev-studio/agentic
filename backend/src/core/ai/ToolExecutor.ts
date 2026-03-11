@@ -87,6 +87,10 @@ export class ToolExecutor {
             return { success: false, data: `Flow '${flowId}' not found.` };
         }
 
+        const stepResults: string[] = [];
+        let sentCount = 0;
+        let failCount = 0;
+
         for (const step of flow.steps) {
             let content = step.content || "";
 
@@ -109,8 +113,13 @@ export class ToolExecutor {
                         ptt: step.type === "PTT",
                     });
                 }
+                sentCount++;
+                console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (${step.type}) sent`);
             } catch (e: any) {
-                console.error(`[ToolExecutor] Flow '${flow.name}' step ${step.order} failed:`, e.message);
+                failCount++;
+                const reason = e.message || "unknown error";
+                stepResults.push(`paso ${step.order} (${step.type}): falló — ${reason}`);
+                console.error(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (${step.type}) failed:`, reason);
             }
 
             // Respect step delay
@@ -119,10 +128,14 @@ export class ToolExecutor {
             }
         }
 
+        const summary = failCount === 0
+            ? `Flujo "${flow.name}" ejecutado (${sentCount} pasos enviados). El cliente ya recibió la respuesta.`
+            : `Flujo "${flow.name}" ejecutado parcialmente: ${sentCount} enviados, ${failCount} fallidos. ${stepResults.join("; ")}`;
+
         return {
-            success: true,
-            data: `Flujo "${flow.name}" ejecutado y el cliente ya recibió la respuesta.`,
-            sentMessages: true,
+            success: failCount === 0,
+            data: summary,
+            sentMessages: sentCount > 0,
         };
     }
 
