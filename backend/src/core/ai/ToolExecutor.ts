@@ -100,7 +100,19 @@ export class ToolExecutor {
             }
 
             try {
-                if (step.type === "TEXT" && content) {
+                if (step.type === "TOOL") {
+                    const metadata = (step.metadata as any) || {};
+                    const toolName = metadata.toolName;
+                    if (!toolName) {
+                        throw new Error("TOOL step missing toolName in metadata");
+                    }
+                    const toolArgs = metadata.toolArgs || {};
+                    const toolResult = await this.executeBuiltin(botId, session, { name: toolName }, toolArgs);
+                    if (!toolResult.success) {
+                        throw new Error(typeof toolResult.data === "string" ? toolResult.data : JSON.stringify(toolResult.data));
+                    }
+                    console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (TOOL:${toolName}) done:`, toolResult.data);
+                } else if (step.type === "TEXT" && content) {
                     await BaileysService.sendMessage(botId, session.identifier, { text: content });
                 } else if (step.type === "IMAGE" && step.mediaUrl) {
                     await BaileysService.sendMessage(botId, session.identifier, {
@@ -114,7 +126,7 @@ export class ToolExecutor {
                     });
                 }
                 sentCount++;
-                console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (${step.type}) sent`);
+                console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (${step.type}) ok`);
             } catch (e: any) {
                 failCount++;
                 const reason = e.message || "unknown error";
