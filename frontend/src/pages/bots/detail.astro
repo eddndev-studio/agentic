@@ -328,7 +328,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     <div>
                         <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('message_delay')">Message Delay</label>
                         <div class="flex items-center gap-3">
-                            <input type="number" x-model.number="aiConfig.messageDelay" min="0" max="60" step="1"
+                            <input type="number" x-model.number="aiConfig.messageDelay" min="0" step="1"
                                 class="w-24 bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
                             <span class="text-xs text-wa-text-secondary">s</span>
                         </div>
