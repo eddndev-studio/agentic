@@ -157,7 +157,7 @@ export class AIEngine {
 
             const dbToolDefs: AIToolDefinition[] = tools.map((t) => ({
                 name: t.name,
-                description: t.description,
+                description: BotConfigService.interpolate(t.description, botVars),
                 parameters: (t.parameters as Record<string, any>) || { type: "object", properties: {} },
             }));
 
@@ -249,12 +249,19 @@ export class AIEngine {
                         continue;
                     }
 
-                    console.log(`[AIEngine] Executing tool: ${toolCall.name}(${JSON.stringify(toolCall.arguments)})`);
+                    // Interpolate bot variables in tool call arguments
+                    const interpolatedArgs: Record<string, any> = {};
+                    for (const [k, v] of Object.entries(toolCall.arguments)) {
+                        interpolatedArgs[k] = typeof v === "string" ? BotConfigService.interpolate(v, botVars) : v;
+                    }
+                    const interpolatedToolCall = { ...toolCall, arguments: interpolatedArgs };
+
+                    console.log(`[AIEngine] Executing tool: ${interpolatedToolCall.name}(${JSON.stringify(interpolatedToolCall.arguments)})`);
 
                     const result = await ToolExecutor.execute(
                         bot.id,
                         session,
-                        toolCall,
+                        interpolatedToolCall,
                         messages[messages.length - 1]
                     );
 
