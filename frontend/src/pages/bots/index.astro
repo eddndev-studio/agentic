@@ -234,6 +234,22 @@ import Layout from "../../layouts/Layout.astro";
 					</select>
 				</div>
 
+				<div>
+					<label
+						class="block text-xs text-wa-text-secondary mb-2"
+						x-text="$t('template_assigned')">Template</label
+					>
+					<select
+						x-model="form.templateId"
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
+					>
+						<option value="" x-text="$t('no_template')">None (Custom)</option>
+						<template x-for="tpl in templates" :key="tpl.id">
+							<option :value="tpl.id" x-text="tpl.name"></option>
+						</template>
+					</select>
+				</div>
+
 				<div class="flex gap-4 pt-4">
 					<button
 						type="button"
@@ -265,6 +281,7 @@ import Layout from "../../layouts/Layout.astro";
 		name: string;
 		identifier: string;
 		platform: "WHATSAPP" | "TELEGRAM";
+		templateId: string;
 	}
 
 	interface Bot {
@@ -321,19 +338,30 @@ import Layout from "../../layouts/Layout.astro";
 		Alpine.data("createBotModal", () => ({
 			visible: false,
 			loading: false,
+			templates: [] as any[],
 			form: {
 				name: "",
 				identifier: "",
 				platform: "WHATSAPP",
+				templateId: "",
 			} as CreateBotForm,
 
 			open() {
 				this.visible = true;
-				this.form = { name: "", identifier: "", platform: "WHATSAPP" };
+				this.form = { name: "", identifier: "", platform: "WHATSAPP", templateId: "" };
+				if (this.templates.length === 0) this.loadTemplates();
 			},
 
 			close() {
 				this.visible = false;
+			},
+
+			async loadTemplates() {
+				try {
+					this.templates = await ApiClient.get("/templates");
+				} catch (e) {
+					console.error("Failed to load templates", e);
+				}
 			},
 
 			async submit() {
@@ -341,8 +369,22 @@ import Layout from "../../layouts/Layout.astro";
 
 				this.loading = true;
 				try {
-					await ApiClient.post("/bots", this.form);
-					window.location.reload(); // Reload to re-trigger CSR fetch
+					const payload: any = {
+						name: this.form.name,
+						identifier: this.form.identifier,
+						platform: this.form.platform,
+					};
+					const bot = await ApiClient.post("/bots", payload);
+
+					// Assign template if selected
+					if (this.form.templateId) {
+						await ApiClient.put(`/bots/${bot.id}`, {
+							templateId: this.form.templateId,
+							aiEnabled: true,
+						});
+					}
+
+					window.location.reload();
 				} catch (e: unknown) {
 					const error = e as Error;
 					alert(error.message || "Failed to create bot");

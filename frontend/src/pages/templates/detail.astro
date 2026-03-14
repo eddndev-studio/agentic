@@ -162,7 +162,16 @@ import Layout from "../../layouts/Layout.astro";
 		<!-- Bots Tab -->
 		<div x-show="activeTab === 'bots'" style="display: none;">
 			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 rounded-xl">
-				<h3 class="text-xs text-wa-green mb-4" x-text="$t('template_bots_count')">Bots using this template</h3>
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="text-xs text-wa-green" x-text="$t('template_bots_count')">Bots using this template</h3>
+					<button
+						@click="showCreateBotModal = true"
+						class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover flex items-center gap-2"
+					>
+						<span>+</span>
+						<span x-text="$t('create_bot')">Create Bot</span>
+					</button>
+				</div>
 				<div class="space-y-3">
 					<template x-for="bot in template.bots || []" :key="bot.id">
 						<a :href="'/bots/detail?id=' + bot.id" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
@@ -183,6 +192,36 @@ import Layout from "../../layouts/Layout.astro";
 		</div>
 	</div>
 
+	<!-- Create Bot from Template Modal -->
+	<div
+		x-show="showCreateBotModal"
+		x-cloak
+		class="fixed inset-0 z-50 flex items-center justify-center p-4"
+		style="display: none;"
+	>
+		<div class="absolute inset-0 bg-black/70" @click="showCreateBotModal = false"></div>
+		<div class="relative bg-wa-bg-panel border border-wa-border rounded-xl p-4 sm:p-8 w-full max-w-md">
+			<h2 class="text-xl font-bold tracking-tight mb-2" x-text="$t('create_bot')">Create Bot</h2>
+			<p class="text-xs text-wa-text-secondary mb-6">
+				Se creará con la plantilla <span class="text-purple-400" x-text="template.name"></span>
+			</p>
+			<form @submit.prevent="createBotFromTemplate()" class="space-y-4">
+				<div>
+					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('bot_name')"></label>
+					<input type="text" x-model="newBotForm.name" required class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="Mi Bot" />
+				</div>
+				<div>
+					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('bot_identifier')"></label>
+					<input type="text" x-model="newBotForm.identifier" required class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="+1234567890" />
+				</div>
+				<div class="flex gap-4 pt-4">
+					<button type="button" @click="showCreateBotModal = false" class="flex-1 px-4 py-3 border border-wa-border text-wa-text-secondary text-sm rounded-lg hover:bg-wa-bg-hover" x-text="$t('cancel')">Cancel</button>
+					<button type="submit" :disabled="creatingBot" class="flex-1 px-4 py-3 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="creatingBot ? $t('loading') : $t('create_bot')">Create</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
 	<!-- Loading/Error State -->
 	<div x-data="templateDetail" x-show="!ready && error" class="p-12 text-center text-red-400" x-text="error" style="display: none;"></div>
 </Layout>
@@ -200,6 +239,9 @@ import Layout from "../../layouts/Layout.astro";
 			error: null as string | null,
 			activeTab: "ai",
 			savingAI: false,
+			showCreateBotModal: false,
+			creatingBot: false,
+			newBotForm: { name: "", identifier: "" },
 
 			aiConfig: {
 				name: "",
@@ -254,6 +296,27 @@ import Layout from "../../layouts/Layout.astro";
 					this.tools = await ApiClient.get(`/tools?templateId=${this.templateId}`);
 				} catch (e) {
 					console.error("Failed to load tools", e);
+				}
+			},
+
+			async createBotFromTemplate() {
+				if (!this.newBotForm.name || !this.newBotForm.identifier) return;
+				this.creatingBot = true;
+				try {
+					const bot = await ApiClient.post("/bots", {
+						name: this.newBotForm.name,
+						identifier: this.newBotForm.identifier,
+						platform: "WHATSAPP",
+					});
+					await ApiClient.put(`/bots/${bot.id}`, {
+						templateId: this.templateId,
+						aiEnabled: true,
+					});
+					window.location.href = `/bots/detail?id=${bot.id}`;
+				} catch (e: any) {
+					alert("Error: " + (e.message || "Unknown"));
+				} finally {
+					this.creatingBot = false;
 				}
 			},
 
