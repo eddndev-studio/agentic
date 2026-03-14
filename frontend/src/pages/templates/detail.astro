@@ -109,7 +109,7 @@ import Layout from "../../layouts/Layout.astro";
 			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 rounded-xl">
 				<div class="space-y-3">
 					<template x-for="flow in template.flows || []" :key="flow.id">
-						<a :href="'/editor?flowId=' + flow.id + '&templateId=' + templateId" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
+						<a :href="'/editor?id=' + flow.id + '&templateId=' + templateId" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
 							<div>
 								<h4 class="text-sm font-medium group-hover:text-wa-green transition-colors" x-text="flow.name"></h4>
 								<p class="text-[10px] text-wa-text-secondary mt-1" x-text="flow.description || '—'"></p>
