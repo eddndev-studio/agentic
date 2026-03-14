@@ -40,7 +40,7 @@ import MediaPicker from "../components/MediaPicker.astro";
 
             <div class="flex gap-2 sm:gap-4 shrink-0 w-full sm:w-auto">
                 <a
-                    :href="'/bots/detail?id=' + (bot.id || new URLSearchParams(window.location.search).get('botId') || '')"
+                    :href="templateId ? '/templates/detail?id=' + templateId : '/bots/detail?id=' + (bot.id || new URLSearchParams(window.location.search).get('botId') || '')"
                     role="button"
                     class="px-4 sm:px-6 py-2 border border-wa-border text-wa-text-secondary font-sans text-xs hover:text-white hover:bg-wa-bg-hover transition-colors flex items-center justify-center flex-1 sm:flex-initial rounded-lg"
                     x-text="$t('back')"
@@ -734,6 +734,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                 steps: [],
             } as Flow,
             botId: null as string | null,
+            templateId: null as string | null,
 
             getBranches(step: Step) {
                 if (step.type !== 'CONDITIONAL_TIME' || !step.metadata) return [];
@@ -798,12 +799,13 @@ import MediaPicker from "../components/MediaPicker.astro";
                 const params = new URLSearchParams(window.location.search);
                 this.id = params.get("id");
                 this.botId = params.get("botId");
+                this.templateId = params.get("templateId");
 
                 if (this.id && this.id !== "new") {
                     // Editing existing flow - load flow data first
                     await this.loadFlow(this.id);
                 } else if (this.botId) {
-                    // Creating new flow - load bot info
+                    // Creating new flow for a bot
                     try {
                         this.bot = await ApiClient.get(`/bots/${this.botId}`);
                     } catch (e) {
@@ -813,6 +815,10 @@ import MediaPicker from "../components/MediaPicker.astro";
                     this.ready = true;
                     this.loadAvailableTools();
                     this.loadLabels();
+                } else if (this.templateId) {
+                    // Creating new flow for a template
+                    this.flow.name = "New Flow";
+                    this.ready = true;
                 } else {
                     // No context, redirect to bots
                     window.location.href = "/bots";
@@ -869,15 +875,14 @@ import MediaPicker from "../components/MediaPicker.astro";
                 try {
                     const res = await ApiClient.get(`/flows/${id}`);
                     this.flow = res;
-                    // Extract botId from flow for back navigation
-                    if (res.botId) {
+                    // Extract botId or templateId from flow for back navigation
+                    if (res.templateId) {
+                        this.templateId = res.templateId;
+                    } else if (res.botId) {
                         this.botId = res.botId;
                         this.bot = { id: res.botId };
-                        // Optionally load full bot info
                         try {
-                            this.bot = await ApiClient.get(
-                                `/bots/${res.botId}`,
-                            );
+                            this.bot = await ApiClient.get(`/bots/${res.botId}`);
                         } catch (e) {
                             // Bot info is optional, continue with just ID
                         }
@@ -888,7 +893,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                     this.loadLabels();
                 } catch (e) {
                     alert("Failed to load flow");
-                    window.location.href = "/bots";
+                    window.location.href = this.templateId ? `/templates/detail?id=${this.templateId}` : "/bots";
                 }
             },
 
@@ -1002,12 +1007,13 @@ import MediaPicker from "../components/MediaPicker.astro";
                             window.location.search,
                         );
                         const botId = params.get("botId");
+                        const templateId = params.get("templateId");
 
-                        if (!botId) throw new Error("Missing Bot Context");
+                        if (!botId && !templateId) throw new Error("Missing Bot or Template Context");
 
                         const res = await ApiClient.post("/flows", {
                             ...this.flow,
-                            botId,
+                            ...(templateId ? { templateId } : { botId }),
                         });
                         // Redirect to edit mode
                         window.location.href = `/editor?id=${res.id}`;
