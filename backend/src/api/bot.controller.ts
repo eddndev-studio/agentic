@@ -233,7 +233,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                         temperature: source.temperature,
                         messageDelay: source.messageDelay,
                         excludeGroups: source.excludeGroups,
-                        ignoredLabels: [],
+                        ignoredLabels: source.ignoredLabels,
                         notificationEvents: source.notificationEvents,
                         notificationLabels: source.notificationLabels,
                     },
@@ -249,7 +249,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                             botId: newBot.id,
                             cooldownMs: flow.cooldownMs,
                             usageLimit: flow.usageLimit,
-                            excludesFlows: flow.excludesFlows,
+                            excludesFlows: [], // Will be updated after all flows are created
                             steps: {
                                 create: flow.steps.map((s) => ({
                                     type: s.type,
@@ -273,6 +273,23 @@ export const botController = new Elysia({ prefix: "/bots" })
                         },
                     });
                     flowIdMap.set(flow.id, newFlow.id);
+                }
+
+                // 2.5. Update excludesFlows mapping
+                for (const flow of source.flows) {
+                    if (flow.excludesFlows && flow.excludesFlows.length > 0) {
+                        const newFlowId = flowIdMap.get(flow.id);
+                        if (newFlowId) {
+                            const remappedExcludes = flow.excludesFlows
+                                .map((oldId) => flowIdMap.get(oldId))
+                                .filter(Boolean) as string[];
+                            
+                            await tx.flow.update({
+                                where: { id: newFlowId },
+                                data: { excludesFlows: remappedExcludes },
+                            });
+                        }
+                    }
                 }
 
                 // 3. Clone tools, remapping flowId references
