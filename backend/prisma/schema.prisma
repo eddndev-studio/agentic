@@ -19,34 +19,55 @@ model User {
 }
 
 model Bot {
-  id           String     @id @default(uuid())
-  name         String
-  platform     Platform
-  identifier   String     @unique
-  credentials  Json?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  ipv6Address  String?
-  aiEnabled    Boolean    @default(false)
-  aiModel      String     @default("gemini-2.5-flash")
-  aiProvider   AIProvider @default(GEMINI)
-  systemPrompt String?
-  temperature  Float      @default(0.7)
-  thinkingLevel String?   @default("LOW")
-  paused       Boolean    @default(false)
-  messageDelay Int        @default(0)
-  clients      Client[]
-  flows        Flow[]
-  excludeGroups  Boolean  @default(false)
-  ignoredLabels  String[] @default([])
-  labels       Label[]
-  sessions     Session[]
-  tools        Tool[]
-  triggers     Trigger[]
-  automations  Automation[]
-  notificationSessionId  String?
-  notificationEvents     String[]  @default([])
-  notificationLabels     String[]  @default([])
+  id                    String       @id @default(uuid())
+  name                  String
+  platform              Platform
+  identifier            String       @unique
+  credentials           Json?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  ipv6Address           String?
+  aiEnabled             Boolean      @default(false)
+  aiModel               String       @default("gemini-2.5-flash")
+  aiProvider            AIProvider   @default(GEMINI)
+  systemPrompt          String?
+  temperature           Float        @default(0.7)
+  thinkingLevel         String?      @default("LOW")
+  paused                Boolean      @default(false)
+  messageDelay          Int          @default(0)
+  clients               Client[]
+  flows                 Flow[]
+  excludeGroups         Boolean      @default(false)
+  ignoredLabels         String[]     @default([])
+  labels                Label[]
+  sessions              Session[]
+  tools                 Tool[]
+  triggers              Trigger[]
+  automations           Automation[]
+  notificationSessionId String?
+  notificationEvents    String[]     @default([])
+  notificationLabels    String[]     @default([])
+  templateId            String?
+  template              Template?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  botVariables          Json?        @default("{}")
+}
+
+model Template {
+  id            String       @id @default(uuid())
+  name          String
+  description   String?
+  aiModel       String       @default("gemini-2.5-flash")
+  aiProvider    AIProvider   @default(GEMINI)
+  systemPrompt  String?
+  temperature   Float        @default(0.7)
+  thinkingLevel String?      @default("LOW")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  bots          Bot[]
+  flows         Flow[]
+  tools         Tool[]
+  triggers      Trigger[]
+  automations   Automation[]
 }
 
 model Session {
@@ -71,24 +92,27 @@ model Session {
 }
 
 model Trigger {
-  id        String       @id @default(uuid())
-  botId     String
-  sessionId String?
-  keyword   String
-  matchType MatchType    @default(CONTAINS)
-  isActive  Boolean      @default(true)
-  flowId    String
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  scope     TriggerScope @default(INCOMING)
-  bot       Bot          @relation(fields: [botId], references: [id], onDelete: Cascade)
-  flow      Flow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
-  session   Session?     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id         String       @id @default(uuid())
+  botId      String?
+  templateId String?
+  sessionId  String?
+  keyword    String
+  matchType  MatchType    @default(CONTAINS)
+  isActive   Boolean      @default(true)
+  flowId     String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  scope      TriggerScope @default(INCOMING)
+  bot        Bot?         @relation(fields: [botId], references: [id], onDelete: Cascade)
+  template   Template?    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  flow       Flow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  session    Session?     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model Flow {
   id            String      @id @default(uuid())
-  botId         String
+  botId         String?
+  templateId    String?
   name          String
   description   String?
   createdAt     DateTime    @default(now())
@@ -97,7 +121,8 @@ model Flow {
   usageLimit    Int         @default(0)
   excludesFlows String[]    @default([])
   executions    Execution[]
-  bot           Bot         @relation(fields: [botId], references: [id], onDelete: Cascade)
+  bot           Bot?        @relation(fields: [botId], references: [id], onDelete: Cascade)
+  template      Template?   @relation(fields: [templateId], references: [id], onDelete: Cascade)
   steps         Step[]
   tools         Tool[]
   triggers      Trigger[]
@@ -186,7 +211,8 @@ model Client {
 
 model Tool {
   id           String     @id @default(uuid())
-  botId        String
+  botId        String?
+  templateId   String?
   name         String
   description  String
   parameters   Json?
@@ -196,11 +222,14 @@ model Tool {
   flowId       String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  bot          Bot        @relation(fields: [botId], references: [id], onDelete: Cascade)
+  bot          Bot?       @relation(fields: [botId], references: [id], onDelete: Cascade)
+  template     Template?  @relation(fields: [templateId], references: [id], onDelete: Cascade)
   flow         Flow?      @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
   @@unique([botId, name])
+  @@unique([templateId, name])
   @@index([botId])
+  @@index([templateId])
 }
 
 model ConversationLog {
@@ -306,7 +335,8 @@ enum ClientStatus {
 
 model Automation {
   id          String          @id @default(uuid())
-  botId       String
+  botId       String?
+  templateId  String?
   name        String
   description String?
   enabled     Boolean         @default(true)
@@ -316,9 +346,11 @@ model Automation {
   prompt      String
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
-  bot         Bot             @relation(fields: [botId], references: [id], onDelete: Cascade)
+  bot         Bot?            @relation(fields: [botId], references: [id], onDelete: Cascade)
+  template    Template?       @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([botId])
+  @@index([templateId])
 }
 
 enum AutomationEvent {

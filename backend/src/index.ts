@@ -151,6 +151,7 @@ import { toolController } from "./api/tool.controller";
 import { sessionController } from "./api/session.controller";
 import { eventsController } from "./api/events.controller";
 import { automationController } from "./api/automation.controller";
+import { templateController } from "./api/template.controller";
 import { logsController } from "./api/logs.controller";
 const ALLOWED_ORIGINS = new Set([
     'https://agentic.w-gateway.cc',
@@ -221,6 +222,7 @@ const app = new Elysia({ adapter: node() })
     .use(sessionController)
     .use(eventsController)
     .use(automationController)
+    .use(templateController)
     .use(logsController)
     .get("/", () => "Agentic Orchestrator Active")
     .get("/health", () => ({ status: "ok", timestamp: new Date().toISOString() }))

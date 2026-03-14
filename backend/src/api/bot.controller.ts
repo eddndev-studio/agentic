@@ -22,7 +22,10 @@ export const botController = new Elysia({ prefix: "/bots" })
     .guard({ isSignIn: true })
     // List all bots
     .get("/", async () => {
-        return prisma.bot.findMany({ orderBy: { name: 'asc' } });
+        return prisma.bot.findMany({
+            orderBy: { name: 'asc' },
+            include: { template: { select: { id: true, name: true } } },
+        });
     })
     // Create bot
     .post("/", async ({ body, set }) => {
@@ -102,7 +105,8 @@ export const botController = new Elysia({ prefix: "/bots" })
     // Generic /:id routes
     .get("/:id", async ({ params: { id }, set }) => {
         const bot = await prisma.bot.findUnique({
-            where: { id }
+            where: { id },
+            include: { template: { select: { id: true, name: true } } },
         });
         if (!bot) {
             set.status = 404;
@@ -114,7 +118,8 @@ export const botController = new Elysia({ prefix: "/bots" })
         const { name, identifier, platform, credentials, ipv6Address,
             aiEnabled, aiProvider, aiModel, systemPrompt, temperature, messageDelay,
             excludeGroups, ignoredLabels, paused, thinkingLevel,
-            notificationSessionId, notificationEvents, notificationLabels } = body as any;
+            notificationSessionId, notificationEvents, notificationLabels,
+            templateId, botVariables } = body as any;
 
         try {
             // Check if system prompt or provider/model changed — if so, clear conversations
@@ -148,6 +153,8 @@ export const botController = new Elysia({ prefix: "/bots" })
             if (notificationSessionId !== undefined) data.notificationSessionId = notificationSessionId;
             if (notificationEvents !== undefined) data.notificationEvents = notificationEvents;
             if (notificationLabels !== undefined) data.notificationLabels = notificationLabels;
+            if (templateId !== undefined) data.templateId = templateId || null;
+            if (botVariables !== undefined) data.botVariables = botVariables;
 
             const bot = await prisma.bot.update({ where: { id }, data });
 

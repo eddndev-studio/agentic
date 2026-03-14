@@ -1,5 +1,6 @@
 import { prisma } from "../../services/postgres.service";
 import { BaileysService } from "../../services/baileys.service";
+import { BotConfigService, type BotWithTemplate } from "../../services/bot-config.service";
 import { isBuiltinTool } from "./builtin-tools";
 import type { Session } from "@prisma/client";
 
@@ -15,6 +16,7 @@ export class ToolExecutor {
     /**
      * Execute a tool call by looking up the tool definition and dispatching by actionType.
      * Built-in tools skip the DB lookup entirely (fast-path).
+     * Supports template-based tool resolution.
      */
     static async execute(
         botId: string,
@@ -28,9 +30,13 @@ export class ToolExecutor {
                 return await this.executeBuiltin(botId, session, { name: toolCall.name }, toolCall.arguments);
             }
 
-            const tool = await prisma.tool.findFirst({
-                where: { botId, name: toolCall.name, status: "ACTIVE" },
-            });
+            // Load bot with template to resolve tools from the correct source
+            const bot = await BotConfigService.loadBot(botId);
+            if (!bot) {
+                return { success: false, data: `Bot '${botId}' not found.` };
+            }
+
+            const tool = await BotConfigService.resolveTool(bot, toolCall.name);
 
             if (!tool) {
                 return { success: false, data: `Tool '${toolCall.name}' not found or disabled.` };
@@ -65,7 +71,8 @@ export class ToolExecutor {
     }
 
     /**
-     * FLOW action: Execute a sequence of steps, interpolating {{param}} placeholders.
+     * FLOW action: Execute a sequence of steps, interpolating {{param}} placeholders
+     * and bot environment variables.
      */
     private static async executeFlow(
         botId: string,
@@ -87,6 +94,10 @@ export class ToolExecutor {
             return { success: false, data: `Flow '${flowId}' not found.` };
         }
 
+        // Load bot variables for interpolation
+        const bot = await BotConfigService.loadBot(botId);
+        const botVars = bot ? BotConfigService.getVariables(bot) : {};
+
         const stepResults: string[] = [];
         let sentCount = 0;
         let failCount = 0;
@@ -94,10 +105,13 @@ export class ToolExecutor {
         for (const step of flow.steps) {
             let content = step.content || "";
 
-            // Interpolate {{param}} placeholders
+            // Interpolate {{param}} placeholders from tool call arguments
             for (const [key, value] of Object.entries(args)) {
                 content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), String(value));
             }
+
+            // Interpolate {{VAR}} placeholders from bot environment variables
+            content = BotConfigService.interpolate(content, botVars);
 
             try {
                 if (step.type === "TOOL") {
@@ -106,7 +120,12 @@ export class ToolExecutor {
                     if (!toolName) {
                         throw new Error("TOOL step missing toolName in metadata");
                     }
-                    const toolArgs = metadata.toolArgs || {};
+                    // Interpolate bot variables into tool args
+                    const rawToolArgs = metadata.toolArgs || {};
+                    const toolArgs: Record<string, any> = {};
+                    for (const [k, v] of Object.entries(rawToolArgs)) {
+                        toolArgs[k] = typeof v === "string" ? BotConfigService.interpolate(v, botVars) : v;
+                    }
                     const toolResult = await this.executeBuiltin(botId, session, { name: toolName }, toolArgs);
                     if (!toolResult.success) {
                         throw new Error(typeof toolResult.data === "string" ? toolResult.data : JSON.stringify(toolResult.data));

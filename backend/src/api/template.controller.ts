@@ -1,0 +1,100 @@
+import { Elysia, t } from "elysia";
+import { prisma } from "../services/postgres.service";
+import { AIProvider } from "@prisma/client";
+import { authMiddleware } from "../middleware/auth.middleware";
+
+export const templateController = new Elysia({ prefix: "/templates" })
+    .use(authMiddleware)
+    .guard({ isSignIn: true })
+
+    // List all templates
+    .get("/", async () => {
+        return prisma.template.findMany({
+            orderBy: { name: "asc" },
+            include: {
+                _count: { select: { bots: true, flows: true, tools: true } },
+            },
+        });
+    })
+
+    // Get template by id (with full relations)
+    .get("/:id", async ({ params: { id }, set }) => {
+        const template = await prisma.template.findUnique({
+            where: { id },
+            include: {
+                bots: { select: { id: true, name: true, identifier: true } },
+                flows: { include: { steps: true, triggers: true } },
+                tools: true,
+                automations: true,
+            },
+        });
+        if (!template) {
+            set.status = 404;
+            return { error: "Template not found" };
+        }
+        return template;
+    })
+
+    // Create template
+    .post("/", async ({ body, set }) => {
+        const { name, description, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel } = body;
+
+        try {
+            return await prisma.template.create({
+                data: {
+                    name,
+                    description: description ?? null,
+                    aiModel: aiModel ?? "gemini-2.5-flash",
+                    aiProvider: (aiProvider as AIProvider) ?? "GEMINI",
+                    systemPrompt: systemPrompt ?? null,
+                    temperature: temperature ?? 0.7,
+                    thinkingLevel: thinkingLevel ?? "LOW",
+                },
+            });
+        } catch (e: any) {
+            set.status = 500;
+            return { error: "Failed to create template" };
+        }
+    }, {
+        body: t.Object({
+            name: t.String(),
+            description: t.Optional(t.String()),
+            aiModel: t.Optional(t.String()),
+            aiProvider: t.Optional(t.String()),
+            systemPrompt: t.Optional(t.String()),
+            temperature: t.Optional(t.Number()),
+            thinkingLevel: t.Optional(t.String()),
+        }),
+    })
+
+    // Update template
+    .put("/:id", async ({ params: { id }, body, set }) => {
+        const { name, description, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel } = body as any;
+
+        try {
+            const data: any = {};
+            if (name !== undefined) data.name = name;
+            if (description !== undefined) data.description = description;
+            if (aiModel !== undefined) data.aiModel = aiModel;
+            if (aiProvider !== undefined) data.aiProvider = aiProvider as AIProvider;
+            if (systemPrompt !== undefined) data.systemPrompt = systemPrompt;
+            if (temperature !== undefined) data.temperature = temperature;
+            if (thinkingLevel !== undefined) data.thinkingLevel = thinkingLevel;
+
+            return await prisma.template.update({ where: { id }, data });
+        } catch (e: any) {
+            set.status = 500;
+            return { error: "Failed to update template" };
+        }
+    })
+
+    // Delete template (bots keep working, templateId becomes null via SetNull)
+    .delete("/:id", async ({ params: { id }, set }) => {
+        try {
+            await prisma.template.delete({ where: { id } });
+            return { success: true };
+        } catch (e: any) {
+            set.status = 500;
+            return { error: "Failed to delete template" };
+        }
+    });

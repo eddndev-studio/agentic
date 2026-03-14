@@ -27,6 +27,7 @@ export default {
     // Sidebar
     menu: "Menu",
     bots: "Bots",
+    templates: "Templates",
     settings: "Settings",
 
     // Bot Pages
@@ -226,4 +227,29 @@ export default {
     ads_cost_per_conversation: "Cost/Conv.",
     ads_view_post: "View Post",
     ads_phone: "Phone",
+
+    // Templates
+    template_list: "Templates",
+    create_template: "Create Template",
+    edit_template: "Edit Template",
+    template_name: "Template Name",
+    template_description: "Description",
+    no_templates: "No templates created",
+    template_bots_count: "Bots using this template",
+    template_flows_count: "Flows",
+    template_tools_count: "Tools",
+    delete_template: "Delete Template",
+    delete_template_confirm: "Are you sure? Bots using this template will keep working but won't inherit updates.",
+    template_assigned: "Template",
+    no_template: "None (Custom)",
+    select_template: "Select a template...",
+
+    // Bot Variables
+    bot_variables: "Variables",
+    bot_variables_desc: "Key-value pairs injected into template placeholders ({{KEY}}).",
+    add_variable: "Add Variable",
+    variable_key: "Key",
+    variable_value: "Value",
+    no_variables: "No variables defined",
+    save_variables: "Save Variables",
 };

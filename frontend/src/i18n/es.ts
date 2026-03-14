@@ -27,6 +27,7 @@ export default {
     // Sidebar
     menu: "Menú",
     bots: "Bots",
+    templates: "Plantillas",
     settings: "Configuración",
 
     // Bot Pages
@@ -226,4 +227,29 @@ export default {
     ads_cost_per_conversation: "Costo/Conv.",
     ads_view_post: "Ver Publicación",
     ads_phone: "Teléfono",
+
+    // Plantillas
+    template_list: "Plantillas",
+    create_template: "Crear Plantilla",
+    edit_template: "Editar Plantilla",
+    template_name: "Nombre de la Plantilla",
+    template_description: "Descripción",
+    no_templates: "Sin plantillas creadas",
+    template_bots_count: "Bots usando esta plantilla",
+    template_flows_count: "Flujos",
+    template_tools_count: "Herramientas",
+    delete_template: "Eliminar Plantilla",
+    delete_template_confirm: "¿Estás seguro? Los bots que usan esta plantilla seguirán funcionando pero no heredarán actualizaciones.",
+    template_assigned: "Plantilla",
+    no_template: "Ninguna (Personalizado)",
+    select_template: "Seleccionar plantilla...",
+
+    // Variables del Bot
+    bot_variables: "Variables",
+    bot_variables_desc: "Pares clave-valor que se inyectan en los marcadores de la plantilla ({{CLAVE}}).",
+    add_variable: "Agregar Variable",
+    variable_key: "Clave",
+    variable_value: "Valor",
+    no_variables: "Sin variables definidas",
+    save_variables: "Guardar Variables",
 };

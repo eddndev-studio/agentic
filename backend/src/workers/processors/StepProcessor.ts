@@ -1,6 +1,7 @@
 import { Job } from "bullmq";
 import { prisma } from "../../services/postgres.service";
 import { flowEngine } from "../../core/flow";
+import { BotConfigService } from "../../services/bot-config.service";
 import { Step, Execution, Session, Platform } from "@prisma/client";
 import { sendMessage } from "../../services/message-sender";
 
@@ -67,16 +68,21 @@ export class StepProcessor {
         const target = execution.session.identifier;
         const botId = execution.session.botId;
 
+        // Load bot variables for interpolation
+        const bot = await BotConfigService.loadBot(botId);
+        const botVars = bot ? BotConfigService.getVariables(bot) : {};
+        const interpolate = (text: string) => BotConfigService.interpolate(text, botVars);
+
         console.log(`[StepProcessor] Executing step type ${step.type} for ${target} on ${platform}`);
 
         if (platform === Platform.WHATSAPP) {
             switch (step.type) {
                 case 'TEXT':
-                    await sendMessage(botId, target, { text: step.content || "" });
+                    await sendMessage(botId, target, { text: interpolate(step.content || "") });
                     break;
                 case 'IMAGE':
                     if (step.mediaUrl) {
-                        await sendMessage(botId, target, { image: { url: step.mediaUrl }, caption: step.content || "" });
+                        await sendMessage(botId, target, { image: { url: step.mediaUrl }, caption: interpolate(step.content || "") });
                     } else {
                         console.warn(`[StepProcessor] IMAGE step ${step.id} has no mediaUrl, skipping`);
                     }

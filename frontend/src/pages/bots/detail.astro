@@ -219,6 +219,13 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 <span x-text="$t('automations')">Automations</span>
             </button>
             <button
+                @click="activeTab = 'variables'"
+                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
+                :class="activeTab === 'variables' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
+            >
+                <span x-text="$t('bot_variables')">Variables</span>
+            </button>
+            <button
                 @click="activeTab = 'notifications'"
                 class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
                 :class="activeTab === 'notifications' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
@@ -410,6 +417,87 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Variables Tab -->
+        <div x-show="activeTab === 'variables'" style="display: none;">
+            <div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
+
+                <!-- Template Selector -->
+                <div class="mb-8">
+                    <h3 class="text-xs text-wa-green tracking-normal mb-4" x-text="$t('template_assigned')">Template</h3>
+                    <div class="flex items-center gap-3">
+                        <select
+                            x-model="bot.templateId"
+                            @change="saveTemplate()"
+                            class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
+                        >
+                            <option value="" x-text="$t('no_template')">None (Custom)</option>
+                            <template x-for="tpl in availableTemplates" :key="tpl.id">
+                                <option :value="tpl.id" x-text="tpl.name"></option>
+                            </template>
+                        </select>
+                        <span x-show="savingTemplate" class="text-xs text-wa-text-secondary" x-text="$t('saving')"></span>
+                    </div>
+                    <p class="text-[10px] text-wa-text-secondary mt-2" x-show="bot.templateId">
+                        AI config, flows, tools y automations se heredan de la plantilla.
+                    </p>
+                </div>
+
+                <!-- Bot Variables -->
+                <h3 class="text-xs text-wa-green tracking-normal mb-2" x-text="$t('bot_variables')">Variables</h3>
+                <p class="text-[10px] text-wa-text-secondary mb-4" x-text="$t('bot_variables_desc')"></p>
+
+                <div class="space-y-3 mb-4">
+                    <template x-for="(variable, index) in variablesList" :key="index">
+                        <div class="flex items-center gap-2">
+                            <input
+                                type="text"
+                                x-model="variable.key"
+                                :placeholder="$t('variable_key')"
+                                class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono"
+                            />
+                            <span class="text-wa-text-secondary">=</span>
+                            <input
+                                type="text"
+                                x-model="variable.value"
+                                :placeholder="$t('variable_value')"
+                                class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white"
+                            />
+                            <button
+                                @click="variablesList.splice(index, 1)"
+                                class="p-2 text-red-400 hover:text-red-300 transition-colors"
+                                title="Remove"
+                            >
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="variablesList.length === 0" class="p-6 border border-dashed border-wa-border rounded-lg text-center text-wa-text-secondary text-xs mb-4">
+                    <span x-text="$t('no_variables')">No variables defined</span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button
+                        @click="variablesList.push({ key: '', value: '' })"
+                        class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors"
+                    >
+                        + <span x-text="$t('add_variable')">Add Variable</span>
+                    </button>
+                    <button
+                        @click="saveVariables()"
+                        :disabled="savingVariables"
+                        class="px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors"
+                        x-text="savingVariables ? $t('saving') : $t('save_variables')"
+                    >
+                        Save Variables
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1543,6 +1631,12 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 prompt: "",
             },
 
+            // Variables & Template State
+            variablesList: [] as { key: string; value: string }[],
+            savingVariables: false,
+            availableTemplates: [] as any[],
+            savingTemplate: false,
+
             // Tools State
             builtinTools: [
                 { name: "get_current_time", description: "Obtiene la fecha y hora actual en la zona horaria especificada." },
@@ -1627,6 +1721,20 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         } catch (e) {
                             this.notificationChannelName = "Error al cargar";
                         }
+                    }
+
+                    // Initialize bot variables from bot data
+                    const rawVars = this.bot.botVariables || {};
+                    this.variablesList = Object.entries(rawVars).map(([key, value]) => ({
+                        key,
+                        value: String(value),
+                    }));
+
+                    // Load available templates for selector
+                    try {
+                        this.availableTemplates = await ApiClient.get("/templates");
+                    } catch (e) {
+                        console.error("Failed to load templates", e);
                     }
 
                     // Generate connection component HTML (will be hydrated by Alpine)
@@ -1988,6 +2096,40 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     alert("Error al guardar: " + (e.message || "Unknown error"));
                 } finally {
                     this.savingNotifications = false;
+                }
+            },
+
+            async saveVariables() {
+                this.savingVariables = true;
+                try {
+                    const vars: Record<string, string> = {};
+                    for (const v of this.variablesList) {
+                        if (v.key.trim()) {
+                            vars[v.key.trim()] = v.value;
+                        }
+                    }
+                    const updated = await ApiClient.put(`/bots/${this.botId}`, {
+                        botVariables: vars,
+                    });
+                    this.bot = updated;
+                } catch (e: any) {
+                    alert("Error al guardar variables: " + (e.message || "Unknown error"));
+                } finally {
+                    this.savingVariables = false;
+                }
+            },
+
+            async saveTemplate() {
+                this.savingTemplate = true;
+                try {
+                    const updated = await ApiClient.put(`/bots/${this.botId}`, {
+                        templateId: this.bot.templateId || null,
+                    });
+                    this.bot = updated;
+                } catch (e: any) {
+                    alert("Error al asignar plantilla: " + (e.message || "Unknown error"));
+                } finally {
+                    this.savingTemplate = false;
                 }
             },
 

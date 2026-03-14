@@ -1,6 +1,7 @@
 import { prisma } from "../../services/postgres.service";
 import { Message, Trigger, TriggerScope } from "@prisma/client";
 import { TriggerMatcher } from "../matcher/TriggerMatcher";
+import { BotConfigService } from "../../services/bot-config.service";
 import { redis } from "../../services/redis.service";
 import { queueService } from "../../services/queue.service";
 import { eventBus } from "../../services/event-bus";
@@ -17,7 +18,7 @@ export class FlowEngine {
     async processIncomingMessage(sessionId: string, message: Message) {
         if (!message.content) return;
 
-        // 1. Fetch Session to get Bot Context
+        // 1. Fetch Session + Bot (with template) for trigger resolution
         const session = await prisma.session.findUnique({
             where: { id: sessionId },
             select: { botId: true }
@@ -28,25 +29,18 @@ export class FlowEngine {
             return;
         }
 
-        // 2. Check Triggers (Session-Specific OR Global Bot Triggers)
-        // Determine valid scopes based on direction
-        // message.fromMe is a boolean in the DB.
+        const bot = await BotConfigService.loadBot(session.botId);
+        if (!bot) {
+            console.error(`[FlowEngine] Bot ${session.botId} not found`);
+            return;
+        }
+
+        // 2. Check Triggers (Template, Bot-global, or Session-specific)
         const validScopes: TriggerScope[] = message.fromMe
             ? [TriggerScope.OUTGOING, TriggerScope.BOTH]
             : [TriggerScope.INCOMING, TriggerScope.BOTH];
 
-
-        const activeTriggers = await prisma.trigger.findMany({
-            where: {
-                isActive: true,
-                scope: { in: validScopes },
-                OR: [
-                    { sessionId: sessionId },                   // Specific to this user session
-                    { botId: session.botId, sessionId: null }   // Global for the bot
-                ]
-            },
-            include: { flow: true } // Include flow to log name if matched
-        });
+        const activeTriggers = await BotConfigService.resolveTriggers(bot, sessionId, validScopes);
 
         const match = TriggerMatcher.findMatch(message.content, activeTriggers);
 

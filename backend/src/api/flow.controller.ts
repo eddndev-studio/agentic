@@ -8,10 +8,14 @@ export const flowController = new Elysia({ prefix: "/flows" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
     .get("/", async ({ query }) => {
-        const { botId } = query as { botId?: string };
+        const { botId, templateId } = query as { botId?: string; templateId?: string };
+
+        const where: any = {};
+        if (templateId) where.templateId = templateId;
+        else if (botId) where.botId = botId;
 
         const flows = await prisma.flow.findMany({
-            where: botId ? { botId } : undefined,
+            where: Object.keys(where).length > 0 ? where : undefined,
             include: {
                 steps: {
                     orderBy: { order: "asc" }
@@ -36,12 +40,19 @@ export const flowController = new Elysia({ prefix: "/flows" })
         return flow;
     })
     .post("/", async ({ body, set }) => {
-        const { botId, name, description, steps, triggers } = body as any;
+        const { botId, templateId, name, description, steps, triggers } = body as any;
 
         try {
+            const owner = templateId
+                ? { templateId }
+                : { botId };
+            const triggerOwner = templateId
+                ? { templateId }
+                : { botId };
+
             const flow = await prisma.flow.create({
                 data: {
-                    botId,
+                    ...owner,
                     name,
                     description,
                     usageLimit: parseInt(body.usageLimit || 0),
@@ -63,7 +74,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                             keyword: t.keyword,
                             matchType: t.matchType || 'CONTAINS',
                             scope: t.scope || 'INCOMING',
-                            botId
+                            ...triggerOwner
                         }))
                     }
                 },
@@ -77,9 +88,13 @@ export const flowController = new Elysia({ prefix: "/flows" })
         }
     })
     .put("/:id", async ({ params: { id }, body, set }) => {
-        const { botId, name, description, steps, triggers } = body as any;
+        const { botId, templateId, name, description, steps, triggers } = body as any;
 
         try {
+            const triggerOwner = templateId
+                ? { templateId }
+                : botId ? { botId } : {};
+
             // Atomic update: Delete old steps/triggers and create new ones
             const flow = await prisma.$transaction(async (tx) => {
                 await tx.step.deleteMany({ where: { flowId: id } });
@@ -108,7 +123,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                                 keyword: t.keyword,
                                 matchType: t.matchType || 'CONTAINS',
                                 scope: t.scope || 'INCOMING',
-                                botId
+                                ...triggerOwner
                             }))
                         }
                     },

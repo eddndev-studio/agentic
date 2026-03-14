@@ -10,7 +10,7 @@ export class AutomationProcessor {
             include: { bot: true },
         });
 
-        const active = automations.filter(a => !a.bot.paused && a.bot.aiEnabled);
+        const active = automations.filter(a => a.bot && !a.bot.paused && a.bot.aiEnabled);
         console.log(`[Automation] Processing ${active.length} active automation(s) (${automations.length} total)`);
 
         const results = await Promise.allSettled(

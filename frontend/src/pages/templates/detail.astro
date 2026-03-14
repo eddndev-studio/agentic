@@ -1,0 +1,271 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="Template Detail">
+	<div x-data="templateDetail" x-show="ready" class="space-y-8" style="display: none;">
+		<!-- Header -->
+		<header class="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-wa-border pb-6 gap-4">
+			<div class="flex-1 min-w-0">
+				<div class="flex items-center gap-3 mb-2">
+					<a href="/templates" class="text-wa-text-secondary hover:text-wa-green transition-colors" title="Back">
+						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+						</svg>
+					</a>
+					<span class="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md">TEMPLATE</span>
+				</div>
+				<h1 class="text-3xl font-bold tracking-tight" x-text="template.name"></h1>
+				<p class="text-xs text-wa-text-secondary mt-1" x-text="template.description || '—'"></p>
+			</div>
+			<div class="flex gap-3 flex-wrap">
+				<a
+					:href="'/editor?templateId=' + templateId"
+					class="px-6 py-2 bg-wa-green text-white text-xs hover:bg-wa-green-hover transition-colors flex items-center gap-2 rounded-lg"
+				>
+					<span>+</span>
+					<span x-text="$t('new_flow')">New Flow</span>
+				</a>
+				<button
+					@click="deleteTemplate()"
+					class="px-4 py-2 border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10 transition-colors rounded-lg"
+					x-text="$t('delete_template')"
+				>
+					Delete
+				</button>
+			</div>
+		</header>
+
+		<!-- Tabs -->
+		<div class="flex gap-2 mb-8 bg-wa-bg-header p-1 rounded-xl w-fit max-w-full flex-wrap">
+			<button @click="activeTab = 'ai'" class="px-3 sm:px-6 py-2 text-xs sm:text-sm transition-all rounded-lg" :class="activeTab === 'ai' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'">
+				<span x-text="$t('ai_config')">AI Config</span>
+			</button>
+			<button @click="activeTab = 'flows'" class="px-3 sm:px-6 py-2 text-xs sm:text-sm transition-all rounded-lg" :class="activeTab === 'flows' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'">
+				<span x-text="$t('flows')">Flows</span>
+			</button>
+			<button @click="activeTab = 'tools'; loadTools()" class="px-3 sm:px-6 py-2 text-xs sm:text-sm transition-all rounded-lg" :class="activeTab === 'tools' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'">
+				<span x-text="$t('tools')">Tools</span>
+			</button>
+			<button @click="activeTab = 'bots'" class="px-3 sm:px-6 py-2 text-xs sm:text-sm transition-all rounded-lg" :class="activeTab === 'bots' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'">
+				<span>Bots (<span x-text="template.bots?.length || 0"></span>)</span>
+			</button>
+		</div>
+
+		<!-- AI Config Tab -->
+		<div x-show="activeTab === 'ai'" style="display: none;">
+			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
+				<h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
+				<form @submit.prevent="saveAIConfig()" class="space-y-6">
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('ai_provider')"></label>
+							<select x-model="aiConfig.aiProvider" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white">
+								<option value="GEMINI">Google Gemini</option>
+								<option value="OPENAI">OpenAI</option>
+							</select>
+						</div>
+						<div>
+							<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('ai_model')"></label>
+							<input type="text" x-model="aiConfig.aiModel" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
+						</div>
+					</div>
+					<div>
+						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('system_prompt')"></label>
+						<textarea x-model="aiConfig.systemPrompt" rows="8" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white font-mono resize-y" :placeholder="$t('system_prompt_placeholder')"></textarea>
+						<p class="text-[10px] text-wa-text-secondary mt-1">
+							Usa <code class="text-purple-400">{{VARIABLE}}</code> para placeholders que se reemplazan con las variables de cada bot.
+						</p>
+					</div>
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('temperature')"></label>
+							<input type="number" x-model.number="aiConfig.temperature" min="0" max="2" step="0.1" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
+						</div>
+						<div>
+							<label class="block text-xs text-wa-text-secondary mb-2">Thinking Level</label>
+							<select x-model="aiConfig.thinkingLevel" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white">
+								<option value="LOW">Low</option>
+								<option value="MEDIUM">Medium</option>
+								<option value="HIGH">High</option>
+							</select>
+						</div>
+					</div>
+					<div>
+						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_name')"></label>
+						<input type="text" x-model="aiConfig.name" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
+					</div>
+					<div>
+						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_description')"></label>
+						<textarea x-model="aiConfig.description" rows="2" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white resize-none"></textarea>
+					</div>
+					<button type="submit" :disabled="savingAI" class="px-6 py-2 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="savingAI ? $t('saving') : $t('save_changes')">Save</button>
+				</form>
+			</div>
+		</div>
+
+		<!-- Flows Tab -->
+		<div x-show="activeTab === 'flows'" style="display: none;">
+			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 rounded-xl">
+				<div class="space-y-3">
+					<template x-for="flow in template.flows || []" :key="flow.id">
+						<a :href="'/editor?flowId=' + flow.id + '&templateId=' + templateId" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
+							<div>
+								<h4 class="text-sm font-medium group-hover:text-wa-green transition-colors" x-text="flow.name"></h4>
+								<p class="text-[10px] text-wa-text-secondary mt-1" x-text="flow.description || '—'"></p>
+								<div class="flex gap-3 mt-2 text-[10px] text-wa-text-secondary">
+									<span x-text="(flow.steps?.length || 0) + ' pasos'"></span>
+									<span x-text="(flow.triggers?.length || 0) + ' triggers'"></span>
+								</div>
+							</div>
+							<svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+							</svg>
+						</a>
+					</template>
+					<div x-show="!template.flows || template.flows.length === 0" class="p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg">
+						<span x-text="$t('no_flows')">No flows</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Tools Tab -->
+		<div x-show="activeTab === 'tools'" style="display: none;">
+			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 rounded-xl">
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="text-xs text-wa-green" x-text="$t('tools')">Tools</h3>
+					<a :href="'/tool-editor?templateId=' + templateId" class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover">
+						+ <span x-text="$t('new_tool')">New Tool</span>
+					</a>
+				</div>
+				<div class="space-y-3">
+					<template x-for="tool in tools" :key="tool.id">
+						<a :href="'/tool-editor?id=' + tool.id + '&templateId=' + templateId" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
+							<div>
+								<div class="flex items-center gap-2">
+									<h4 class="text-sm font-mono group-hover:text-wa-green transition-colors" x-text="tool.name"></h4>
+									<span class="text-[10px] px-1.5 py-0.5 rounded" :class="tool.status === 'ACTIVE' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10'" x-text="tool.status"></span>
+								</div>
+								<p class="text-[10px] text-wa-text-secondary mt-1" x-text="tool.description"></p>
+							</div>
+							<span class="text-[10px] text-wa-text-secondary" x-text="tool.actionType"></span>
+						</a>
+					</template>
+					<div x-show="tools.length === 0" class="p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg">
+						<span x-text="$t('no_tools')">No tools</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Bots Tab -->
+		<div x-show="activeTab === 'bots'" style="display: none;">
+			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 rounded-xl">
+				<h3 class="text-xs text-wa-green mb-4" x-text="$t('template_bots_count')">Bots using this template</h3>
+				<div class="space-y-3">
+					<template x-for="bot in template.bots || []" :key="bot.id">
+						<a :href="'/bots/detail?id=' + bot.id" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
+							<div>
+								<h4 class="text-sm font-medium group-hover:text-wa-green transition-colors" x-text="bot.name"></h4>
+								<p class="text-[10px] text-wa-text-secondary mt-1" x-text="bot.identifier"></p>
+							</div>
+							<svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+							</svg>
+						</a>
+					</template>
+					<div x-show="!template.bots || template.bots.length === 0" class="p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg">
+						No hay bots usando esta plantilla.
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Loading/Error State -->
+	<div x-data="templateDetail" x-show="!ready && error" class="p-12 text-center text-red-400" x-text="error" style="display: none;"></div>
+</Layout>
+
+<script>
+	declare const Alpine: any;
+	import { ApiClient } from "../../lib/api";
+
+	document.addEventListener("alpine:init", () => {
+		Alpine.data("templateDetail", () => ({
+			templateId: null as string | null,
+			template: {} as any,
+			tools: [] as any[],
+			ready: false,
+			error: null as string | null,
+			activeTab: "ai",
+			savingAI: false,
+
+			aiConfig: {
+				name: "",
+				description: "",
+				aiProvider: "GEMINI",
+				aiModel: "gemini-2.5-flash",
+				systemPrompt: "",
+				temperature: 0.7,
+				thinkingLevel: "LOW",
+			},
+
+			async init() {
+				const params = new URLSearchParams(window.location.search);
+				this.templateId = params.get("id");
+
+				if (!this.templateId) {
+					this.error = "No template ID provided";
+					return;
+				}
+
+				try {
+					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+					this.aiConfig = {
+						name: this.template.name || "",
+						description: this.template.description || "",
+						aiProvider: this.template.aiProvider || "GEMINI",
+						aiModel: this.template.aiModel || "gemini-2.5-flash",
+						systemPrompt: this.template.systemPrompt || "",
+						temperature: this.template.temperature ?? 0.7,
+						thinkingLevel: this.template.thinkingLevel || "LOW",
+					};
+					this.ready = true;
+				} catch (e: any) {
+					this.error = e.message || "Template not found";
+				}
+			},
+
+			async saveAIConfig() {
+				this.savingAI = true;
+				try {
+					await ApiClient.put(`/templates/${this.templateId}`, this.aiConfig);
+					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+				} catch (e: any) {
+					alert("Error: " + (e.message || "Unknown"));
+				} finally {
+					this.savingAI = false;
+				}
+			},
+
+			async loadTools() {
+				try {
+					this.tools = await ApiClient.get(`/tools?templateId=${this.templateId}`);
+				} catch (e) {
+					console.error("Failed to load tools", e);
+				}
+			},
+
+			async deleteTemplate() {
+				if (!confirm("Are you sure?")) return;
+				try {
+					await ApiClient.delete(`/templates/${this.templateId}`);
+					window.location.href = "/templates";
+				} catch (e: any) {
+					alert("Error: " + (e.message || "Unknown"));
+				}
+			},
+		}));
+	});
+</script>

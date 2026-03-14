@@ -3,6 +3,7 @@ import { redis } from "../../services/redis.service";
 import { getAIProvider } from "../../services/ai";
 import { ConversationService } from "../../services/conversation.service";
 import { BaileysService } from "../../services/baileys.service";
+import { BotConfigService } from "../../services/bot-config.service";
 import { flowEngine } from "../flow";
 import { ToolExecutor } from "./ToolExecutor";
 import { TranscriptionService, VisionService, PDFService } from "../../services/media";
@@ -39,10 +40,10 @@ export class AIEngine {
      * and the results are combined into a single user message.
      */
     async processMessages(sessionId: string, messages: Message[]): Promise<void> {
-        // 1. Load session + bot
+        // 1. Load session + bot (with template)
         const session = await prisma.session.findUnique({
             where: { id: sessionId },
-            include: { bot: true },
+            include: { bot: { include: { template: true } } },
         });
 
         if (!session || !session.bot) {
@@ -61,6 +62,13 @@ export class AIEngine {
         }
 
         const bot = session.bot;
+        const aiConfig = BotConfigService.resolveAIConfig(bot);
+        const botVars = BotConfigService.getVariables(bot);
+
+        // Interpolate bot variables into the system prompt
+        if (aiConfig.systemPrompt) {
+            aiConfig.systemPrompt = BotConfigService.interpolate(aiConfig.systemPrompt, botVars);
+        }
         const lockKey = `ai:lock:${sessionId}`;
         const pendingKey = PENDING_QUEUE_KEY(sessionId);
 
@@ -144,10 +152,8 @@ export class AIEngine {
             const userMessage: AIMessage = { role: "user", content: userContent };
             await ConversationService.addMessage(sessionId, userMessage);
 
-            // 5. Load tools from DB + inject builtins
-            const tools = await prisma.tool.findMany({
-                where: { botId: bot.id, status: "ACTIVE" },
-            });
+            // 5. Load tools from DB (template or bot) + inject builtins
+            const tools = await BotConfigService.resolveTools(bot);
 
             const dbToolDefs: AIToolDefinition[] = tools.map((t) => ({
                 name: t.name,
@@ -164,32 +170,32 @@ export class AIEngine {
             const history = await ConversationService.getHistory(sessionId);
             const aiMessages: AIMessage[] = [];
 
-            if (bot.systemPrompt) {
-                aiMessages.push({ role: "system", content: bot.systemPrompt });
+            if (aiConfig.systemPrompt) {
+                aiMessages.push({ role: "system", content: aiConfig.systemPrompt });
             }
 
             aiMessages.push(...history);
 
             // 7. Get AI provider and call (with automatic fallback)
-            let activeProvider = getAIProvider(bot.aiProvider);
-            let activeModel = bot.aiModel;
+            let activeProvider = getAIProvider(aiConfig.aiProvider as any);
+            let activeModel = aiConfig.aiModel;
             let usedFallback = false;
 
             const chatRequest: AICompletionRequest = {
                 model: activeModel,
                 messages: aiMessages,
                 tools: toolDefinitions.length > 0 ? toolDefinitions : undefined,
-                temperature: bot.temperature,
-                thinkingLevel: bot.thinkingLevel ?? "LOW",
+                temperature: aiConfig.temperature,
+                thinkingLevel: aiConfig.thinkingLevel ?? "LOW",
             };
 
             let response = await this.chatWithFallback(
-                activeProvider, chatRequest, bot.aiProvider
+                activeProvider, chatRequest, aiConfig.aiProvider
             );
 
             // If fallback was used, switch provider for the rest of the conversation
             if (response._fallback) {
-                const fb = FALLBACK_MAP[bot.aiProvider];
+                const fb = FALLBACK_MAP[aiConfig.aiProvider];
                 activeProvider = getAIProvider(fb.provider);
                 activeModel = fb.model;
                 usedFallback = true;
@@ -282,8 +288,8 @@ export class AIEngine {
                 // Re-call AI with updated history (use active provider, which may be fallback)
                 const updatedHistory = await ConversationService.getHistory(sessionId);
                 const updatedMessages: AIMessage[] = [];
-                if (bot.systemPrompt) {
-                    updatedMessages.push({ role: "system", content: bot.systemPrompt });
+                if (aiConfig.systemPrompt) {
+                    updatedMessages.push({ role: "system", content: aiConfig.systemPrompt });
                 }
                 updatedMessages.push(...updatedHistory);
 
@@ -291,16 +297,16 @@ export class AIEngine {
                     model: activeModel,
                     messages: updatedMessages,
                     tools: toolDefinitions.length > 0 ? toolDefinitions : undefined,
-                    temperature: bot.temperature,
-                    thinkingLevel: bot.thinkingLevel ?? "LOW",
+                    temperature: aiConfig.temperature,
+                    thinkingLevel: aiConfig.thinkingLevel ?? "LOW",
                 };
 
                 response = await this.chatWithFallback(
-                    activeProvider, loopRequest, usedFallback ? FALLBACK_MAP[bot.aiProvider].provider : bot.aiProvider
+                    activeProvider, loopRequest, usedFallback ? FALLBACK_MAP[aiConfig.aiProvider].provider : aiConfig.aiProvider
                 );
 
                 if (response._fallback && !usedFallback) {
-                    const fb = FALLBACK_MAP[bot.aiProvider];
+                    const fb = FALLBACK_MAP[aiConfig.aiProvider];
                     activeProvider = getAIProvider(fb.provider);
                     activeModel = fb.model;
                     usedFallback = true;

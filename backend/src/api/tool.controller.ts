@@ -8,9 +8,15 @@ export const toolController = new Elysia({ prefix: "/tools" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
 
-    // List tools by bot
+    // List tools by bot or template
     .get("/", async ({ query }) => {
-        const { botId } = query as any;
+        const { botId, templateId } = query as any;
+        if (templateId) {
+            return prisma.tool.findMany({
+                where: { templateId },
+                orderBy: { createdAt: "desc" },
+            });
+        }
         if (!botId) return [];
         return prisma.tool.findMany({
             where: { botId },
@@ -28,13 +34,13 @@ export const toolController = new Elysia({ prefix: "/tools" })
         return tool;
     })
 
-    // Create tool
+    // Create tool (for bot or template)
     .post("/", async ({ body, set }) => {
-        const { botId, name, description, parameters, actionType, actionConfig, flowId } = body as any;
+        const { botId, templateId, name, description, parameters, actionType, actionConfig, flowId } = body as any;
 
-        if (!botId || !name || !description || !actionType) {
+        if ((!botId && !templateId) || !name || !description || !actionType) {
             set.status = 400;
-            return { error: "botId, name, description, and actionType are required" };
+            return { error: "botId or templateId, name, description, and actionType are required" };
         }
 
         const sanitizedName = sanitizeToolName(name);
@@ -47,7 +53,8 @@ export const toolController = new Elysia({ prefix: "/tools" })
         try {
             const tool = await prisma.tool.create({
                 data: {
-                    botId,
+                    botId: botId || undefined,
+                    templateId: templateId || undefined,
                     name: sanitizedName,
                     description,
                     parameters: parameters || { type: "object", properties: {} },
@@ -60,7 +67,7 @@ export const toolController = new Elysia({ prefix: "/tools" })
         } catch (e: any) {
             if (e.code === "P2002") {
                 set.status = 409;
-                return { error: `Tool name '${sanitizedName}' already exists for this bot` };
+                return { error: `Tool name '${sanitizedName}' already exists` };
             }
             throw e;
         }
