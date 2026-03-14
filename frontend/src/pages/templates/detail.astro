@@ -74,7 +74,7 @@ import Layout from "../../layouts/Layout.astro";
 						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('system_prompt')"></label>
 						<textarea x-model="aiConfig.systemPrompt" rows="8" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white font-mono resize-y" :placeholder="$t('system_prompt_placeholder')"></textarea>
 						<p class="text-[10px] text-wa-text-secondary mt-1">
-							Usa <code class="text-purple-400">{{VARIABLE}}</code> para placeholders que se reemplazan con las variables de cada bot.
+							Usa <code class="text-purple-400">{"{{VARIABLE}}"}</code> para placeholders que se reemplazan con las variables de cada bot.
 						</p>
 					</div>
 					<div class="grid grid-cols-2 gap-4">
