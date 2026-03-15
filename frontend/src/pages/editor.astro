@@ -447,12 +447,17 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                 <!-- Tool Args: assign_label -->
                                                 <div x-show="step.metadata.toolName === 'assign_label'" class="mt-3 space-y-2">
                                                     <label class="text-[10px] text-wa-text-secondary font-sans">Etiqueta <span class="text-red-400">*</span></label>
-                                                    <!-- Template mode: free text input for variables -->
+                                                    <!-- Template mode: variable selector -->
                                                     <template x-if="templateId">
                                                         <div>
-                                                            <input type="text" x-model="step.metadata.toolArgs.label_name" placeholder='{"{{ETIQUETA_VENTA}}"}'
-                                                                class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none">
-                                                            <p class="text-[9px] text-purple-400/70 mt-1">Usa {"{{VARIABLE}}"} para inyectar desde las variables del bot</p>
+                                                            <select x-model="step.metadata.toolArgs.label_name"
+                                                                class="w-full bg-wa-bg-deep/50 border border-purple-500/30 p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none text-purple-300">
+                                                                <option value="">Seleccionar variable...</option>
+                                                                <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
+                                                                    <option :value="'{{' + v.name + '}}'" x-text="v.name"></option>
+                                                                </template>
+                                                            </select>
+                                                            <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta definidas en la plantilla.</p>
                                                         </div>
                                                     </template>
                                                     <!-- Bot mode: label picker -->
@@ -480,9 +485,14 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                     <label class="text-[10px] text-wa-text-secondary font-sans">Etiqueta <span class="text-red-400">*</span></label>
                                                     <template x-if="templateId">
                                                         <div>
-                                                            <input type="text" x-model="step.metadata.toolArgs.label_name" placeholder='{"{{ETIQUETA}}"}'
-                                                                class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none">
-                                                            <p class="text-[9px] text-purple-400/70 mt-1">Usa {"{{VARIABLE}}"} para inyectar desde las variables del bot</p>
+                                                            <select x-model="step.metadata.toolArgs.label_name"
+                                                                class="w-full bg-wa-bg-deep/50 border border-red-500/30 p-2 text-xs font-mono rounded-lg focus:border-red-400 focus:outline-none text-red-300">
+                                                                <option value="">Seleccionar variable...</option>
+                                                                <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
+                                                                    <option :value="'{{' + v.name + '}}'" x-text="v.name"></option>
+                                                                </template>
+                                                            </select>
+                                                            <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta definidas en la plantilla.</p>
                                                         </div>
                                                     </template>
                                                     <template x-if="!templateId">
@@ -516,9 +526,14 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                     <label class="text-[10px] text-wa-text-secondary font-sans">Etiqueta <span class="text-red-400">*</span></label>
                                                     <template x-if="templateId">
                                                         <div>
-                                                            <input type="text" x-model="step.metadata.toolArgs.label_name" placeholder='{"{{ETIQUETA}}"}'
-                                                                class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none">
-                                                            <p class="text-[9px] text-purple-400/70 mt-1">Usa {"{{VARIABLE}}"} para inyectar desde las variables del bot</p>
+                                                            <select x-model="step.metadata.toolArgs.label_name"
+                                                                class="w-full bg-wa-bg-deep/50 border border-purple-500/30 p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none text-purple-300">
+                                                                <option value="">Seleccionar variable...</option>
+                                                                <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
+                                                                    <option :value="'{{' + v.name + '}}'" x-text="v.name"></option>
+                                                                </template>
+                                                            </select>
+                                                            <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta definidas en la plantilla.</p>
                                                         </div>
                                                     </template>
                                                     <template x-if="!templateId">
@@ -764,6 +779,7 @@ import MediaPicker from "../components/MediaPicker.astro";
             } as Flow,
             botId: null as string | null,
             templateId: null as string | null,
+            templateVarDefs: [] as { name: string; type: string }[],
 
             getBranches(step: Step) {
                 if (step.type !== 'CONDITIONAL_TIME' || !step.metadata) return [];
@@ -846,6 +862,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                     this.loadLabels();
                 } else if (this.templateId) {
                     // Creating new flow for a template
+                    await this.loadTemplateVarDefs();
                     this.flow.name = "New Flow";
                     this.ready = true;
                 } else {
@@ -907,6 +924,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                     // Extract botId or templateId from flow for back navigation
                     if (res.templateId) {
                         this.templateId = res.templateId;
+                        await this.loadTemplateVarDefs();
                     } else if (res.botId) {
                         this.botId = res.botId;
                         this.bot = { id: res.botId };
@@ -923,6 +941,16 @@ import MediaPicker from "../components/MediaPicker.astro";
                 } catch (e) {
                     alert("Failed to load flow");
                     window.location.href = this.templateId ? `/templates/detail?id=${this.templateId}` : "/bots";
+                }
+            },
+
+            async loadTemplateVarDefs() {
+                if (!this.templateId) return;
+                try {
+                    const tpl = await ApiClient.get(`/templates/${this.templateId}`);
+                    this.templateVarDefs = Array.isArray(tpl.variables) ? tpl.variables : [];
+                } catch (e) {
+                    console.error("Failed to load template variable definitions", e);
                 }
             },
 

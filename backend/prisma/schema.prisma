@@ -61,6 +61,7 @@ model Template {
   systemPrompt  String?
   temperature   Float        @default(0.7)
   thinkingLevel String?      @default("LOW")
+  variables     Json?        @default("[]")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   bots          Bot[]

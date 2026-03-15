@@ -445,59 +445,87 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </p>
                 </div>
 
-                <!-- Bot Variables -->
+                <!-- Bot Variables (typed by template definition) -->
                 <h3 class="text-xs text-wa-green tracking-normal mb-2" x-text="$t('bot_variables')">Variables</h3>
-                <p class="text-[10px] text-wa-text-secondary mb-4" x-text="$t('bot_variables_desc')"></p>
 
-                <div class="space-y-3 mb-4">
-                    <template x-for="(variable, index) in variablesList" :key="index">
-                        <div class="flex items-center gap-2">
-                            <input
-                                type="text"
-                                x-model="variable.key"
-                                :placeholder="$t('variable_key')"
-                                class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono"
-                            />
-                            <span class="text-wa-text-secondary">=</span>
-                            <input
-                                type="text"
-                                x-model="variable.value"
-                                :placeholder="$t('variable_value')"
-                                class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white"
-                            />
-                            <button
-                                @click="variablesList.splice(index, 1)"
-                                class="p-2 text-red-400 hover:text-red-300 transition-colors"
-                                title="Remove"
-                            >
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
+                <!-- Template-defined variables -->
+                <template x-if="templateVarDefs.length > 0">
+                    <div>
+                        <p class="text-[10px] text-wa-text-secondary mb-4">Configura los valores específicos de este bot para la plantilla.</p>
+                        <div class="space-y-4 mb-4">
+                            <template x-for="def in templateVarDefs" :key="def.name">
+                                <div class="bg-wa-bg-hover/50 p-3 rounded-lg border border-wa-border">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="text-xs font-mono text-purple-400" x-text="def.name"></span>
+                                        <span class="text-[9px] px-1.5 py-0.5 rounded"
+                                            :class="def.type === 'label' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'"
+                                            x-text="def.type === 'label' ? 'Etiqueta' : 'Texto'"></span>
+                                    </div>
+                                    <!-- Text type: simple input -->
+                                    <template x-if="def.type === 'text'">
+                                        <input type="text"
+                                            :value="getVarValue(def.name)"
+                                            @input="setVarValue(def.name, $event.target.value)"
+                                            placeholder="Valor..."
+                                            class="w-full bg-wa-bg-deep/50 border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                                    </template>
+                                    <!-- Label type: label picker -->
+                                    <template x-if="def.type === 'label'">
+                                        <div class="flex flex-wrap gap-2">
+                                            <template x-for="lbl in botLabels" :key="lbl.id">
+                                                <button type="button"
+                                                    @click="setVarValue(def.name, getVarValue(def.name) === lbl.name ? '' : lbl.name)"
+                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+                                                    :class="getVarValue(def.name) === lbl.name
+                                                        ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
+                                                        : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+                                                >
+                                                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                                    <span x-text="lbl.name"></span>
+                                                </button>
+                                            </template>
+                                            <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
-                    </template>
-                </div>
+                    </div>
+                </template>
 
-                <div x-show="variablesList.length === 0" class="p-6 border border-dashed border-wa-border rounded-lg text-center text-wa-text-secondary text-xs mb-4">
-                    <span x-text="$t('no_variables')">No variables defined</span>
-                </div>
+                <!-- No template or no vars defined: free-form editor -->
+                <template x-if="templateVarDefs.length === 0">
+                    <div>
+                        <p class="text-[10px] text-wa-text-secondary mb-4" x-text="$t('bot_variables_desc')"></p>
+                        <div class="space-y-3 mb-4">
+                            <template x-for="(variable, index) in variablesList" :key="index">
+                                <div class="flex items-center gap-2">
+                                    <input type="text" x-model="variable.key" :placeholder="$t('variable_key')" class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono" />
+                                    <span class="text-wa-text-secondary">=</span>
+                                    <input type="text" x-model="variable.value" :placeholder="$t('variable_value')" class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                                    <button @click="variablesList.splice(index, 1)" class="p-2 text-red-400 hover:text-red-300 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="variablesList.length === 0" class="p-6 border border-dashed border-wa-border rounded-lg text-center text-wa-text-secondary text-xs mb-4">
+                            <span x-text="$t('no_variables')">No variables defined</span>
+                        </div>
+                        <button @click="variablesList.push({ key: '', value: '' })" class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors mr-3">
+                            + <span x-text="$t('add_variable')">Add Variable</span>
+                        </button>
+                    </div>
+                </template>
 
-                <div class="flex items-center gap-3">
-                    <button
-                        @click="variablesList.push({ key: '', value: '' })"
-                        class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors"
-                    >
-                        + <span x-text="$t('add_variable')">Add Variable</span>
-                    </button>
-                    <button
-                        @click="saveVariables()"
-                        :disabled="savingVariables"
-                        class="px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors"
-                        x-text="savingVariables ? $t('saving') : $t('save_variables')"
-                    >
-                        Save Variables
-                    </button>
-                </div>
+                <button
+                    @click="saveVariables()"
+                    :disabled="savingVariables"
+                    class="mt-4 px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors"
+                    x-text="savingVariables ? $t('saving') : $t('save_variables')"
+                >
+                    Save Variables
+                </button>
             </div>
         </div>
 
@@ -1633,6 +1661,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
             // Variables & Template State
             variablesList: [] as { key: string; value: string }[],
+            templateVarDefs: [] as { name: string; type: string }[],
             savingVariables: false,
             availableTemplates: [] as any[],
             savingTemplate: false,
@@ -1735,6 +1764,16 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         this.availableTemplates = await ApiClient.get("/templates");
                     } catch (e) {
                         console.error("Failed to load templates", e);
+                    }
+
+                    // Load template variable definitions if bot has a template
+                    if (this.bot.templateId) {
+                        try {
+                            const tpl = await ApiClient.get(`/templates/${this.bot.templateId}`);
+                            this.templateVarDefs = Array.isArray(tpl.variables) ? tpl.variables : [];
+                        } catch (e) {
+                            console.error("Failed to load template var defs", e);
+                        }
                     }
 
                     // Generate connection component HTML (will be hydrated by Alpine)
@@ -2099,6 +2138,25 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 }
             },
 
+            getVarValue(name: string): string {
+                const found = this.variablesList.find((v: any) => v.key === name);
+                return found ? found.value : '';
+            },
+
+            setVarValue(name: string, value: string) {
+                const found = this.variablesList.find((v: any) => v.key === name);
+                if (found) {
+                    found.value = value;
+                } else {
+                    this.variablesList.push({ key: name, value });
+                }
+            },
+
+            getLabelColor(colorIndex: number): string {
+                const colors = ['#00a884', '#53bdeb', '#7f66ff', '#ff6b6b', '#ffa500', '#e6e600', '#ff69b4', '#20b2aa', '#8b4513', '#cd853f', '#777', '#1e90ff', '#32cd32', '#ff4500', '#da70d6', '#87ceeb', '#f0e68c', '#dda0dd', '#98fb98', '#b0c4de'];
+                return colors[colorIndex % colors.length] || '#777';
+            },
+
             async saveVariables() {
                 this.savingVariables = true;
                 try {
@@ -2126,6 +2184,14 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         templateId: this.bot.templateId || null,
                     });
                     this.bot = updated;
+
+                    // Reload template variable definitions
+                    if (this.bot.templateId) {
+                        const tpl = await ApiClient.get(`/templates/${this.bot.templateId}`);
+                        this.templateVarDefs = Array.isArray(tpl.variables) ? tpl.variables : [];
+                    } else {
+                        this.templateVarDefs = [];
+                    }
                 } catch (e: any) {
                     alert("Error al asignar plantilla: " + (e.message || "Unknown error"));
                 } finally {

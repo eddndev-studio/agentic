@@ -47,6 +47,9 @@ import Layout from "../../layouts/Layout.astro";
 			<button @click="activeTab = 'tools'; loadTools()" class="px-3 sm:px-6 py-2 text-xs sm:text-sm transition-all rounded-lg" :class="activeTab === 'tools' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'">
 				<span x-text="$t('tools')">Tools</span>
 			</button>
+			<button @click="activeTab = 'variables'" class="px-3 sm:px-6 py-2 text-xs sm:text-sm transition-all rounded-lg" :class="activeTab === 'variables' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'">
+				<span x-text="$t('bot_variables')">Variables</span>
+			</button>
 			<button @click="activeTab = 'bots'" class="px-3 sm:px-6 py-2 text-xs sm:text-sm transition-all rounded-lg" :class="activeTab === 'bots' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'">
 				<span>Bots (<span x-text="template.bots?.length || 0"></span>)</span>
 			</button>
@@ -159,6 +162,42 @@ import Layout from "../../layouts/Layout.astro";
 			</div>
 		</div>
 
+		<!-- Variables Definition Tab -->
+		<div x-show="activeTab === 'variables'" style="display: none;">
+			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
+				<h3 class="text-xs text-wa-green tracking-normal mb-2" x-text="$t('bot_variables')">Variables</h3>
+				<p class="text-[10px] text-wa-text-secondary mb-6">Define las variables que cada bot debe configurar al usar esta plantilla.</p>
+
+				<div class="space-y-3 mb-4">
+					<template x-for="(v, index) in templateVars" :key="index">
+						<div class="flex items-center gap-2 bg-wa-bg-hover/50 p-3 rounded-lg border border-wa-border">
+							<input type="text" x-model="v.name" placeholder="NOMBRE_VARIABLE" class="flex-1 bg-wa-bg-deep/50 border border-wa-border rounded-lg p-2 text-sm font-mono focus:border-wa-green focus:outline-none text-white uppercase" />
+							<select x-model="v.type" class="bg-wa-bg-deep/50 border border-wa-border rounded-lg p-2 text-sm focus:border-wa-green focus:outline-none text-white w-32">
+								<option value="text">Texto</option>
+								<option value="label">Etiqueta</option>
+							</select>
+							<button @click="templateVars.splice(index, 1)" class="p-2 text-red-400 hover:text-red-300 transition-colors">
+								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+							</button>
+						</div>
+					</template>
+				</div>
+
+				<div x-show="templateVars.length === 0" class="p-6 border border-dashed border-wa-border rounded-lg text-center text-wa-text-secondary text-xs mb-4">
+					Sin variables definidas. Los bots no necesitan configurar nada.
+				</div>
+
+				<div class="flex items-center gap-3">
+					<button @click="templateVars.push({ name: '', type: 'text' })" class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors">
+						+ <span x-text="$t('add_variable')">Add Variable</span>
+					</button>
+					<button @click="saveTemplateVars()" :disabled="savingVars" class="px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors" x-text="savingVars ? $t('saving') : $t('save_variables')">
+						Save
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- Bots Tab -->
 		<div x-show="activeTab === 'bots'" style="display: none;">
 			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 rounded-xl">
@@ -239,6 +278,8 @@ import Layout from "../../layouts/Layout.astro";
 			error: null as string | null,
 			activeTab: "ai",
 			savingAI: false,
+			templateVars: [] as { name: string; type: string }[],
+			savingVars: false,
 			showCreateBotModal: false,
 			creatingBot: false,
 			newBotForm: { name: "", identifier: "" },
@@ -273,6 +314,7 @@ import Layout from "../../layouts/Layout.astro";
 						temperature: this.template.temperature ?? 0.7,
 						thinkingLevel: this.template.thinkingLevel || "LOW",
 					};
+					this.templateVars = Array.isArray(this.template.variables) ? [...this.template.variables] : [];
 					this.ready = true;
 				} catch (e: any) {
 					this.error = e.message || "Template not found";
@@ -296,6 +338,22 @@ import Layout from "../../layouts/Layout.astro";
 					this.tools = await ApiClient.get(`/tools?templateId=${this.templateId}`);
 				} catch (e) {
 					console.error("Failed to load tools", e);
+				}
+			},
+
+			async saveTemplateVars() {
+				this.savingVars = true;
+				try {
+					const cleaned = this.templateVars
+						.filter((v: any) => v.name.trim())
+						.map((v: any) => ({ name: v.name.trim().toUpperCase(), type: v.type }));
+					await ApiClient.put(`/templates/${this.templateId}`, { variables: cleaned });
+					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+					this.templateVars = [...(this.template.variables || [])];
+				} catch (e: any) {
+					alert("Error: " + (e.message || "Unknown"));
+				} finally {
+					this.savingVars = false;
 				}
 			},
 
