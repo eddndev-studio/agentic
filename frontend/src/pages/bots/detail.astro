@@ -429,15 +429,17 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     <h3 class="text-xs text-wa-green tracking-normal mb-4" x-text="$t('template_assigned')">Template</h3>
                     <div class="flex items-center gap-3">
                         <select
+                            x-show="templatesLoaded"
                             x-model="bot.templateId"
                             @change="saveTemplate()"
                             class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
                         >
-                            <option value="" x-text="$t('no_template')">None (Custom)</option>
+                            <option :value="null" x-text="$t('no_template')">None (Custom)</option>
                             <template x-for="tpl in availableTemplates" :key="tpl.id">
                                 <option :value="tpl.id" x-text="tpl.name"></option>
                             </template>
                         </select>
+                        <span x-show="!templatesLoaded" class="text-xs text-wa-text-secondary" x-text="$t('loading')"></span>
                         <span x-show="savingTemplate" class="text-xs text-wa-text-secondary" x-text="$t('saving')"></span>
                     </div>
                     <p class="text-[10px] text-wa-text-secondary mt-2" x-show="bot.templateId">
@@ -1664,6 +1666,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             templateVarDefs: [] as { name: string; type: string }[],
             savingVariables: false,
             availableTemplates: [] as any[],
+            templatesLoaded: false,
             savingTemplate: false,
 
             // Tools State
@@ -1764,6 +1767,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         this.availableTemplates = await ApiClient.get("/templates");
                     } catch (e) {
                         console.error("Failed to load templates", e);
+                    } finally {
+                        this.templatesLoaded = true;
                     }
 
                     // Load template variable definitions if bot has a template
