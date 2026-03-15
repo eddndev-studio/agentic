@@ -53,16 +53,16 @@ export class AIEngine {
 
         if (session.bot.paused) return;
 
+        const bot = session.bot;
+        const aiConfig = BotConfigService.resolveAIConfig(bot);
+
         // 2. Backward compatibility: delegate to FlowEngine if AI not enabled
-        if (!session.bot.aiEnabled) {
+        if (!aiConfig.aiEnabled) {
             for (const msg of messages) {
                 await flowEngine.processIncomingMessage(sessionId, msg);
             }
             return;
         }
-
-        const bot = session.bot;
-        const aiConfig = BotConfigService.resolveAIConfig(bot);
         const botVars = BotConfigService.getVariables(bot);
 
         // Interpolate bot variables into the system prompt

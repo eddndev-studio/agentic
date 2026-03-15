@@ -60,6 +60,20 @@ import Layout from "../../layouts/Layout.astro";
 			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
 				<h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
 				<form @submit.prevent="saveAIConfig()" class="space-y-6">
+					<!-- AI Enabled Toggle -->
+					<div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+						<div class="min-w-0">
+							<label class="text-sm font-medium text-white" x-text="$t('ai_enabled')">AI Enabled</label>
+							<p class="text-xs text-wa-text-secondary mt-1" x-text="$t('ai_enabled_desc')"></p>
+						</div>
+						<button type="button" @click="aiConfig.aiEnabled = !aiConfig.aiEnabled"
+							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0"
+							:class="aiConfig.aiEnabled ? 'bg-wa-green' : 'bg-wa-bg-hover'">
+							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+								:class="aiConfig.aiEnabled ? 'translate-x-6' : 'translate-x-1'"></span>
+						</button>
+					</div>
+
 					<div class="grid grid-cols-2 gap-4">
 						<div>
 							<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('ai_provider')"></label>
@@ -287,6 +301,7 @@ import Layout from "../../layouts/Layout.astro";
 			aiConfig: {
 				name: "",
 				description: "",
+				aiEnabled: true,
 				aiProvider: "GEMINI",
 				aiModel: "gemini-2.5-flash",
 				systemPrompt: "",
@@ -308,6 +323,7 @@ import Layout from "../../layouts/Layout.astro";
 					this.aiConfig = {
 						name: this.template.name || "",
 						description: this.template.description || "",
+						aiEnabled: this.template.aiEnabled ?? true,
 						aiProvider: this.template.aiProvider || "GEMINI",
 						aiModel: this.template.aiModel || "gemini-2.5-flash",
 						systemPrompt: this.template.systemPrompt || "",

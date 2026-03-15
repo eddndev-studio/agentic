@@ -69,12 +69,13 @@ export const templateController = new Elysia({ prefix: "/templates" })
 
     // Update template
     .put("/:id", async ({ params: { id }, body, set }) => {
-        const { name, description, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, variables } = body as any;
+        const { name, description, aiEnabled, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, variables } = body as any;
 
         try {
             const data: any = {};
             if (name !== undefined) data.name = name;
             if (description !== undefined) data.description = description;
+            if (aiEnabled !== undefined) data.aiEnabled = aiEnabled;
             if (aiModel !== undefined) data.aiModel = aiModel;
             if (aiProvider !== undefined) data.aiProvider = aiProvider as AIProvider;
             if (systemPrompt !== undefined) data.systemPrompt = systemPrompt;

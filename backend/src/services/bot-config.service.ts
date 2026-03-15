@@ -5,6 +5,7 @@ type BotWithTemplate = Bot & { template: Template | null };
 type ThinkingLevel = "LOW" | "MEDIUM" | "HIGH";
 
 interface AIConfig {
+    aiEnabled: boolean;
     aiModel: string;
     aiProvider: string;
     systemPrompt: string | null;
@@ -30,6 +31,7 @@ export class BotConfigService {
     static resolveAIConfig(bot: BotWithTemplate): AIConfig {
         const source = bot.template ?? bot;
         return {
+            aiEnabled: bot.template?.aiEnabled ?? bot.aiEnabled,
             aiModel: source.aiModel,
             aiProvider: source.aiProvider as string,
             systemPrompt: source.systemPrompt,
