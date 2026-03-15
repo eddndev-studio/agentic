@@ -430,8 +430,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     <div class="flex items-center gap-3">
                         <template x-if="templatesLoaded">
                             <select
-                                x-model="selectedTemplateId"
-                                @change="bot.templateId = selectedTemplateId || null; saveTemplate()"
+                                x-init="$nextTick(() => { $el.value = bot.templateId || '' })"
+                                @change="bot.templateId = $event.target.value || null; saveTemplate()"
                                 class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
                             >
                                 <option value="" x-text="$t('no_template')">None (Custom)</option>
