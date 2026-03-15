@@ -264,7 +264,20 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
         <!-- AI Config Tab -->
         <div x-show="activeTab === 'ai'" style="display: none;">
-            <div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
+            <!-- Template override notice -->
+            <div x-show="bot.templateId" class="mb-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-start gap-3 max-w-2xl">
+                <svg class="w-5 h-5 text-purple-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                    <p class="text-sm text-purple-300">La configuración de IA se hereda de la plantilla <span class="font-bold" x-text="bot.template?.name || 'asignada'"></span>.</p>
+                    <p class="text-[10px] text-purple-400/70 mt-1">Para modificarla, edita la plantilla directamente. Los cambios se aplicarán a todos los bots que la usen.</p>
+                    <a :href="'/templates/detail?id=' + bot.templateId" class="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 mt-2 transition-colors">
+                        Ir a la plantilla
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </a>
+                </div>
+            </div>
+
+            <div x-show="!bot.templateId" class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
 
                 <h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
 
