@@ -428,17 +428,18 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 <div class="mb-8">
                     <h3 class="text-xs text-wa-green tracking-normal mb-4" x-text="$t('template_assigned')">Template</h3>
                     <div class="flex items-center gap-3">
-                        <select
-                            x-show="templatesLoaded"
-                            x-model="bot.templateId"
-                            @change="saveTemplate()"
-                            class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
-                        >
-                            <option :value="null" x-text="$t('no_template')">None (Custom)</option>
-                            <template x-for="tpl in availableTemplates" :key="tpl.id">
-                                <option :value="tpl.id" x-text="tpl.name"></option>
-                            </template>
-                        </select>
+                        <template x-if="templatesLoaded">
+                            <select
+                                x-model="selectedTemplateId"
+                                @change="bot.templateId = selectedTemplateId || null; saveTemplate()"
+                                class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
+                            >
+                                <option value="" x-text="$t('no_template')">None (Custom)</option>
+                                <template x-for="tpl in availableTemplates" :key="tpl.id">
+                                    <option :value="tpl.id" x-text="tpl.name"></option>
+                                </template>
+                            </select>
+                        </template>
                         <span x-show="!templatesLoaded" class="text-xs text-wa-text-secondary" x-text="$t('loading')"></span>
                         <span x-show="savingTemplate" class="text-xs text-wa-text-secondary" x-text="$t('saving')"></span>
                     </div>
@@ -520,14 +521,20 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </div>
                 </template>
 
-                <button
-                    @click="saveVariables()"
-                    :disabled="savingVariables"
-                    class="mt-4 px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors"
-                    x-text="savingVariables ? $t('saving') : $t('save_variables')"
-                >
-                    Save Variables
-                </button>
+                <div class="flex items-center gap-3 mt-4">
+                    <button
+                        @click="saveVariables()"
+                        :disabled="savingVariables"
+                        class="px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors"
+                        x-text="savingVariables ? $t('saving') : $t('save_variables')"
+                    >
+                        Save Variables
+                    </button>
+                    <span x-show="variablesSaved" x-transition.opacity class="text-xs text-green-400 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Guardado
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -1665,7 +1672,9 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             variablesList: [] as { key: string; value: string }[],
             templateVarDefs: [] as { name: string; type: string }[],
             savingVariables: false,
+            variablesSaved: false,
             availableTemplates: [] as any[],
+            selectedTemplateId: "" as string,
             templatesLoaded: false,
             savingTemplate: false,
 
@@ -1768,6 +1777,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     } catch (e) {
                         console.error("Failed to load templates", e);
                     } finally {
+                        this.selectedTemplateId = this.bot.templateId || "";
                         this.templatesLoaded = true;
                     }
 
@@ -2164,6 +2174,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
             async saveVariables() {
                 this.savingVariables = true;
+                this.variablesSaved = false;
                 try {
                     const vars: Record<string, string> = {};
                     for (const v of this.variablesList) {
@@ -2175,6 +2186,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         botVariables: vars,
                     });
                     this.bot = updated;
+                    this.variablesSaved = true;
+                    setTimeout(() => { this.variablesSaved = false; }, 3000);
                 } catch (e: any) {
                     alert("Error al guardar variables: " + (e.message || "Unknown error"));
                 } finally {
