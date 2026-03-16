@@ -464,7 +464,8 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                     <!-- Template mode: variable selector -->
                                                     <template x-if="templateId">
                                                         <div>
-                                                            <select x-model="step.metadata.toolArgs.label_name"
+                                                            <select x-init="$nextTick(() => { $el.value = step.metadata.toolArgs.label_name || '' })"
+                                                                @change="step.metadata.toolArgs.label_name = $event.target.value"
                                                                 class="w-full bg-wa-bg-deep/50 border border-purple-500/30 p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none text-purple-300">
                                                                 <option value="">Seleccionar variable...</option>
                                                                 <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
@@ -499,7 +500,8 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                     <label class="text-[10px] text-wa-text-secondary font-sans">Etiqueta <span class="text-red-400">*</span></label>
                                                     <template x-if="templateId">
                                                         <div>
-                                                            <select x-model="step.metadata.toolArgs.label_name"
+                                                            <select x-init="$nextTick(() => { $el.value = step.metadata.toolArgs.label_name || '' })"
+                                                                @change="step.metadata.toolArgs.label_name = $event.target.value"
                                                                 class="w-full bg-wa-bg-deep/50 border border-red-500/30 p-2 text-xs font-mono rounded-lg focus:border-red-400 focus:outline-none text-red-300">
                                                                 <option value="">Seleccionar variable...</option>
                                                                 <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
@@ -540,7 +542,8 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                     <label class="text-[10px] text-wa-text-secondary font-sans">Etiqueta <span class="text-red-400">*</span></label>
                                                     <template x-if="templateId">
                                                         <div>
-                                                            <select x-model="step.metadata.toolArgs.label_name"
+                                                            <select x-init="$nextTick(() => { $el.value = step.metadata.toolArgs.label_name || '' })"
+                                                                @change="step.metadata.toolArgs.label_name = $event.target.value"
                                                                 class="w-full bg-wa-bg-deep/50 border border-purple-500/30 p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none text-purple-300">
                                                                 <option value="">Seleccionar variable...</option>
                                                                 <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
