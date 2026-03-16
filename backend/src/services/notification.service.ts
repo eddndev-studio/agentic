@@ -81,7 +81,8 @@ class NotificationService {
                 where: { id: event.sessionId },
                 select: { name: true, identifier: true },
             });
-            sessionName = src?.name || src?.identifier?.split('@')[0] || undefined;
+            const phone = src?.identifier?.split('@')[0];
+            sessionName = src?.name ? `${src.name} (${phone})` : phone || undefined;
         }
 
         const message = this.formatMessage(event, config, sessionName);
