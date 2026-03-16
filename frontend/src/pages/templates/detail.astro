@@ -109,6 +109,19 @@ import Layout from "../../layouts/Layout.astro";
 						</div>
 					</div>
 					<div>
+						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('message_delay')">Message Delay</label>
+						<div class="flex items-center gap-3">
+							<input type="number" x-model.number="aiConfig.messageDelay" min="0" step="1"
+								class="w-24 bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
+							<span class="text-xs text-wa-text-secondary">s</span>
+						</div>
+						<p class="text-[10px] text-wa-text-secondary mt-1"
+							x-text="aiConfig.messageDelay === 0
+								? ($t('message_delay_off') || 'Procesamiento inmediato (sin acumulación)')
+								: ($t('message_delay_desc') || 'Espera más mensajes antes de procesar')">
+						</p>
+					</div>
+					<div>
 						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_name')"></label>
 						<input type="text" x-model="aiConfig.name" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
 					</div>
@@ -318,6 +331,7 @@ import Layout from "../../layouts/Layout.astro";
 				systemPrompt: "",
 				temperature: 0.7,
 				thinkingLevel: "LOW",
+				messageDelay: 0,
 			},
 
 			async init() {
@@ -340,6 +354,7 @@ import Layout from "../../layouts/Layout.astro";
 						systemPrompt: this.template.systemPrompt || "",
 						temperature: this.template.temperature ?? 0.7,
 						thinkingLevel: this.template.thinkingLevel || "LOW",
+						messageDelay: this.template.messageDelay ?? 0,
 					};
 					this.templateVars = Array.isArray(this.template.variables) ? [...this.template.variables] : [];
 					this.ready = true;

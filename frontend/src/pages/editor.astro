@@ -70,11 +70,16 @@ import MediaPicker from "../components/MediaPicker.astro";
                         class="text-xs text-wa-green mb-4 flex justify-between items-center"
                     >
                         <span x-text="$t('triggers')"></span>
-                        <button
-                            @click="addTrigger()"
-                            class="w-6 h-6 flex items-center justify-center bg-wa-green/20 hover:bg-wa-green/40 text-wa-green hover:text-white text-lg leading-none transition-colors rounded-lg"
-                            :title="$t('add_trigger')">+</button
-                        >
+                        <div class="flex gap-1">
+                            <button
+                                @click="addTrigger('TEXT')"
+                                class="px-2 py-1 flex items-center gap-1 bg-wa-green/20 hover:bg-wa-green/40 text-wa-green hover:text-white text-[10px] leading-none transition-colors rounded-lg"
+                                title="Text trigger">+ Text</button>
+                            <button
+                                @click="addTrigger('LABEL')"
+                                class="px-2 py-1 flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/40 text-purple-400 hover:text-white text-[10px] leading-none transition-colors rounded-lg"
+                                title="Label trigger">+ Label</button>
+                        </div>
                     </div>
 
                     <!-- Flow Global Settings -->
@@ -183,51 +188,87 @@ import MediaPicker from "../components/MediaPicker.astro";
                         >
                             <div
                                 class="bg-wa-bg-deep p-4 border border-wa-border space-y-3 rounded-lg"
+                                :class="trigger.triggerType === 'LABEL' ? 'border-purple-500/30' : ''"
                             >
-                                <!-- Row 1: Selects and Delete -->
-                                <div class="flex flex-wrap justify-between items-center gap-2">
-                                    <div class="flex gap-2 items-center flex-1 min-w-0">
-                                        <select
-                                            x-model="trigger.scope"
-                                            class="bg-wa-bg-hover text-[10px] font-mono text-wa-green px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green flex-1 min-w-0 rounded-lg"
-                                            title="Trigger Scope"
-                                        >
-                                            <option value="INCOMING">INCOMING</option>
-                                            <option value="OUTGOING">OUTGOING</option>
-                                            <option value="BOTH">ALL</option>
-                                        </select>
-                                        <select
-                                            x-model="trigger.matchType"
-                                            class="bg-wa-bg-hover text-xs font-mono text-white px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green flex-1 min-w-0 rounded-lg"
-                                        >
-                                            <template
-                                                x-for="opt in ['CONTAINS', 'EXACT', 'REGEX']"
-                                            >
-                                                <option
-                                                    :value="opt"
-                                                    x-text="opt"
-                                                    class="bg-wa-bg-deep"></option>
-                                            </template>
-                                        </select>
-                                    </div>
+                                <!-- Header: Type badge + Delete -->
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded"
+                                        :class="trigger.triggerType === 'LABEL' ? 'text-purple-400 bg-purple-500/10' : 'text-wa-green bg-wa-green/10'"
+                                        x-text="trigger.triggerType === 'LABEL' ? 'LABEL' : 'TEXT'"></span>
                                     <button
                                         @click="removeTrigger(index)"
                                         class="text-red-500 hover:text-red-400 font-bold px-2 py-1 text-lg"
-                                        >&times;</button
-                                    >
+                                        >&times;</button>
                                 </div>
 
-                                <!-- Row 2: Keyword Input -->
-                                <div>
-                                    <textarea
-                                        x-model="trigger.keyword"
-                                        rows="1"
-                                        class="w-full bg-wa-bg-hover text-sm px-3 py-2 border border-wa-border focus:outline-none focus:border-wa-green resize-none overflow-hidden font-mono leading-relaxed min-h-[40px] max-w-full rounded-lg"
-                                        :placeholder="$t('keyword') || 'Enter keyword or regex...'"
-                                        x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
-                                        @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
-                                    ></textarea>
-                                </div>
+                                <!-- TEXT trigger UI -->
+                                <template x-if="!trigger.triggerType || trigger.triggerType === 'TEXT'">
+                                    <div class="space-y-3">
+                                        <div class="flex gap-2 items-center">
+                                            <select x-model="trigger.scope"
+                                                class="bg-wa-bg-hover text-[10px] font-mono text-wa-green px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green flex-1 min-w-0 rounded-lg">
+                                                <option value="INCOMING">INCOMING</option>
+                                                <option value="OUTGOING">OUTGOING</option>
+                                                <option value="BOTH">ALL</option>
+                                            </select>
+                                            <select x-model="trigger.matchType"
+                                                class="bg-wa-bg-hover text-xs font-mono text-white px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green flex-1 min-w-0 rounded-lg">
+                                                <template x-for="opt in ['CONTAINS', 'EXACT', 'REGEX']">
+                                                    <option :value="opt" x-text="opt" class="bg-wa-bg-deep"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <textarea x-model="trigger.keyword" rows="1"
+                                            class="w-full bg-wa-bg-hover text-sm px-3 py-2 border border-wa-border focus:outline-none focus:border-wa-green resize-none overflow-hidden font-mono leading-relaxed min-h-[40px] max-w-full rounded-lg"
+                                            :placeholder="$t('keyword') || 'Enter keyword or regex...'"
+                                            x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
+                                            @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                                        ></textarea>
+                                    </div>
+                                </template>
+
+                                <!-- LABEL trigger UI -->
+                                <template x-if="trigger.triggerType === 'LABEL'">
+                                    <div class="space-y-3">
+                                        <select x-model="trigger.labelAction"
+                                            class="w-full bg-wa-bg-hover text-xs font-mono px-2 py-1.5 border border-purple-500/30 focus:outline-none focus:border-purple-400 text-purple-300 rounded-lg">
+                                            <option value="ADD">Cuando se asigna</option>
+                                            <option value="REMOVE">Cuando se remueve</option>
+                                        </select>
+
+                                        <!-- Template mode: variable selector -->
+                                        <template x-if="templateId">
+                                            <div>
+                                                <select @change="trigger.labelName = $event.target.value"
+                                                    class="w-full bg-wa-bg-hover text-xs font-mono px-2 py-1.5 border border-purple-500/30 focus:outline-none focus:border-purple-400 text-purple-300 rounded-lg">
+                                                    <option value="" :selected="!trigger.labelName">Seleccionar variable...</option>
+                                                    <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
+                                                        <option :value="'{{' + v.name + '}}'" x-text="v.name" :selected="trigger.labelName === '{{' + v.name + '}}'"></option>
+                                                    </template>
+                                                </select>
+                                                <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta en la plantilla.</p>
+                                            </div>
+                                        </template>
+
+                                        <!-- Bot mode: label picker -->
+                                        <template x-if="!templateId">
+                                            <div class="flex flex-wrap gap-2">
+                                                <template x-for="lbl in botLabels" :key="lbl.id">
+                                                    <button type="button"
+                                                        @click="trigger.labelName = (trigger.labelName === lbl.name ? '' : lbl.name)"
+                                                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+                                                        :class="trigger.labelName === lbl.name
+                                                            ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
+                                                            : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'">
+                                                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                                        <span x-text="lbl.name"></span>
+                                                    </button>
+                                                </template>
+                                                <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
                             </div>
                         </template>
 
@@ -749,6 +790,9 @@ import MediaPicker from "../components/MediaPicker.astro";
         keyword: string;
         matchType: string;
         scope?: string;
+        triggerType?: 'TEXT' | 'LABEL';
+        labelName?: string;
+        labelAction?: 'ADD' | 'REMOVE';
     }
     interface Step {
         id?: string;
@@ -1005,11 +1049,14 @@ import MediaPicker from "../components/MediaPicker.astro";
                 }
             },
 
-            addTrigger() {
+            addTrigger(type: 'TEXT' | 'LABEL' = 'TEXT') {
                 this.flow.triggers.push({
                     keyword: "",
                     matchType: "CONTAINS",
-                    scope: "INCOMING",
+                    scope: type === 'TEXT' ? "INCOMING" : "BOTH",
+                    triggerType: type,
+                    labelName: "",
+                    labelAction: "ADD",
                 });
             },
 

@@ -1,7 +1,7 @@
 import { prisma } from "../../services/postgres.service";
 import { Message, Trigger, TriggerScope } from "@prisma/client";
 import { TriggerMatcher } from "../matcher/TriggerMatcher";
-import { BotConfigService } from "../../services/bot-config.service";
+import { BotConfigService, type BotWithTemplate } from "../../services/bot-config.service";
 import { redis } from "../../services/redis.service";
 import { queueService } from "../../services/queue.service";
 import { eventBus } from "../../services/event-bus";
@@ -13,67 +13,92 @@ export class FlowEngine {
 
     /**
      * Analyzes an incoming message to see if it triggers any flow.
-     * If user is already in a session, logic might differ (not implemented yet).
      */
     async processIncomingMessage(sessionId: string, message: Message) {
         if (!message.content) return;
 
-        // 1. Fetch Session + Bot (with template) for trigger resolution
         const session = await prisma.session.findUnique({
             where: { id: sessionId },
-            select: { botId: true }
+            select: { botId: true, identifier: true }
         });
-
-        if (!session) {
-            console.error(`[FlowEngine] Session ${sessionId} not found`);
-            return;
-        }
+        if (!session) return;
 
         const bot = await BotConfigService.loadBot(session.botId);
-        if (!bot) {
-            console.error(`[FlowEngine] Bot ${session.botId} not found`);
-            return;
-        }
+        if (!bot) return;
 
-        // 2. Check Triggers (Template, Bot-global, or Session-specific)
         const validScopes: TriggerScope[] = message.fromMe
             ? [TriggerScope.OUTGOING, TriggerScope.BOTH]
             : [TriggerScope.INCOMING, TriggerScope.BOTH];
 
         const activeTriggers = await BotConfigService.resolveTriggers(bot, sessionId, validScopes);
 
-        const match = TriggerMatcher.findMatch(message.content, activeTriggers);
-
+        // Only match TEXT triggers for message-based processing
+        const textTriggers = activeTriggers.filter((t: any) => !t.triggerType || t.triggerType === 'TEXT');
+        const match = TriggerMatcher.findMatch(message.content, textTriggers);
         if (!match) return;
 
         const trigger = match.trigger as Trigger & { flow: any };
+        await this.startFlow(sessionId, session.botId, trigger, message.sender);
+    }
 
+    /**
+     * Processes a label change event to see if it triggers any flow.
+     */
+    async processLabelEvent(sessionId: string, botId: string, labelName: string, action: 'add' | 'remove') {
+        const bot = await BotConfigService.loadBot(botId);
+        if (!bot || bot.paused) return;
+
+        const session = await prisma.session.findUnique({
+            where: { id: sessionId },
+            select: { identifier: true }
+        });
+        if (!session) return;
+
+        // Resolve all triggers (label triggers use scope BOTH by convention)
+        const activeTriggers = await BotConfigService.resolveTriggers(bot, sessionId, [TriggerScope.INCOMING, TriggerScope.OUTGOING, TriggerScope.BOTH]);
+        const botVars = BotConfigService.getVariables(bot);
+
+        const labelAction = action.toUpperCase(); // 'ADD' | 'REMOVE'
+
+        for (const trigger of activeTriggers) {
+            const t = trigger as any;
+            if (t.triggerType !== 'LABEL') continue;
+            if (t.labelAction !== labelAction) continue;
+
+            // Interpolate template variables in labelName
+            const resolvedLabelName = BotConfigService.interpolate(t.labelName || '', botVars);
+            if (resolvedLabelName !== labelName) continue;
+
+            await this.startFlow(sessionId, botId, trigger as Trigger & { flow: any }, session.identifier);
+        }
+    }
+
+    /**
+     * Shared logic: validate constraints and start a flow execution.
+     */
+    private async startFlow(sessionId: string, botId: string, trigger: Trigger & { flow: any }, platformUserId: string) {
         if (!trigger.flow) {
             console.error(`[FlowEngine] Trigger '${trigger.keyword}' has no flow`);
             return;
         }
 
+        const triggerLabel = trigger.keyword || trigger.labelName || trigger.id;
         const lockKey = `flow:lock:${sessionId}:${trigger.flowId}`;
-
-        // 3. Acquire distributed lock to prevent race conditions
-        // SETNX with 30 second expiry - if lock exists, another execution is in progress
         const lockAcquired = await redis.set(lockKey, "1", "EX", 30, "NX");
 
         if (!lockAcquired) {
-            console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Lock already held (concurrent execution in progress)`);
+            console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Lock already held`);
             return;
         }
 
         try {
-            // 4. Atomic validation and execution creation using Prisma transaction
             const execution = await prisma.$transaction(async (tx) => {
-                // 4a. Validate Cooldown
+                // Validate Cooldown
                 if (trigger.flow.cooldownMs > 0) {
                     const lastExecution = await tx.execution.findFirst({
                         where: { sessionId, flowId: trigger.flowId },
                         orderBy: { startedAt: 'desc' }
                     });
-
                     if (lastExecution) {
                         const elapsed = Date.now() - lastExecution.startedAt.getTime();
                         if (elapsed < trigger.flow.cooldownMs) {
@@ -82,70 +107,61 @@ export class FlowEngine {
                     }
                 }
 
-                // 4b. Validate Usage Limit
+                // Validate Usage Limit
                 if (trigger.flow.usageLimit > 0) {
                     const usageCount = await tx.execution.count({
                         where: { sessionId, flowId: trigger.flowId }
                     });
-
                     if (usageCount >= trigger.flow.usageLimit) {
                         throw new Error(`LIMIT:${usageCount}/${trigger.flow.usageLimit}`);
                     }
                 }
 
-                // 4c. Validate Exclusions (Mutually Exclusive Flows)
+                // Validate Exclusions
                 if (trigger.flow.excludesFlows && trigger.flow.excludesFlows.length > 0) {
                     const conflictCount = await tx.execution.count({
-                        where: {
-                            sessionId,
-                            flowId: { in: trigger.flow.excludesFlows }
-                        }
+                        where: { sessionId, flowId: { in: trigger.flow.excludesFlows } }
                     });
-
                     if (conflictCount > 0) {
                         throw new Error(`EXCLUDED: Mutually exclusive flow already executed.`);
                     }
                 }
 
-                // 4d. Create execution atomically (inside same transaction)
-                console.log(`[FlowEngine] Matched Trigger '${trigger.keyword}' -> Flow ${trigger.flowId}`);
+                console.log(`[FlowEngine] Matched Trigger '${triggerLabel}' -> Flow ${trigger.flowId}`);
 
                 return await tx.execution.create({
                     data: {
                         sessionId,
                         flowId: trigger.flowId,
-                        platformUserId: message.sender,
+                        platformUserId,
                         status: "RUNNING",
                         currentStep: 0,
                         variableContext: {},
-                        trigger: trigger.keyword
+                        trigger: triggerLabel
                     }
                 });
             });
 
-            // 5. Emit flow:started event
             eventBus.emitBotEvent({
                 type: 'flow:started',
-                botId: session.botId,
+                botId,
                 flowName: trigger.flow.name,
                 sessionId,
             });
 
-            // 6. Schedule the first step (outside transaction, after successful commit)
             await this.scheduleStep(execution.id, 0);
 
         } catch (error: any) {
-            // Handle validation errors gracefully
             let errorMessage = error.message;
 
             if (error.message?.startsWith('COOLDOWN:')) {
-                console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Cooldown active (${error.message.replace('COOLDOWN:', '')}ms)`);
+                console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Cooldown active`);
                 errorMessage = `Cooldown active (${error.message.replace('COOLDOWN:', '')}ms)`;
             } else if (error.message?.startsWith('LIMIT:')) {
-                console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: Usage limit reached (${error.message.replace('LIMIT:', '')})`);
-                errorMessage = `Usage limit reached (${error.message.replace('LIMIT:', '')})`;
+                console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Usage limit reached`);
+                errorMessage = `Usage limit reached`;
             } else if (error.message?.startsWith('EXCLUDED:')) {
-                console.log(`[FlowEngine] Trigger '${trigger.keyword}' ignored: ${error.message}`);
+                console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: ${error.message}`);
                 errorMessage = error.message;
             } else {
                 console.error(`[FlowEngine] Error starting flow:`, error);
@@ -157,11 +173,11 @@ export class FlowEngine {
                         data: {
                             sessionId,
                             flowId: trigger.flowId,
-                            platformUserId: message.sender,
+                            platformUserId,
                             status: "FAILED",
                             currentStep: 0,
                             variableContext: {},
-                            trigger: trigger.keyword,
+                            trigger: triggerLabel,
                             error: errorMessage,
                             completedAt: new Date()
                         }
@@ -170,15 +186,13 @@ export class FlowEngine {
 
                 eventBus.emitBotEvent({
                     type: 'flow:failed',
-                    botId: session.botId,
+                    botId,
                     flowName: trigger.flow.name,
                     sessionId,
                     error: errorMessage,
                 });
             }
-
         } finally {
-            // 6. Always release the lock
             await redis.del(lockKey);
         }
     }

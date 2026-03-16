@@ -71,9 +71,12 @@ export const flowController = new Elysia({ prefix: "/flows" })
                     },
                     triggers: {
                         create: (triggers || []).map((t: any) => ({
-                            keyword: t.keyword,
+                            keyword: t.keyword || t.labelName || '',
                             matchType: t.matchType || 'CONTAINS',
                             scope: t.scope || 'INCOMING',
+                            triggerType: t.triggerType || 'TEXT',
+                            labelName: t.labelName || null,
+                            labelAction: t.labelAction || null,
                             ...triggerOwner
                         }))
                     }
@@ -120,9 +123,12 @@ export const flowController = new Elysia({ prefix: "/flows" })
                                                         }))                        },
                         triggers: {
                             create: (triggers || []).map((t: any) => ({
-                                keyword: t.keyword,
+                                keyword: t.keyword || t.labelName || '',
                                 matchType: t.matchType || 'CONTAINS',
                                 scope: t.scope || 'INCOMING',
+                                triggerType: t.triggerType || 'TEXT',
+                                labelName: t.labelName || null,
+                                labelAction: t.labelAction || null,
                                 ...triggerOwner
                             }))
                         }
@@ -189,6 +195,9 @@ export const flowController = new Elysia({ prefix: "/flows" })
                             keyword: t.keyword,
                             matchType: t.matchType,
                             scope: t.scope,
+                            triggerType: t.triggerType,
+                            labelName: t.labelName,
+                            labelAction: t.labelAction,
                             botId: targetBotId
                         }))
                     }

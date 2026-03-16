@@ -402,6 +402,11 @@ export class BaileysService {
                         changedLabelId: label.id,
                         action: event.type as 'add' | 'remove',
                     });
+
+                    // Evaluate label-based flow triggers
+                    flowEngine.processLabelEvent(session.id, botId, label.name, event.type as 'add' | 'remove').catch(err => {
+                        console.error(`[Baileys] FlowEngine label trigger error:`, err);
+                    });
                 } catch (e) {
                     console.error(`[Baileys] labels.association error:`, e);
                 }
@@ -598,8 +603,8 @@ export class BaileysService {
         console.log(`[${new Date().toISOString()}] [Baileys] Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${content.substring(0, 50)}...`);
 
         try {
-            // 1. Resolve Bot
-            const bot = await prisma.bot.findUnique({ where: { id: botId } });
+            // 1. Resolve Bot (include template for messageDelay resolution)
+            const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
             if (!bot) return;
 
             // Filter: exclude group messages
@@ -698,11 +703,12 @@ export class BaileysService {
                 // Tool-oriented mode: do NOT send error messages to the end user
             };
 
-            if (bot.messageDelay > 0) {
+            const messageDelay = bot.template?.messageDelay ?? bot.messageDelay;
+            if (messageDelay > 0) {
                 MessageAccumulator.accumulate(
                     session.id,
                     message,
-                    bot.messageDelay,
+                    messageDelay,
                     (sid, msgs) => {
                         aiEngine.processMessages(sid, msgs).catch(err => handleAIError(err, sid));
                     }
