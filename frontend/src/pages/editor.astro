@@ -995,12 +995,10 @@ import MediaPicker from "../components/MediaPicker.astro";
             },
 
             async loadAvailableFlows() {
-                if (!this.botId) return;
+                if (!this.botId && !this.templateId) return;
                 try {
-                    // Fetch all flows for this bot to populate the exclusion list
-                    // We need a lightweight list. Assuming /flows?botId=... returns list
-                    const flows = await ApiClient.get(`/flows?botId=${this.botId}`);
-                    // Filter out current flow
+                    const query = this.templateId ? `templateId=${this.templateId}` : `botId=${this.botId}`;
+                    const flows = await ApiClient.get(`/flows?${query}`);
                     this.availableFlows = flows.filter((f: any) => f.id !== this.id);
                 } catch (e) {
                     console.error("Failed to load available flows", e);
