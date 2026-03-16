@@ -126,19 +126,30 @@ import Layout from "../../layouts/Layout.astro";
 			<div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 rounded-xl">
 				<div class="space-y-3">
 					<template x-for="flow in template.flows || []" :key="flow.id">
-						<a :href="'/editor?id=' + flow.id + '&templateId=' + templateId" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
-							<div>
-								<h4 class="text-sm font-medium group-hover:text-wa-green transition-colors" x-text="flow.name"></h4>
-								<p class="text-[10px] text-wa-text-secondary mt-1" x-text="flow.description || '—'"></p>
-								<div class="flex gap-3 mt-2 text-[10px] text-wa-text-secondary">
-									<span x-text="(flow.steps?.length || 0) + ' pasos'"></span>
-									<span x-text="(flow.triggers?.length || 0) + ' triggers'"></span>
+						<div class="flex items-center gap-2 p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
+							<a :href="'/editor?id=' + flow.id + '&templateId=' + templateId" class="flex items-center justify-between flex-1 min-w-0">
+								<div>
+									<h4 class="text-sm font-medium group-hover:text-wa-green transition-colors" x-text="flow.name"></h4>
+									<p class="text-[10px] text-wa-text-secondary mt-1" x-text="flow.description || '—'"></p>
+									<div class="flex gap-3 mt-2 text-[10px] text-wa-text-secondary">
+										<span x-text="(flow.steps?.length || 0) + ' pasos'"></span>
+										<span x-text="(flow.triggers?.length || 0) + ' triggers'"></span>
+									</div>
 								</div>
-							</div>
-							<svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-							</svg>
-						</a>
+								<svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+								</svg>
+							</a>
+							<button
+								@click.prevent.stop="deleteFlow(flow.id, flow.name)"
+								class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors flex-shrink-0"
+								:title="$t('delete_flow') || 'Delete Flow'"
+							>
+								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+								</svg>
+							</button>
+						</div>
 					</template>
 					<div x-show="!template.flows || template.flows.length === 0" class="p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg">
 						<span x-text="$t('no_flows')">No flows</span>
@@ -391,6 +402,17 @@ import Layout from "../../layouts/Layout.astro";
 					alert("Error: " + (e.message || "Unknown"));
 				} finally {
 					this.creatingBot = false;
+				}
+			},
+
+			async deleteFlow(flowId: string, flowName: string) {
+				// @ts-ignore
+				if (!confirm(this.$t('delete_flow_confirm') || `Delete flow "${flowName}"?`)) return;
+				try {
+					await ApiClient.delete(`/flows/${flowId}`);
+					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+				} catch (e: any) {
+					alert("Failed to delete flow: " + (e.message || "Unknown error"));
 				}
 			},
 
