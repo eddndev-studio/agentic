@@ -13,13 +13,16 @@ const EVENT_LABELS: Record<string, string> = {
     "tool:executed":      "Herramienta ejecutada",
 };
 
-/** Events that should never trigger notifications */
 const IGNORED_EVENTS = new Set(['bot:qr', 'message:sent', 'session:updated', 'message:received']);
 
-interface CachedConfig {
-    sessionIds: string[];
+interface ChannelConfig {
+    sessionId: string;
     events: string[];
     labels: string[];
+}
+
+interface CachedConfig {
+    channels: ChannelConfig[];
     botName: string;
     botIdentifier: string;
     expiresAt: number;
@@ -27,7 +30,7 @@ interface CachedConfig {
 
 class NotificationService {
     private cache = new Map<string, CachedConfig>();
-    private CACHE_TTL = 30_000; // 30s
+    private CACHE_TTL = 30_000;
 
     init() {
         eventBus.subscribeAll((event) => {
@@ -48,13 +51,14 @@ class NotificationService {
 
         const bot = await prisma.bot.findUnique({
             where: { id: botId },
-            select: { name: true, identifier: true, notificationSessionIds: true, notificationEvents: true, notificationLabels: true },
+            select: { name: true, identifier: true, notificationChannels: true },
         });
 
+        const raw = bot?.notificationChannels;
+        const channels: ChannelConfig[] = Array.isArray(raw) ? raw as ChannelConfig[] : [];
+
         const config: CachedConfig = {
-            sessionIds: bot?.notificationSessionIds || [],
-            events: bot?.notificationEvents || [],
-            labels: bot?.notificationLabels || [],
+            channels,
             botName: bot?.name || 'Bot',
             botIdentifier: bot?.identifier || '',
             expiresAt: Date.now() + this.CACHE_TTL,
@@ -68,13 +72,7 @@ class NotificationService {
         if (IGNORED_EVENTS.has(event.type)) return;
 
         const config = await this.getConfig(event.botId);
-        if (config.sessionIds.length === 0 || config.events.length === 0) return;
-        if (!config.events.includes(event.type)) return;
-
-        // Per-label filtering
-        if (event.type === 'session:labels' && event.changedLabelId && config.labels.length > 0) {
-            if (!config.labels.includes(event.changedLabelId)) return;
-        }
+        if (config.channels.length === 0) return;
 
         // Resolve session name for events that carry a sessionId
         let sessionName: string | undefined;
@@ -89,9 +87,17 @@ class NotificationService {
         const message = this.formatMessage(event, config, sessionName);
         if (!message) return;
 
-        // Send to all configured channels
-        for (const sessionId of config.sessionIds) {
-            const session = await prisma.session.findUnique({ where: { id: sessionId } });
+        // Send to each channel that is subscribed to this event
+        for (const channel of config.channels) {
+            if (channel.events.length === 0) continue;
+            if (!channel.events.includes(event.type)) continue;
+
+            // Per-label filtering for this channel
+            if (event.type === 'session:labels' && event.changedLabelId && channel.labels.length > 0) {
+                if (!channel.labels.includes(event.changedLabelId)) continue;
+            }
+
+            const session = await prisma.session.findUnique({ where: { id: channel.sessionId } });
             if (!session) continue;
 
             try {

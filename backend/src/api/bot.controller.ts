@@ -118,7 +118,7 @@ export const botController = new Elysia({ prefix: "/bots" })
         const { name, identifier, platform, credentials, ipv6Address,
             aiEnabled, aiProvider, aiModel, systemPrompt, temperature, messageDelay,
             excludeGroups, ignoredLabels, paused, thinkingLevel,
-            notificationSessionIds, notificationEvents, notificationLabels,
+            notificationChannels,
             templateId, botVariables } = body as any;
 
         try {
@@ -150,16 +150,14 @@ export const botController = new Elysia({ prefix: "/bots" })
             if (ignoredLabels !== undefined) data.ignoredLabels = ignoredLabels;
             if (paused !== undefined) data.paused = paused;
             if (thinkingLevel !== undefined) data.thinkingLevel = thinkingLevel;
-            if (notificationSessionIds !== undefined) data.notificationSessionIds = notificationSessionIds;
-            if (notificationEvents !== undefined) data.notificationEvents = notificationEvents;
-            if (notificationLabels !== undefined) data.notificationLabels = notificationLabels;
+            if (notificationChannels !== undefined) data.notificationChannels = notificationChannels;
             if (templateId !== undefined) data.templateId = templateId || null;
             if (botVariables !== undefined) data.botVariables = botVariables;
 
             const bot = await prisma.bot.update({ where: { id }, data });
 
             // Invalidate notification cache on config change
-            if (notificationSessionIds !== undefined || notificationEvents !== undefined || notificationLabels !== undefined) {
+            if (notificationChannels !== undefined) {
                 const { notificationService } = await import("../services/notification.service");
                 notificationService.invalidateCache(id);
             }
@@ -241,8 +239,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                         messageDelay: source.messageDelay,
                         excludeGroups: source.excludeGroups,
                         ignoredLabels: source.ignoredLabels,
-                        notificationEvents: source.notificationEvents,
-                        notificationLabels: source.notificationLabels,
+                        notificationChannels: source.notificationChannels || [],
                     },
                 });
 

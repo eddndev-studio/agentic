@@ -444,16 +444,21 @@ export class ToolExecutor {
             }
 
             case "set_notification_channel": {
-                // Add this session to notification channels (avoid duplicates)
+                // Add this session as a notification channel with all events enabled
                 const currentBot = await prisma.bot.findUnique({
                     where: { id: botId },
-                    select: { notificationSessionIds: true },
+                    select: { notificationChannels: true },
                 });
-                const currentIds = currentBot?.notificationSessionIds || [];
-                if (!currentIds.includes(session.id)) {
+                const channels = Array.isArray(currentBot?.notificationChannels) ? currentBot.notificationChannels as any[] : [];
+                if (!channels.some((ch: any) => ch.sessionId === session.id)) {
+                    channels.push({
+                        sessionId: session.id,
+                        events: ['flow:completed', 'flow:failed', 'session:created', 'session:labels', 'bot:connected', 'bot:disconnected', 'tool:executed'],
+                        labels: [],
+                    });
                     await prisma.bot.update({
                         where: { id: botId },
-                        data: { notificationSessionIds: [...currentIds, session.id] },
+                        data: { notificationChannels: channels },
                     });
                 }
                 const { notificationService } = await import("../../services/notification.service");
@@ -472,10 +477,11 @@ export class ToolExecutor {
 
                 const bot = await prisma.bot.findUnique({
                     where: { id: botId },
-                    select: { notificationSessionIds: true },
+                    select: { notificationChannels: true },
                 });
 
-                if (!bot?.notificationSessionIds?.length) {
+                const channels = Array.isArray(bot?.notificationChannels) ? bot.notificationChannels as any[] : [];
+                if (channels.length === 0) {
                     return {
                         success: false,
                         data: "No hay canales de notificaciones configurados. Usa set_notification_channel primero.",
@@ -488,8 +494,8 @@ export class ToolExecutor {
 
                 // Send to all notification channels
                 let sentCount = 0;
-                for (const notifSessionId of bot.notificationSessionIds) {
-                    const notifSession = await prisma.session.findUnique({ where: { id: notifSessionId } });
+                for (const ch of channels) {
+                    const notifSession = await prisma.session.findUnique({ where: { id: ch.sessionId } });
                     if (!notifSession) continue;
 
                     await BaileysService.sendMessage(botId, notifSession.identifier, { text: formattedMsg });
