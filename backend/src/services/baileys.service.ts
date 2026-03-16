@@ -494,9 +494,11 @@ export class BaileysService {
 
                             const content = msg.message.conversation ||
                                 msg.message.extendedTextMessage?.text ||
-                                msg.message.imageMessage?.caption || '';
+                                msg.message.imageMessage?.caption ||
+                                msg.message.videoMessage?.caption || '';
 
                             const msgType = msg.message.imageMessage ? 'IMAGE' :
+                                msg.message.videoMessage ? 'VIDEO' :
                                 msg.message.audioMessage ? 'AUDIO' :
                                 msg.message.documentMessage ? 'DOCUMENT' : 'TEXT';
 
@@ -583,13 +585,15 @@ export class BaileysService {
         const content = msg.message.conversation ||
             msg.message.extendedTextMessage?.text ||
             msg.message.imageMessage?.caption ||
+            msg.message.videoMessage?.caption ||
             "";
 
         const msgType = msg.message.imageMessage ? 'IMAGE' :
+            msg.message.videoMessage ? 'VIDEO' :
             msg.message.audioMessage ? 'AUDIO' :
             msg.message.documentMessage ? 'DOCUMENT' : 'TEXT';
 
-        const hasMedia = ['IMAGE', 'AUDIO', 'DOCUMENT'].includes(msgType);
+        const hasMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'].includes(msgType);
 
         console.log(`[${new Date().toISOString()}] [Baileys] Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${content.substring(0, 50)}...`);
 

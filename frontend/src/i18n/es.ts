@@ -56,6 +56,7 @@ export default {
     add_step_text: "Texto",
     add_step_image: "Imagen",
     add_step_audio: "Audio",
+    add_step_video: "Video",
     delay: "Retraso",
     remove: "Eliminar",
     empty_flow: "Secuencia de Flujo Vacía",

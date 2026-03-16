@@ -138,6 +138,11 @@ export class ToolExecutor {
                         image: { url: step.mediaUrl },
                         caption: content || undefined,
                     });
+                } else if (step.type === "VIDEO" && step.mediaUrl) {
+                    await BaileysService.sendMessage(botId, session.identifier, {
+                        video: { url: step.mediaUrl },
+                        caption: content || undefined,
+                    });
                 } else if ((step.type === "AUDIO" || step.type === "PTT") && step.mediaUrl) {
                     await BaileysService.sendMessage(botId, session.identifier, {
                         audio: { url: step.mediaUrl },

@@ -263,6 +263,10 @@ import MediaPicker from "../components/MediaPicker.astro";
                             class="px-3 py-1 bg-wa-bg-hover hover:bg-wa-bg-hover text-[10px] font-sans border border-wa-border rounded-lg"
                             x-text="$t('add_step_audio')"></button>
                         <button
+                            @click="addStep('VIDEO')"
+                            class="px-3 py-1 bg-wa-bg-hover hover:bg-wa-bg-hover text-[10px] font-sans border border-wa-border rounded-lg"
+                            x-text="$t('add_step_video')"></button>
+                        <button
                             @click="addStep('CONDITIONAL_TIME')"
                             class="px-3 py-1 bg-wa-green/20 text-wa-green hover:bg-wa-green/40 text-[10px] font-sans border border-wa-green/30 rounded-lg"
                             title="Time Condition"
@@ -393,7 +397,17 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                     />
                                                 </template>
                                                 <template
-                                                    x-if="step.type === 'IMAGE'"
+                                                    x-if="step.type === 'VIDEO' && step.mediaUrl"
+                                                >
+                                                    <video
+                                                        :src="step.mediaUrl"
+                                                        class="h-24 opacity-50 hover:opacity-100 transition-opacity border border-wa-border rounded-lg"
+                                                        muted
+                                                        preload="metadata"
+                                                    ></video>
+                                                </template>
+                                                <template
+                                                    x-if="step.type === 'IMAGE' || step.type === 'VIDEO'"
                                                 >
                                                     <textarea
                                                         x-model="step.content"
@@ -631,6 +645,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                                     <select x-model="branch.type" class="bg-wa-bg-hover text-[10px] text-gray-300 border border-wa-border px-2 py-1 w-full focus:outline-none font-mono rounded-lg">
                                                                         <option value="TEXT">TEXT</option>
                                                                         <option value="IMAGE">IMAGE</option>
+                                                                        <option value="VIDEO">VIDEO</option>
                                                                         <option value="AUDIO">AUDIO</option>
                                                                     </select>
                                                                 </div>
@@ -666,6 +681,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                                                                     <select x-model="step.metadata.fallback.type" class="bg-wa-bg-hover text-[10px] text-gray-300 border border-wa-border px-2 py-1 w-full focus:outline-none font-mono rounded-lg">
                                                                         <option value="TEXT">TEXT</option>
                                                                         <option value="IMAGE">IMAGE</option>
+                                                                        <option value="VIDEO">VIDEO</option>
                                                                         <option value="AUDIO">AUDIO</option>
                                                                     </select>
                                                                 </div>

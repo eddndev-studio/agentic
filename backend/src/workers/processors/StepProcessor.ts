@@ -87,6 +87,13 @@ export class StepProcessor {
                         console.warn(`[StepProcessor] IMAGE step ${step.id} has no mediaUrl, skipping`);
                     }
                     break;
+                case 'VIDEO':
+                    if (step.mediaUrl) {
+                        await sendMessage(botId, target, { video: { url: step.mediaUrl }, caption: interpolate(step.content || "") });
+                    } else {
+                        console.warn(`[StepProcessor] VIDEO step ${step.id} has no mediaUrl, skipping`);
+                    }
+                    break;
                 case 'AUDIO':
                 case 'PTT':
                     if (step.mediaUrl) {
@@ -198,6 +205,9 @@ export class StepProcessor {
                 } else if (branch.type === 'IMAGE' && branch.mediaUrl) {
                     payload.image = { url: branch.mediaUrl };
                     payload.caption = branch.content || "";
+                } else if (branch.type === 'VIDEO' && branch.mediaUrl) {
+                    payload.video = { url: branch.mediaUrl };
+                    payload.caption = branch.content || "";
                 } else if (branch.type === 'AUDIO' && branch.mediaUrl) {
                     payload.audio = { url: branch.mediaUrl };
                     payload.ptt = true; // Default to PTT for audio in conditional for now
@@ -219,6 +229,9 @@ export class StepProcessor {
                 payload.text = fb.content || "";
             } else if (fb.type === 'IMAGE' && fb.mediaUrl) {
                 payload.image = { url: fb.mediaUrl };
+                payload.caption = fb.content || "";
+            } else if (fb.type === 'VIDEO' && fb.mediaUrl) {
+                payload.video = { url: fb.mediaUrl };
                 payload.caption = fb.content || "";
             } else if (fb.type === 'AUDIO' && fb.mediaUrl) {
                 payload.audio = { url: fb.mediaUrl };
