@@ -444,16 +444,23 @@ export class ToolExecutor {
             }
 
             case "set_notification_channel": {
-                await prisma.bot.update({
+                // Add this session to notification channels (avoid duplicates)
+                const currentBot = await prisma.bot.findUnique({
                     where: { id: botId },
-                    data: { notificationSessionId: session.id },
+                    select: { notificationSessionIds: true },
                 });
-                // Invalidate notification cache
+                const currentIds = currentBot?.notificationSessionIds || [];
+                if (!currentIds.includes(session.id)) {
+                    await prisma.bot.update({
+                        where: { id: botId },
+                        data: { notificationSessionIds: [...currentIds, session.id] },
+                    });
+                }
                 const { notificationService } = await import("../../services/notification.service");
                 notificationService.invalidateCache(botId);
                 return {
                     success: true,
-                    data: `Canal de notificaciones configurado: ${session.name || session.identifier}`,
+                    data: `Canal de notificaciones agregado: ${session.name || session.identifier}`,
                 };
             }
 
@@ -465,42 +472,42 @@ export class ToolExecutor {
 
                 const bot = await prisma.bot.findUnique({
                     where: { id: botId },
-                    select: { notificationSessionId: true },
+                    select: { notificationSessionIds: true },
                 });
 
-                if (!bot?.notificationSessionId) {
+                if (!bot?.notificationSessionIds?.length) {
                     return {
                         success: false,
-                        data: "No hay canal de notificaciones configurado. Usa set_notification_channel primero.",
+                        data: "No hay canales de notificaciones configurados. Usa set_notification_channel primero.",
                     };
-                }
-
-                const notifSession = await prisma.session.findUnique({
-                    where: { id: bot.notificationSessionId },
-                });
-
-                if (!notifSession) {
-                    return { success: false, data: "La sesión de notificaciones ya no existe." };
                 }
 
                 const priority = args.priority || "normal";
                 const prefix = priority === "high" ? "\u{1F534}" : priority === "low" ? "\u26AA" : "\u{1F535}";
                 const formattedMsg = `${prefix} *Notificación*\n\n${notifyMessage}`;
 
-                await BaileysService.sendMessage(botId, notifSession.identifier, { text: formattedMsg });
+                // Send to all notification channels
+                let sentCount = 0;
+                for (const notifSessionId of bot.notificationSessionIds) {
+                    const notifSession = await prisma.session.findUnique({ where: { id: notifSessionId } });
+                    if (!notifSession) continue;
 
-                await prisma.message.create({
-                    data: {
-                        sessionId: notifSession.id,
-                        content: formattedMsg,
-                        fromMe: true,
-                        type: "TEXT",
-                        externalId: `notify_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                        sender: notifSession.identifier || "bot",
-                    },
-                });
+                    await BaileysService.sendMessage(botId, notifSession.identifier, { text: formattedMsg });
 
-                return { success: true, data: `Notificación enviada al canal (${priority}).` };
+                    await prisma.message.create({
+                        data: {
+                            sessionId: notifSession.id,
+                            content: formattedMsg,
+                            fromMe: true,
+                            type: "TEXT",
+                            externalId: `notify_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                            sender: notifSession.identifier || "bot",
+                        },
+                    });
+                    sentCount++;
+                }
+
+                return { success: true, data: `Notificación enviada a ${sentCount} canal(es) (${priority}).` };
             }
 
             default:

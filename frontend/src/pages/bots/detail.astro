@@ -558,37 +558,36 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 <h3 class="text-xs text-wa-green tracking-normal mb-6">Notificaciones</h3>
 
                 <form @submit.prevent="saveNotifications()" class="space-y-6">
-                    <!-- Notification Channel -->
+                    <!-- Notification Channels -->
                     <div>
-                        <label class="block text-xs font-sans text-wa-text-secondary mb-2">Canal de notificaciones</label>
+                        <label class="block text-xs font-sans text-wa-text-secondary mb-2">Canales de notificaciones</label>
 
-                        <!-- Current channel display -->
-                        <template x-if="notificationConfig.notificationSessionId">
-                            <div class="flex items-center gap-3 p-3 bg-wa-bg-deep border border-wa-green/30 rounded-lg">
-                                <span class="w-2 h-2 bg-wa-green rounded-full"></span>
-                                <span class="text-sm text-white flex-1" x-text="notificationChannelName"></span>
-                                <button type="button" @click="clearNotifChannel()"
-                                    class="text-xs text-red-400 hover:text-red-300 transition-colors">Quitar</button>
-                            </div>
-                        </template>
+                        <!-- Current channels list -->
+                        <div class="space-y-2 mb-2">
+                            <template x-for="(ch, idx) in notificationChannels" :key="ch.id">
+                                <div class="flex items-center gap-3 p-3 bg-wa-bg-deep border border-wa-green/30 rounded-lg">
+                                    <span class="w-2 h-2 bg-wa-green rounded-full"></span>
+                                    <span class="text-sm text-white flex-1" x-text="ch.name"></span>
+                                    <button type="button" @click="removeNotifChannel(idx)"
+                                        class="text-xs text-red-400 hover:text-red-300 transition-colors">Quitar</button>
+                                </div>
+                            </template>
+                        </div>
 
-                        <!-- No channel -->
-                        <template x-if="!notificationConfig.notificationSessionId">
-                            <div class="space-y-2">
-                                <p class="text-xs text-wa-text-secondary">Sin canal configurado. Selecciona una sesión para recibir notificaciones.</p>
-                                <button type="button" @click="loadNotifSessions()"
-                                    class="px-4 py-2 text-xs border border-wa-border text-wa-text-secondary hover:text-white hover:border-wa-green/30 transition-colors rounded-lg">
-                                    Seleccionar sesión
-                                </button>
-                            </div>
-                        </template>
+                        <div x-show="notificationChannels.length === 0" class="text-xs text-wa-text-secondary mb-2">Sin canales configurados.</div>
+
+                        <button type="button" @click="loadNotifSessions()"
+                            class="px-4 py-2 text-xs border border-wa-border text-wa-text-secondary hover:text-white hover:border-wa-green/30 transition-colors rounded-lg">
+                            + Agregar canal
+                        </button>
 
                         <!-- Session picker -->
                         <template x-if="notifSessions.length > 0">
                             <div class="mt-2 space-y-1 max-h-48 overflow-y-auto border border-wa-border rounded-lg p-2 bg-wa-bg-deep">
                                 <template x-for="sess in notifSessions" :key="sess.id">
-                                    <button type="button" @click="selectNotifSession(sess.id)"
+                                    <button type="button" @click="addNotifChannel(sess.id)"
                                         class="w-full text-left px-3 py-2 text-sm text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover rounded transition-colors"
+                                        :class="notificationConfig.notificationSessionIds.includes(sess.id) ? 'opacity-40 pointer-events-none' : ''"
                                         x-text="sess.name || sess.identifier"></button>
                                 </template>
                             </div>
@@ -1661,11 +1660,11 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             // Notification Config State
             savingNotifications: false,
             notificationConfig: {
-                notificationSessionId: null as string | null,
+                notificationSessionIds: [] as string[],
                 notificationEvents: [] as string[],
                 notificationLabels: [] as string[],
             },
-            notificationChannelName: "",
+            notificationChannels: [] as { id: string; name: string }[],
             notifSessions: [] as any[],
 
             // Automations State
@@ -1751,7 +1750,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
                     // Initialize notification config from bot data
                     this.notificationConfig = {
-                        notificationSessionId: this.bot.notificationSessionId || null,
+                        notificationSessionIds: this.bot.notificationSessionIds || [],
                         notificationEvents: this.bot.notificationEvents || [],
                         notificationLabels: this.bot.notificationLabels || [],
                     };
@@ -1763,17 +1762,17 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         console.error("Failed to load labels", e);
                     }
 
-                    // Load notification channel name if set
-                    if (this.notificationConfig.notificationSessionId) {
+                    // Load notification channel names
+                    if (this.notificationConfig.notificationSessionIds.length > 0) {
                         try {
                             const sessData = await ApiClient.get(`/sessions?botId=${this.botId}`);
-                            const sessions = sessData.data || sessData;
-                            const notifSess = (Array.isArray(sessions) ? sessions : []).find(
-                                (s: any) => s.id === this.notificationConfig.notificationSessionId
-                            );
-                            this.notificationChannelName = notifSess?.name || notifSess?.identifier || "Sesión desconocida";
+                            const sessions = Array.isArray(sessData.data || sessData) ? (sessData.data || sessData) : [];
+                            this.notificationChannels = this.notificationConfig.notificationSessionIds.map((sid: string) => {
+                                const s = sessions.find((sess: any) => sess.id === sid);
+                                return { id: sid, name: s?.name || s?.identifier || "Sesión desconocida" };
+                            });
                         } catch (e) {
-                            this.notificationChannelName = "Error al cargar";
+                            this.notificationChannels = this.notificationConfig.notificationSessionIds.map((sid: string) => ({ id: sid, name: "Error al cargar" }));
                         }
                     }
 
@@ -2119,16 +2118,17 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 }
             },
 
-            selectNotifSession(sessionId: string) {
-                this.notificationConfig.notificationSessionId = sessionId;
+            addNotifChannel(sessionId: string) {
+                if (this.notificationConfig.notificationSessionIds.includes(sessionId)) return;
+                this.notificationConfig.notificationSessionIds.push(sessionId);
                 const sess = this.notifSessions.find((s: any) => s.id === sessionId);
-                this.notificationChannelName = sess?.name || sess?.identifier || sessionId;
-                this.notifSessions = []; // Close picker
+                this.notificationChannels.push({ id: sessionId, name: sess?.name || sess?.identifier || sessionId });
+                this.notifSessions = [];
             },
 
-            clearNotifChannel() {
-                this.notificationConfig.notificationSessionId = null;
-                this.notificationChannelName = "";
+            removeNotifChannel(index: number) {
+                this.notificationConfig.notificationSessionIds.splice(index, 1);
+                this.notificationChannels.splice(index, 1);
             },
 
             toggleNotifEvent(eventType: string) {
@@ -2153,7 +2153,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 this.savingNotifications = true;
                 try {
                     const updated = await ApiClient.put(`/bots/${this.botId}`, {
-                        notificationSessionId: this.notificationConfig.notificationSessionId,
+                        notificationSessionIds: this.notificationConfig.notificationSessionIds,
                         notificationEvents: this.notificationConfig.notificationEvents,
                         notificationLabels: this.notificationConfig.notificationLabels,
                     });

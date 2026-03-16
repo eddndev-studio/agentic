@@ -44,9 +44,9 @@ model Bot {
   tools                 Tool[]
   triggers              Trigger[]
   automations           Automation[]
-  notificationSessionId String?
-  notificationEvents    String[]     @default([])
-  notificationLabels    String[]     @default([])
+  notificationSessionIds String[]    @default([])
+  notificationEvents     String[]    @default([])
+  notificationLabels     String[]    @default([])
   templateId            String?
   template              Template?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
   botVariables          Json?        @default("{}")
