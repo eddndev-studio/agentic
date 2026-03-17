@@ -164,9 +164,7 @@ import Layout from "../../layouts/Layout.astro";
 											? 'bg-red-500/15 border-red-500/40 text-red-400'
 											: 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
 									>
-										<span class="text-purple-400 font-mono text-[10px]">{{</span>
-										<span x-text="v.name"></span>
-										<span class="text-purple-400 font-mono text-[10px]">}}</span>
+										<span class="text-purple-400 font-mono text-[10px]" x-text="'{{' + v.name + '}}'"></span>
 										<span x-show="aiConfig.ignoredLabels.includes(v.name)" class="text-red-400/70 text-[10px] ml-0.5">&#10005;</span>
 									</button>
 								</template>
