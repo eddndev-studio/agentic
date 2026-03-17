@@ -4,6 +4,7 @@ import { BaileysService } from "../services/baileys.service";
 import { aiEngine } from "../core/ai";
 import { flowEngine } from "../core/flow";
 import { ToolExecutor } from "../core/ai/ToolExecutor";
+import { eventBus } from "../services/event-bus";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const sessionController = new Elysia({ prefix: "/sessions" })
@@ -149,6 +150,30 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             create: { sessionId: id, labelId: label.id },
         });
 
+        // Mark as handled to prevent duplicate from Baileys labels.association
+        BaileysService.markLabelEventHandled(session.botId, id, label.id, 'add');
+
+        // Emit event for notifications + flow triggers
+        const updatedLabels = await prisma.sessionLabel.findMany({
+            where: { sessionId: id },
+            include: { label: true },
+        });
+        eventBus.emitBotEvent({
+            type: 'session:labels',
+            botId: session.botId,
+            sessionId: id,
+            labels: updatedLabels.map(sl => ({
+                id: sl.label.id, name: sl.label.name,
+                color: sl.label.color, waLabelId: sl.label.waLabelId,
+            })),
+            changedLabelId: label.id,
+            changedLabelName: label.name,
+            action: 'add',
+        });
+        flowEngine.processLabelEvent(id, session.botId, label.name, 'add').catch(err => {
+            console.error(`[SessionController] FlowEngine label trigger error:`, err);
+        });
+
         return { success: true, sessionLabel };
     }, {
         params: t.Object({ id: t.String() }),
@@ -183,6 +208,30 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         // Remove from DB
         await prisma.sessionLabel.deleteMany({
             where: { sessionId: id, labelId: label.id },
+        });
+
+        // Mark as handled to prevent duplicate from Baileys labels.association
+        BaileysService.markLabelEventHandled(session.botId, id, label.id, 'remove');
+
+        // Emit event for notifications + flow triggers
+        const remainingLabels = await prisma.sessionLabel.findMany({
+            where: { sessionId: id },
+            include: { label: true },
+        });
+        eventBus.emitBotEvent({
+            type: 'session:labels',
+            botId: session.botId,
+            sessionId: id,
+            labels: remainingLabels.map(sl => ({
+                id: sl.label.id, name: sl.label.name,
+                color: sl.label.color, waLabelId: sl.label.waLabelId,
+            })),
+            changedLabelId: label.id,
+            changedLabelName: label.name,
+            action: 'remove',
+        });
+        flowEngine.processLabelEvent(id, session.botId, label.name, 'remove').catch(err => {
+            console.error(`[SessionController] FlowEngine label trigger error:`, err);
         });
 
         return { success: true };

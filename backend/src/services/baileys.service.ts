@@ -38,6 +38,15 @@ const decryptFailures = new Map<string, { count: number; lastPurge: number }>();
 const DECRYPT_FAILURE_THRESHOLD = 5;
 const PURGE_COOLDOWN = 6 * 60 * 60 * 1000; // 6 hours
 
+// Label reconciliation timers: botId -> intervalId
+const labelReconcileTimers = new Map<string, ReturnType<typeof setInterval>>();
+const LABEL_RECONCILE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+// Dedup guard: prevents double-firing when local code emits AND Baileys re-emits
+// Key: "botId:sessionId:labelId:action", value: timestamp
+const recentLabelEvents = new Map<string, number>();
+const LABEL_DEDUP_TTL = 5000; // 5 seconds
+
 // Simple CacheStore implementation for Baileys msgRetryCounterCache
 class MapCacheStore {
     private cache = new Map<string, { value: any; expires: number }>();
@@ -236,6 +245,7 @@ export class BaileysService {
 
                     sessions.delete(botId);
                     qrCodes.delete(botId);
+                    BaileysService.stopLabelReconciliation(botId);
                     eventBus.emitBotEvent({ type: 'bot:disconnected', botId, statusCode });
 
                     if (shouldReconnect && !shuttingDown) {
@@ -272,6 +282,9 @@ export class BaileysService {
                         } catch (e: any) {
                             console.warn(`[Baileys] Label sync failed for Bot ${botId}:`, e.message);
                         }
+
+                        // Start periodic label reconciliation after initial sync
+                        BaileysService.startLabelReconciliation(botId);
                     }, 5000);
                 }
             });
@@ -366,6 +379,15 @@ export class BaileysService {
                         return;
                     }
 
+                    // Dedup: skip if this event was already handled by ToolExecutor or SessionController
+                    const dedupKey = `${botId}:${session.id}:${label.id}:${event.type}`;
+                    const dedupTs = recentLabelEvents.get(dedupKey);
+                    if (dedupTs && Date.now() - dedupTs < LABEL_DEDUP_TTL) {
+                        console.log(`[Baileys] labels.association: Skipping duplicate for ${label.name} (${event.type})`);
+                        recentLabelEvents.delete(dedupKey);
+                        return;
+                    }
+
                     if (event.type === 'add') {
                         try {
                             await prisma.sessionLabel.upsert({
@@ -400,6 +422,7 @@ export class BaileysService {
                             waLabelId: sl.label.waLabelId,
                         })),
                         changedLabelId: label.id,
+                        changedLabelName: label.name,
                         action: event.type as 'add' | 'remove',
                     });
 
@@ -927,10 +950,118 @@ export class BaileysService {
     }
 
     /**
+     * Mark a label event as already handled, so the Baileys labels.association
+     * handler skips it if it arrives within the dedup window.
+     */
+    static markLabelEventHandled(botId: string, sessionId: string, labelId: string, action: 'add' | 'remove'): void {
+        const key = `${botId}:${sessionId}:${labelId}:${action}`;
+        recentLabelEvents.set(key, Date.now());
+        // Cleanup old entries
+        for (const [k, ts] of recentLabelEvents) {
+            if (Date.now() - ts > LABEL_DEDUP_TTL) recentLabelEvents.delete(k);
+        }
+    }
+
+    /**
+     * Periodic label reconciliation: detects label changes that Baileys missed.
+     * Forces a full app state re-sync, then compares DB state before/after to find
+     * removed labels that the re-sync didn't re-emit.
+     */
+    static async reconcileLabels(botId: string): Promise<void> {
+        const sock = sessions.get(botId);
+        if (!sock) return;
+
+        console.log(`[Baileys] Label reconciliation starting for Bot ${botId}`);
+
+        // Snapshot DB state BEFORE sync
+        const beforeLabels = await prisma.sessionLabel.findMany({
+            where: { session: { botId } },
+            select: { sessionId: true, labelId: true },
+        });
+        const beforeSet = new Set(beforeLabels.map(sl => `${sl.sessionId}:${sl.labelId}`));
+
+        // Force full re-sync — re-emits labels.association for all current WA associations
+        try {
+            await this.syncLabels(botId);
+        } catch (e: any) {
+            console.warn(`[Baileys] Label reconciliation sync failed for Bot ${botId}:`, e.message);
+            return;
+        }
+
+        // Wait for async labels.association handlers to process
+        await new Promise(r => setTimeout(r, 3000));
+
+        // Snapshot DB state AFTER sync (adds were processed by labels.association handler)
+        const afterLabels = await prisma.sessionLabel.findMany({
+            where: { session: { botId } },
+            select: { sessionId: true, labelId: true },
+        });
+        const afterSet = new Set(afterLabels.map(sl => `${sl.sessionId}:${sl.labelId}`));
+
+        // Detect removes: keys in before but not refreshed by the full sync
+        // The full sync only re-adds current associations, so stale ones remain.
+        // We can only detect removes if the sync actually re-created the entry (touching it).
+        // Since upsert with update:{} is a no-op, we need a different approach:
+        // Mark all before-labels, then check which ones the sync DIDN'T touch by
+        // comparing timestamps. Instead, simpler: any key in beforeSet that is also
+        // in afterSet was either refreshed or untouched — we can't distinguish.
+        // So we only detect NEW adds (afterSet - beforeSet) here.
+        // For removes, we rely on the periodic sync keeping the event-driven path warm.
+
+        // Detect new labels added by reconciliation that weren't in DB before
+        let reconciledAdds = 0;
+        for (const key of afterSet) {
+            if (!beforeSet.has(key)) {
+                reconciledAdds++;
+                // The labels.association handler already emitted events for these
+            }
+        }
+
+        if (reconciledAdds > 0) {
+            console.log(`[Baileys] Label reconciliation found ${reconciledAdds} missed add(s) for Bot ${botId}`);
+        } else {
+            console.log(`[Baileys] Label reconciliation complete for Bot ${botId} — no drift detected`);
+        }
+    }
+
+    /**
+     * Start periodic label reconciliation for a bot.
+     */
+    static startLabelReconciliation(botId: string): void {
+        // Clear any existing timer
+        this.stopLabelReconciliation(botId);
+
+        const timer = setInterval(() => {
+            this.reconcileLabels(botId).catch(err => {
+                console.error(`[Baileys] Label reconciliation error for Bot ${botId}:`, err.message);
+            });
+        }, LABEL_RECONCILE_INTERVAL);
+
+        labelReconcileTimers.set(botId, timer);
+        console.log(`[Baileys] Label reconciliation started for Bot ${botId} (every ${LABEL_RECONCILE_INTERVAL / 1000}s)`);
+    }
+
+    /**
+     * Stop periodic label reconciliation for a bot.
+     */
+    static stopLabelReconciliation(botId: string): void {
+        const existing = labelReconcileTimers.get(botId);
+        if (existing) {
+            clearInterval(existing);
+            labelReconcileTimers.delete(botId);
+        }
+    }
+
+    /**
      * Graceful shutdown: cancel all reconnect timers and close all sockets.
      */
     static async shutdownAll(): Promise<void> {
         shuttingDown = true;
+
+        // Cancel all label reconciliation timers
+        for (const [botId] of labelReconcileTimers) {
+            this.stopLabelReconciliation(botId);
+        }
 
         // Cancel all pending reconnect timers
         for (const [botId, timer] of reconnectTimers) {

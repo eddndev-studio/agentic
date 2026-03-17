@@ -138,6 +138,7 @@ class NotificationService {
             case 'session:labels': {
                 const changedLabel = event.changedLabelId
                     ? event.labels.find((l: any) => l.id === event.changedLabelId)
+                      ?? (event.changedLabelName ? { name: event.changedLabelName } : null)
                     : null;
                 const actionText = event.action === 'add' ? 'asignada' : event.action === 'remove' ? 'removida' : 'actualizada';
                 const detail = changedLabel

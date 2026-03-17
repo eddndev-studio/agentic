@@ -2,6 +2,8 @@ import { prisma } from "../../services/postgres.service";
 import { BaileysService } from "../../services/baileys.service";
 import { BotConfigService, type BotWithTemplate } from "../../services/bot-config.service";
 import { isBuiltinTool } from "./builtin-tools";
+import { eventBus } from "../../services/event-bus";
+import { flowEngine } from "../flow";
 import type { Session } from "@prisma/client";
 
 export interface ToolResult {
@@ -271,6 +273,30 @@ export class ToolExecutor {
                     create: { sessionId: session.id, labelId: label.id },
                 });
 
+                // Mark as handled to prevent duplicate from Baileys labels.association
+                BaileysService.markLabelEventHandled(botId, session.id, label.id, 'add');
+
+                // Emit event for notifications + flow triggers
+                const addedLabels = await prisma.sessionLabel.findMany({
+                    where: { sessionId: session.id },
+                    include: { label: true },
+                });
+                eventBus.emitBotEvent({
+                    type: 'session:labels',
+                    botId,
+                    sessionId: session.id,
+                    labels: addedLabels.map(sl => ({
+                        id: sl.label.id, name: sl.label.name,
+                        color: sl.label.color, waLabelId: sl.label.waLabelId,
+                    })),
+                    changedLabelId: label.id,
+                    changedLabelName: label.name,
+                    action: 'add',
+                });
+                flowEngine.processLabelEvent(session.id, botId, label.name, 'add').catch(err => {
+                    console.error(`[ToolExecutor] FlowEngine label trigger error:`, err);
+                });
+
                 return { success: true, data: `Etiqueta '${label.name}' asignada al chat.` };
             }
 
@@ -299,6 +325,30 @@ export class ToolExecutor {
 
                 // Remove from DB
                 await prisma.sessionLabel.delete({ where: { id: existingAssoc.id } });
+
+                // Mark as handled to prevent duplicate from Baileys labels.association
+                BaileysService.markLabelEventHandled(botId, session.id, labelToRemove.id, 'remove');
+
+                // Emit event for notifications + flow triggers
+                const remainingLabels = await prisma.sessionLabel.findMany({
+                    where: { sessionId: session.id },
+                    include: { label: true },
+                });
+                eventBus.emitBotEvent({
+                    type: 'session:labels',
+                    botId,
+                    sessionId: session.id,
+                    labels: remainingLabels.map(sl => ({
+                        id: sl.label.id, name: sl.label.name,
+                        color: sl.label.color, waLabelId: sl.label.waLabelId,
+                    })),
+                    changedLabelId: labelToRemove.id,
+                    changedLabelName: labelToRemove.name,
+                    action: 'remove',
+                });
+                flowEngine.processLabelEvent(session.id, botId, labelToRemove.name, 'remove').catch(err => {
+                    console.error(`[ToolExecutor] FlowEngine label trigger error:`, err);
+                });
 
                 return { success: true, data: `Etiqueta '${labelToRemove.name}' removida del chat.` };
             }
