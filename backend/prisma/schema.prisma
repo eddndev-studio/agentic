@@ -61,6 +61,8 @@ model Template {
   temperature   Float        @default(0.7)
   thinkingLevel String?      @default("LOW")
   messageDelay  Int          @default(0)
+  excludeGroups Boolean      @default(false)
+  ignoredLabels String[]     @default([])
   variables     Json?        @default("[]")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

@@ -1,13 +1,14 @@
 import { prisma } from "../../services/postgres.service";
 import { redis } from "../../services/redis.service";
 import { aiEngine } from "../../core/ai";
+import { BotConfigService } from "../../services/bot-config.service";
 import type { Message } from "@prisma/client";
 
 export class AutomationProcessor {
     static async processAll(): Promise<void> {
         const automations = await prisma.automation.findMany({
             where: { enabled: true },
-            include: { bot: true },
+            include: { bot: { include: { template: true } } },
         });
 
         const active = automations.filter(a => a.bot && !a.bot.paused && a.bot.aiEnabled);
@@ -30,7 +31,7 @@ export class AutomationProcessor {
 
     /** Sessions that HAVE the specified label and are inactive */
     private static async processWithLabel(automation: any): Promise<void> {
-        const ignoredLabels: string[] = automation.bot.ignoredLabels || [];
+        const ignoredLabels: string[] = await BotConfigService.resolveIgnoredLabels(automation.bot);
 
         const sessionLabels = await prisma.sessionLabel.findMany({
             where: {

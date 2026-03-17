@@ -69,7 +69,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
 
     // Update template
     .put("/:id", async ({ params: { id }, body, set }) => {
-        const { name, description, aiEnabled, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, variables } = body as any;
+        const { name, description, aiEnabled, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, excludeGroups, ignoredLabels, variables } = body as any;
 
         try {
             const data: any = {};
@@ -82,6 +82,8 @@ export const templateController = new Elysia({ prefix: "/templates" })
             if (temperature !== undefined) data.temperature = temperature;
             if (thinkingLevel !== undefined) data.thinkingLevel = thinkingLevel;
             if (messageDelay !== undefined) data.messageDelay = messageDelay;
+            if (excludeGroups !== undefined) data.excludeGroups = excludeGroups;
+            if (ignoredLabels !== undefined) data.ignoredLabels = ignoredLabels;
             if (variables !== undefined) data.variables = variables;
 
             return await prisma.template.update({ where: { id }, data });

@@ -100,6 +100,39 @@ export class BotConfigService {
     }
 
     /**
+     * Resolves excludeGroups. Uses template value if available, otherwise bot's own.
+     */
+    static resolveExcludeGroups(bot: BotWithTemplate): boolean {
+        return bot.template?.excludeGroups ?? bot.excludeGroups;
+    }
+
+    /**
+     * Resolves ignored label IDs.
+     * - Standalone bots: returns bot.ignoredLabels directly (already label IDs).
+     * - Template bots: template.ignoredLabels stores variable names that reference
+     *   label-type variables. Resolves variable → label name → label ID.
+     */
+    static async resolveIgnoredLabels(bot: BotWithTemplate): Promise<string[]> {
+        if (!bot.templateId || !bot.template) return bot.ignoredLabels;
+
+        const templateIgnored = (bot.template.ignoredLabels as string[]) || [];
+        if (templateIgnored.length === 0) return [];
+
+        const botVars = this.getVariables(bot);
+        const labelNames = templateIgnored
+            .map(varName => botVars[varName])
+            .filter(Boolean);
+
+        if (labelNames.length === 0) return [];
+
+        const labels = await prisma.label.findMany({
+            where: { botId: bot.id, name: { in: labelNames, mode: 'insensitive' }, deleted: false },
+            select: { id: true },
+        });
+        return labels.map(l => l.id);
+    }
+
+    /**
      * Returns the bot's variables dictionary for interpolation.
      */
     static getVariables(bot: Bot): Record<string, string> {

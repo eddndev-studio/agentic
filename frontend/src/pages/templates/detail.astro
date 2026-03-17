@@ -129,6 +129,60 @@ import Layout from "../../layouts/Layout.astro";
 						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_description')"></label>
 						<textarea x-model="aiConfig.description" rows="2" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white resize-none"></textarea>
 					</div>
+
+					<!-- Filters Section -->
+					<div class="border-t border-wa-border pt-6 mt-6">
+						<h4 class="text-xs text-wa-green tracking-normal mb-4">Filtros</h4>
+
+						<!-- Exclude Groups Toggle -->
+						<div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
+							<div class="min-w-0">
+								<label class="text-sm font-medium text-white" x-text="$t('exclude_groups')">Excluir grupos</label>
+								<p class="text-xs text-wa-text-secondary mt-1" x-text="$t('exclude_groups_desc')"></p>
+							</div>
+							<button type="button" @click="aiConfig.excludeGroups = !aiConfig.excludeGroups"
+								class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
+								:class="aiConfig.excludeGroups ? 'bg-wa-green' : 'bg-gray-700'">
+								<span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
+									:class="aiConfig.excludeGroups ? 'left-6' : 'left-0.5'"></span>
+							</button>
+						</div>
+
+						<!-- Ignored Labels (variable picker) -->
+						<div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+							<label class="block text-sm font-medium text-white mb-1" x-text="$t('ignored_labels')">Etiquetas ignoradas</label>
+							<p class="text-xs text-wa-text-secondary mb-3">
+								Selecciona variables de tipo etiqueta. Los bots que usen esta plantilla ignorarán sesiones con esas etiquetas.
+							</p>
+
+							<div class="flex flex-wrap gap-2">
+								<template x-for="v in labelVarDefs" :key="v.name">
+									<button type="button"
+										@click="toggleIgnoredLabelVar(v.name)"
+										class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+										:class="aiConfig.ignoredLabels.includes(v.name)
+											? 'bg-red-500/15 border-red-500/40 text-red-400'
+											: 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+									>
+										<span class="text-purple-400 font-mono text-[10px]">{{</span>
+										<span x-text="v.name"></span>
+										<span class="text-purple-400 font-mono text-[10px]">}}</span>
+										<span x-show="aiConfig.ignoredLabels.includes(v.name)" class="text-red-400/70 text-[10px] ml-0.5">&#10005;</span>
+									</button>
+								</template>
+								<span x-show="labelVarDefs.length === 0" class="text-wa-text-secondary text-xs py-1">
+									No hay variables de tipo etiqueta definidas. Agrégalas en la pestaña Variables.
+								</span>
+							</div>
+
+							<div x-show="aiConfig.ignoredLabels.length > 0" class="mt-3 pt-2 border-t border-wa-border/50">
+								<p class="text-[10px] text-red-400/70">
+									<span x-text="aiConfig.ignoredLabels.length"></span> variable(s) ignorada(s) — la IA no responderá a sesiones con esas etiquetas
+								</p>
+							</div>
+						</div>
+					</div>
+
 					<button type="submit" :disabled="savingAI" class="px-6 py-2 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="savingAI ? $t('saving') : $t('save_changes')">Save</button>
 				</form>
 			</div>
@@ -332,6 +386,8 @@ import Layout from "../../layouts/Layout.astro";
 				temperature: 0.7,
 				thinkingLevel: "LOW",
 				messageDelay: 0,
+				excludeGroups: false,
+				ignoredLabels: [] as string[],
 			},
 
 			async init() {
@@ -355,6 +411,8 @@ import Layout from "../../layouts/Layout.astro";
 						temperature: this.template.temperature ?? 0.7,
 						thinkingLevel: this.template.thinkingLevel || "LOW",
 						messageDelay: this.template.messageDelay ?? 0,
+						excludeGroups: this.template.excludeGroups ?? false,
+						ignoredLabels: this.template.ignoredLabels || [],
 					};
 					this.templateVars = Array.isArray(this.template.variables) ? [...this.template.variables] : [];
 					this.ready = true;
@@ -438,6 +496,19 @@ import Layout from "../../layouts/Layout.astro";
 					window.location.href = "/templates";
 				} catch (e: any) {
 					alert("Error: " + (e.message || "Unknown"));
+				}
+			},
+
+			get labelVarDefs(): { name: string; type: string }[] {
+				return this.templateVars.filter((v: any) => v.type === 'label');
+			},
+
+			toggleIgnoredLabelVar(varName: string) {
+				const idx = this.aiConfig.ignoredLabels.indexOf(varName);
+				if (idx >= 0) {
+					this.aiConfig.ignoredLabels.splice(idx, 1);
+				} else {
+					this.aiConfig.ignoredLabels.push(varName);
 				}
 			},
 		}));

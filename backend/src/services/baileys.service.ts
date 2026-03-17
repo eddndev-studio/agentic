@@ -17,6 +17,7 @@ import QRCode from 'qrcode';
 import { prisma } from './postgres.service';
 import { aiEngine } from '../core/ai';
 import { flowEngine } from '../core/flow';
+import { BotConfigService } from './bot-config.service';
 import { MessageAccumulator } from './accumulator.service';
 import { eventBus } from './event-bus';
 import { SessionStatus, Platform } from '@prisma/client';
@@ -459,12 +460,12 @@ export class BaileysService {
 
             // --- chats.upsert: create sessions for existing chats on reconnect ---
             sock.ev.on('chats.upsert', async (chats: any[]) => {
-                const bot = await prisma.bot.findUnique({ where: { id: botId } });
+                const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
                 for (const chat of chats) {
                     try {
                         if (!chat.id || chat.id === 'status@broadcast') continue;
                         const jid = jidNormalizedUser(chat.id);
-                        if (bot?.excludeGroups && jid.endsWith('@g.us')) continue;
+                        if (bot && BotConfigService.resolveExcludeGroups(bot) && jid.endsWith('@g.us')) continue;
                         const name = chat.name || chat.subject || undefined;
                         const { session, created } = await BaileysService.upsertSessionFromChat(botId, jid, name);
                         if (created && session) {
@@ -479,7 +480,7 @@ export class BaileysService {
             // --- messaging-history.set: bulk import historical messages ---
             sock.ev.on('messaging-history.set', async (data: any) => {
                 const { chats: histChats, contacts: histContacts, messages: histMessages } = data;
-                const bot = await prisma.bot.findUnique({ where: { id: botId } });
+                const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
                 console.log(`[Baileys] History sync for Bot ${botId}: ${histChats?.length || 0} chats, ${histContacts?.length || 0} contacts, ${histMessages?.length || 0} messages`);
 
                 // Upsert sessions from chats
@@ -488,7 +489,7 @@ export class BaileysService {
                         try {
                             if (!chat.id || chat.id === 'status@broadcast') continue;
                             const jid = jidNormalizedUser(chat.id);
-                            if (bot?.excludeGroups && jid.endsWith('@g.us')) continue;
+                            if (bot && BotConfigService.resolveExcludeGroups(bot) && jid.endsWith('@g.us')) continue;
                             await BaileysService.upsertSessionFromChat(botId, jid, chat.name || chat.subject);
                         } catch {}
                     }
@@ -510,7 +511,7 @@ export class BaileysService {
                         try {
                             if (!msg.message || !msg.key?.remoteJid || msg.key.remoteJid === 'status@broadcast') continue;
                             const jid = jidNormalizedUser(msg.key.remoteJid);
-                            if (bot?.excludeGroups && jid.endsWith('@g.us')) continue;
+                            if (bot && BotConfigService.resolveExcludeGroups(bot) && jid.endsWith('@g.us')) continue;
 
                             const session = await prisma.session.findUnique({
                                 where: { botId_identifier: { botId, identifier: jid } },
@@ -630,8 +631,8 @@ export class BaileysService {
             const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
             if (!bot) return;
 
-            // Filter: exclude group messages
-            if (bot.excludeGroups && from.endsWith("@g.us")) {
+            // Filter: exclude group messages (resolved from template or bot)
+            if (BotConfigService.resolveExcludeGroups(bot) && from.endsWith("@g.us")) {
                 console.log(`[Filter] Group message from ${from} excluded for Bot ${bot.name}`);
                 return;
             }
@@ -693,14 +694,15 @@ export class BaileysService {
                 return;
             }
 
-            // Filter: skip AI for sessions with ignored labels
-            if (bot.ignoredLabels.length > 0) {
+            // Filter: skip AI for sessions with ignored labels (resolved from template or bot)
+            const ignoredLabelIds = await BotConfigService.resolveIgnoredLabels(bot);
+            if (ignoredLabelIds.length > 0) {
                 const sessionLabels = await prisma.sessionLabel.findMany({
                     where: { sessionId: session.id },
                     select: { labelId: true },
                 });
                 const labelIds = sessionLabels.map(sl => sl.labelId);
-                if (labelIds.some(id => bot.ignoredLabels.includes(id))) {
+                if (labelIds.some(id => ignoredLabelIds.includes(id))) {
                     console.log(`[Filter] Session ${from} has ignored label, skipping AI for Bot ${bot.name}`);
                     return;
                 }
