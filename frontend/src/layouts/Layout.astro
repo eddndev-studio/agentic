@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { ViewTransitions } from "astro:transitions";
 import Sidebar from "../components/Sidebar.astro";
 
 interface Props {
@@ -68,6 +69,7 @@ const { title } = Astro.props;
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title} | Agentic</title>
+		<ViewTransitions />
 	</head>
 	<body
 		class="selection:bg-wa-green selection:text-white relative bg-wa-bg-deep min-h-screen text-wa-text-primary font-sans antialiased overflow-x-hidden"
@@ -77,12 +79,14 @@ const { title } = Astro.props;
 		x-show="!$store.auth.loading"
 		x-init="$el.style.display = ''"
 	>
-		<!-- Main Content -->
-		<main class="p-4 md:p-8 pb-24 max-w-7xl mx-auto min-h-screen">
+		<!-- Main Content (animated on navigation) -->
+		<main class="p-4 md:p-8 pb-24 max-w-7xl mx-auto min-h-screen" transition:animate="fade">
 			<slot />
 		</main>
 
-		<!-- Bottom Navigation -->
-		<Sidebar />
+		<!-- Bottom Navigation (persists across pages) -->
+		<div transition:persist="bottomnav">
+			<Sidebar />
+		</div>
 	</body>
 </html>
