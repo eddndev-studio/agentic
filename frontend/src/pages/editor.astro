@@ -359,6 +359,12 @@ import MediaPicker from "../components/MediaPicker.astro";
                                             x-text="step.type"
                                             class="text-wa-green font-bold shrink-0"
                                         ></span>
+                                        <label class="flex items-center gap-1 cursor-pointer">
+                                            <input type="checkbox" x-model="step.aiOnly"
+                                                   class="accent-wa-green w-3 h-3" />
+                                            <span class="text-purple-400 text-[10px] font-semibold"
+                                                  x-text="$t('ai_only')"></span>
+                                        </label>
                                         <div
                                             class="flex gap-2 sm:gap-4 items-center flex-wrap"
                                         >
@@ -1072,6 +1078,7 @@ import MediaPicker from "../components/MediaPicker.astro";
                     mediaUrl: "",
                     delayMs: 1000,
                     jitterPct: 10,
+                    aiOnly: false,
                     order: this.flow.steps.length,
                 };
                 if (type === 'TOOL') {

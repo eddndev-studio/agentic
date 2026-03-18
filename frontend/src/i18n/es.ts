@@ -59,6 +59,7 @@ export default {
     add_step_video: "Video",
     delay: "Retraso",
     remove: "Eliminar",
+    ai_only: "Solo IA",
     empty_flow: "Secuencia de Flujo Vacía",
     no_triggers: "Sin disparadores definidos.",
     select_media: "Seleccionar Multimedia",

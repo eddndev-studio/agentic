@@ -144,6 +144,7 @@ model Step {
   delayMs   Int      @default(1000)
   jitterPct Int      @default(10)
   order     Int
+  aiOnly    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   flow      Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)

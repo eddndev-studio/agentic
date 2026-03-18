@@ -66,6 +66,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                             delayMs: s.delayMs || 1000,
                             jitterPct: s.jitterPct ?? 10,
                             order: index,
+                            aiOnly: s.aiOnly ?? false,
                             metadata: s.metadata ?? undefined
                         }))
                     },
@@ -119,6 +120,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                                                             delayMs: s.delayMs || 1000,
                                                             jitterPct: s.jitterPct ?? 10,
                                                             order: index,
+                                                            aiOnly: s.aiOnly ?? false,
                                                             metadata: s.metadata ?? undefined
                                                         }))                        },
                         triggers: {
@@ -187,6 +189,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                             delayMs: s.delayMs,
                             jitterPct: s.jitterPct,
                             order: s.order,
+                            aiOnly: s.aiOnly,
                             metadata: s.metadata ?? undefined
                         }))
                     },

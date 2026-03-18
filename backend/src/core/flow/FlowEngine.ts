@@ -209,7 +209,9 @@ export class FlowEngine {
 
         if (!execution || execution.status !== 'RUNNING') return;
 
-        const step = execution.flow.steps.find(s => s.order === stepOrder);
+        const step = execution.flow.steps
+            .sort((a, b) => a.order - b.order)
+            .find(s => s.order >= stepOrder && !s.aiOnly);
 
         if (!step) {
             console.log(`[FlowEngine] Flow ${execution.flowId} finished.`);
