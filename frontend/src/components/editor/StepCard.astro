@@ -1,0 +1,97 @@
+---
+import StepToolConfig from './StepToolConfig.astro';
+import StepTimeConfig from './StepTimeConfig.astro';
+---
+
+<!-- Step card (used inside x-for="(step, index) in flow.steps") -->
+<div class="step-card bg-wa-bg-deep border border-wa-border rounded-lg p-3 relative group hover:border-wa-green/50 transition-colors overflow-hidden"
+     :data-id="index">
+
+    <!-- Header: drag + type + aiOnly badge + delay summary + delete -->
+    <div class="flex items-center gap-2 text-xs mb-2">
+        <div class="cursor-move handle text-wa-text-secondary hover:text-white select-none shrink-0 py-1" title="Drag">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
+        </div>
+        <span x-text="step.type" class="text-wa-green font-bold text-[11px] shrink-0"></span>
+        <span x-show="step.aiOnly" class="text-purple-400 bg-purple-500/10 text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0">AI</span>
+        <div class="flex-1"></div>
+        <button @click="stepSettings === index ? stepSettings = -1 : stepSettings = index"
+                class="text-wa-text-secondary hover:text-white transition-colors p-0.5 shrink-0" title="Settings">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        </button>
+        <button @click="removeStep(index)" class="text-red-500/40 hover:text-red-400 transition-colors p-0.5 shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+        </button>
+    </div>
+
+    <!-- Expandable settings row -->
+    <div x-show="stepSettings === index" x-transition class="flex flex-wrap gap-3 mb-3 p-2 bg-wa-bg-hover/30 rounded-lg border border-wa-border/50 text-[10px]">
+        <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" x-model="step.aiOnly" class="accent-wa-green w-3 h-3" />
+            <span class="text-purple-400 font-semibold" x-text="$t('ai_only')"></span>
+        </label>
+        <label class="flex items-center gap-1 text-wa-text-secondary">
+            <span x-text="$t('delay')"></span>
+            <input type="number" x-model="step.delayMs" class="w-16 bg-wa-bg-hover text-center px-1 py-0.5 border border-wa-border focus:outline-none focus:border-wa-green text-white rounded" min="0" />
+            <span>ms</span>
+        </label>
+        <label class="flex items-center gap-1 text-wa-text-secondary">
+            <span>&#177;</span>
+            <input type="number" x-model="step.jitterPct" class="w-12 bg-wa-bg-hover text-center px-1 py-0.5 border border-wa-border focus:outline-none focus:border-wa-green text-white rounded" min="0" max="100" />
+            <span>%</span>
+        </label>
+    </div>
+
+    <!-- Step Content by Type -->
+    <div>
+        <!-- TEXT -->
+        <template x-if="step.type === 'TEXT'">
+            <textarea
+                x-model="step.content"
+                rows="2"
+                class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-sm focus:border-wa-green focus:outline-none resize-none overflow-hidden font-mono leading-relaxed min-h-[50px] rounded-lg"
+                :placeholder="$t('message_content')"
+                x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
+                @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+            ></textarea>
+        </template>
+
+        <!-- MEDIA (IMAGE, AUDIO, VIDEO, DOCUMENT) -->
+        <template x-if="['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT'].includes(step.type)">
+            <div>
+                <div class="flex flex-col sm:flex-row gap-2 mb-2">
+                    <input type="text" x-model="step.mediaUrl"
+                        class="flex-1 min-w-0 bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg"
+                        :placeholder="$t('media_url_placeholder')" />
+                    <button @click="selectMedia(index)"
+                        class="bg-wa-bg-hover px-3 py-2 sm:py-0 text-xs hover:bg-wa-bg-hover/80 shrink-0 rounded-lg transition-colors"
+                        x-text="$t('select_media')"></button>
+                </div>
+                <template x-if="step.type === 'IMAGE' && step.mediaUrl">
+                    <img :src="step.mediaUrl" class="h-20 opacity-50 hover:opacity-100 transition-opacity border border-wa-border rounded-lg" />
+                </template>
+                <template x-if="step.type === 'VIDEO' && step.mediaUrl">
+                    <video :src="step.mediaUrl" class="h-20 opacity-50 hover:opacity-100 transition-opacity border border-wa-border rounded-lg" muted preload="metadata"></video>
+                </template>
+                <template x-if="step.type === 'IMAGE' || step.type === 'VIDEO'">
+                    <textarea x-model="step.content" rows="1"
+                        class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs mt-1 focus:border-wa-green focus:outline-none resize-none overflow-hidden font-mono leading-relaxed min-h-[36px] rounded-lg"
+                        :placeholder="$t('caption_placeholder')"
+                        x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
+                        @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                    ></textarea>
+                </template>
+            </div>
+        </template>
+
+        <!-- TOOL -->
+        <template x-if="step.type === 'TOOL'">
+            <StepToolConfig />
+        </template>
+
+        <!-- CONDITIONAL_TIME -->
+        <template x-if="step.type === 'CONDITIONAL_TIME'">
+            <StepTimeConfig />
+        </template>
+    </div>
+</div>

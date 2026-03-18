@@ -1,0 +1,49 @@
+<div class="bg-wa-bg-deep p-3 border border-wa-border rounded-lg">
+    <h4 class="text-[10px] text-wa-text-secondary font-sans mb-2">
+        Flow Limits & Rules
+    </h4>
+    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-3">
+        <div class="flex-1">
+            <label class="block text-[10px] text-wa-text-secondary font-sans mb-1" x-text="$t('usage_limit')"></label>
+            <select
+                x-model="flow.usageLimit"
+                class="w-full bg-wa-bg-hover text-gray-200 text-xs px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green rounded-lg">
+                <option value="0" class="bg-wa-bg-deep text-gray-300">&#8734;</option>
+                <option value="1" class="bg-wa-bg-deep text-gray-300">1x</option>
+                <option value="3" class="bg-wa-bg-deep text-gray-300">3x</option>
+                <option value="5" class="bg-wa-bg-deep text-gray-300">5x</option>
+                <option value="10" class="bg-wa-bg-deep text-gray-300">10x</option>
+            </select>
+        </div>
+        <div class="flex-1">
+            <label class="block text-[10px] text-wa-text-secondary font-sans mb-1" x-text="$t('cooldown')"></label>
+            <select
+                x-model="flow.cooldownMs"
+                class="w-full bg-wa-bg-hover text-gray-200 text-xs px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green rounded-lg">
+                <option value="0" class="bg-wa-bg-deep text-gray-300">-</option>
+                <option value="60000" class="bg-wa-bg-deep text-gray-300">1min</option>
+                <option value="300000" class="bg-wa-bg-deep text-gray-300">5min</option>
+                <option value="3600000" class="bg-wa-bg-deep text-gray-300">1h</option>
+                <option value="86400000" class="bg-wa-bg-deep text-gray-300">24h</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Mutual Exclusions -->
+    <div x-show="availableFlows.length > 0 || true">
+        <label class="block text-[10px] text-wa-text-secondary font-sans mb-2" title="If any of these flows have run in the session, this flow will NOT run.">
+            MUTUALLY EXCLUSIVE WITH:
+        </label>
+        <div class="max-h-32 overflow-y-auto space-y-1 pr-1 bg-wa-bg-deep/50 p-2 border border-wa-border rounded-lg">
+            <template x-for="f in availableFlows" :key="f.id">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-wa-bg-hover p-1 rounded">
+                    <input type="checkbox" :value="f.id" x-model="flow.excludesFlows" class="accent-wa-green">
+                    <span class="text-[10px] font-mono text-gray-300 truncate" x-text="f.name"></span>
+                </label>
+            </template>
+            <div x-show="availableFlows.length === 0" class="text-[10px] text-wa-text-secondary font-sans italic p-1">
+                (No other flows available)
+            </div>
+        </div>
+    </div>
+</div>

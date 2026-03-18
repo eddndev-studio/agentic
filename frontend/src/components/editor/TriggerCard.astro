@@ -1,0 +1,84 @@
+<!-- Trigger card (used inside x-for="(trigger, index) in flow.triggers") -->
+<div class="bg-wa-bg-deep p-3 border border-wa-border space-y-3 rounded-lg"
+     :class="trigger.triggerType === 'LABEL' ? 'border-purple-500/30' : ''">
+    <!-- Header: Type badge + Delete -->
+    <div class="flex justify-between items-center">
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded"
+              :class="trigger.triggerType === 'LABEL' ? 'text-purple-400 bg-purple-500/10' : 'text-wa-green bg-wa-green/10'"
+              x-text="trigger.triggerType === 'LABEL' ? 'LABEL' : 'TEXT'"></span>
+        <button
+            @click="removeTrigger(index)"
+            class="text-red-500/50 hover:text-red-400 p-1 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+    </div>
+
+    <!-- TEXT trigger UI -->
+    <template x-if="!trigger.triggerType || trigger.triggerType === 'TEXT'">
+        <div class="space-y-2">
+            <div class="flex gap-2 items-center">
+                <select x-model="trigger.scope"
+                    class="bg-wa-bg-hover text-[10px] font-mono text-wa-green px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green flex-1 min-w-0 rounded-lg">
+                    <option value="INCOMING">INCOMING</option>
+                    <option value="OUTGOING">OUTGOING</option>
+                    <option value="BOTH">ALL</option>
+                </select>
+                <select x-model="trigger.matchType"
+                    class="bg-wa-bg-hover text-xs font-mono text-white px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green flex-1 min-w-0 rounded-lg">
+                    <template x-for="opt in ['CONTAINS', 'EXACT', 'REGEX']">
+                        <option :value="opt" x-text="opt" class="bg-wa-bg-deep"></option>
+                    </template>
+                </select>
+            </div>
+            <textarea x-model="trigger.keyword" rows="1"
+                class="w-full bg-wa-bg-hover text-sm px-3 py-2 border border-wa-border focus:outline-none focus:border-wa-green resize-none overflow-hidden font-mono leading-relaxed min-h-[36px] max-w-full rounded-lg"
+                :placeholder="$t('keyword') || 'Enter keyword or regex...'"
+                x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
+                @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+            ></textarea>
+        </div>
+    </template>
+
+    <!-- LABEL trigger UI -->
+    <template x-if="trigger.triggerType === 'LABEL'">
+        <div class="space-y-2">
+            <select x-model="trigger.labelAction"
+                class="w-full bg-wa-bg-hover text-xs font-mono px-2 py-1.5 border border-purple-500/30 focus:outline-none focus:border-purple-400 text-purple-300 rounded-lg">
+                <option value="ADD">Cuando se asigna</option>
+                <option value="REMOVE">Cuando se remueve</option>
+            </select>
+
+            <!-- Template mode: variable selector -->
+            <template x-if="templateId">
+                <div>
+                    <select @change="trigger.labelName = $event.target.value"
+                        class="w-full bg-wa-bg-hover text-xs font-mono px-2 py-1.5 border border-purple-500/30 focus:outline-none focus:border-purple-400 text-purple-300 rounded-lg">
+                        <option value="" :selected="!trigger.labelName">Seleccionar variable...</option>
+                        <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
+                            <option :value="'{{' + v.name + '}}'" x-text="v.name" :selected="trigger.labelName === '{{' + v.name + '}}'"></option>
+                        </template>
+                    </select>
+                    <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta en la plantilla.</p>
+                </div>
+            </template>
+
+            <!-- Bot mode: label picker -->
+            <template x-if="!templateId">
+                <div class="flex flex-wrap gap-1.5">
+                    <template x-for="lbl in botLabels" :key="lbl.id">
+                        <button type="button"
+                            @click="trigger.labelName = (trigger.labelName === lbl.name ? '' : lbl.name)"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+                            :class="trigger.labelName === lbl.name
+                                ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
+                                : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'">
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                            <span x-text="lbl.name"></span>
+                        </button>
+                    </template>
+                    <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
+                </div>
+            </template>
+        </div>
+    </template>
+</div>

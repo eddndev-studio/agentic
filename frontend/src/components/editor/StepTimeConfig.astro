@@ -1,0 +1,82 @@
+<!-- Conditional Time step configuration (used inside x-if="step.type === 'CONDITIONAL_TIME'" within a step x-for) -->
+<div class="space-y-3" x-init="!step.metadata && (step.metadata = { branches: [], fallback: { type: 'TEXT', content: '' } })">
+
+    <template x-if="step.metadata && step.metadata.branches && step.metadata.fallback">
+        <div>
+            <div class="text-[10px] text-wa-text-secondary font-sans mb-2" x-text="$t('time_condition_desc')"></div>
+
+            <!-- Branches -->
+            <template x-for="(branch, bIndex) in step.metadata.branches" :key="bIndex">
+                <div class="bg-wa-bg-deep/50 border border-wa-border p-2 sm:p-3 relative group/branch rounded-lg mb-2">
+                    <div class="flex flex-wrap justify-between items-center mb-2 gap-2">
+                        <div class="flex gap-2 items-center min-w-0">
+                            <input type="time" x-model="branch.startTime" class="bg-wa-bg-hover text-white text-xs px-1.5 sm:px-2 py-1 border border-wa-border focus:border-wa-green focus:outline-none rounded-lg font-mono min-w-0">
+                            <span class="text-wa-text-secondary text-xs shrink-0">-</span>
+                            <input type="time" x-model="branch.endTime" class="bg-wa-bg-hover text-white text-xs px-1.5 sm:px-2 py-1 border border-wa-border focus:border-wa-green focus:outline-none rounded-lg font-mono min-w-0">
+                        </div>
+                        <button @click="step.metadata.branches.splice(bIndex, 1)" class="text-red-500/50 hover:text-red-400 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+
+                    <div class="flex gap-2 mb-2">
+                        <select x-model="branch.type" class="bg-wa-bg-hover text-[10px] text-gray-300 border border-wa-border px-2 py-1 w-full focus:outline-none font-mono rounded-lg">
+                            <option value="TEXT">TEXT</option>
+                            <option value="IMAGE">IMAGE</option>
+                            <option value="VIDEO">VIDEO</option>
+                            <option value="AUDIO">AUDIO</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-2">
+                        <textarea
+                            x-model="branch.content"
+                            rows="2"
+                            class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs focus:border-wa-green focus:outline-none resize-none overflow-hidden min-h-[36px] font-mono rounded-lg"
+                            :placeholder="branch.type === 'TEXT' ? $t('message_content') : $t('caption_placeholder')"
+                            x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = ($el.scrollHeight + 2) + 'px' })"
+                            @input="$el.style.height = 'auto'; $el.style.height = ($el.scrollHeight + 2) + 'px'"></textarea>
+
+                        <div x-show="branch.type !== 'TEXT'" class="flex flex-col sm:flex-row gap-2">
+                            <input type="text" x-model="branch.mediaUrl" class="flex-1 min-w-0 bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg" :placeholder="$t('media_url_placeholder')">
+                            <button @click="selectMediaForBranch(index, bIndex)" class="bg-wa-bg-hover px-2 py-2 sm:py-0 text-[10px] hover:bg-wa-bg-hover/80 shrink-0 rounded-lg" x-text="$t('pick')"></button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <button @click="step.metadata.branches.push({ startTime: '09:00', endTime: '18:00', type: 'TEXT', content: '' })" class="w-full py-2 border border-dashed border-wa-border text-xs text-wa-text-secondary hover:text-wa-green hover:border-wa-green/30 transition-colors font-sans rounded-lg" x-text="'+ ' + $t('add_time_range')"></button>
+
+            <div x-show="hasOverlap(step.metadata.branches)" class="text-red-400 text-[10px] font-sans mt-2 bg-red-500/10 p-2 border border-red-500/20 flex items-center gap-2 rounded-lg">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path></svg>
+                <span x-text="$t('overlap_warning')"></span>
+            </div>
+
+            <!-- Fallback -->
+            <div class="mt-4 pt-4 border-t border-wa-border">
+                <div class="text-[10px] text-wa-text-secondary mb-2 font-sans" x-text="$t('fallback_label')"></div>
+                <div class="bg-wa-bg-deep/50 p-2 sm:p-3 border border-wa-border rounded-lg">
+                    <div class="flex gap-2 mb-2">
+                        <select x-model="step.metadata.fallback.type" class="bg-wa-bg-hover text-[10px] text-gray-300 border border-wa-border px-2 py-1 w-full focus:outline-none font-mono rounded-lg">
+                            <option value="TEXT">TEXT</option>
+                            <option value="IMAGE">IMAGE</option>
+                            <option value="VIDEO">VIDEO</option>
+                            <option value="AUDIO">AUDIO</option>
+                        </select>
+                    </div>
+                    <textarea
+                        x-model="step.metadata.fallback.content"
+                        rows="2"
+                        class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs focus:border-wa-green focus:outline-none resize-none overflow-hidden min-h-[36px] font-mono rounded-lg"
+                        :placeholder="$t('message_content')"
+                        x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = ($el.scrollHeight + 2) + 'px' })"
+                        @input="$el.style.height = 'auto'; $el.style.height = ($el.scrollHeight + 2) + 'px'"></textarea>
+                    <div x-show="step.metadata.fallback.type !== 'TEXT'" class="flex flex-col sm:flex-row gap-2 mt-2">
+                        <input type="text" x-model="step.metadata.fallback.mediaUrl" class="flex-1 min-w-0 bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg" :placeholder="$t('media_url_placeholder')">
+                        <button @click="selectMediaForFallback(index)" class="bg-wa-bg-hover px-2 py-2 sm:py-0 text-[10px] hover:bg-wa-bg-hover/80 shrink-0 rounded-lg" x-text="$t('pick')"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>

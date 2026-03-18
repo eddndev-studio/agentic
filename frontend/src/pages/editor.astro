@@ -1,6 +1,10 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import MediaPicker from "../components/MediaPicker.astro";
+import StepCard from "../components/editor/StepCard.astro";
+import StepAddBar from "../components/editor/StepAddBar.astro";
+import TriggerCard from "../components/editor/TriggerCard.astro";
+import FlowSettings from "../components/editor/FlowSettings.astro";
 ---
 
 <Layout title="Flow Editor">
@@ -57,713 +61,84 @@ import MediaPicker from "../components/MediaPicker.astro";
             </div>
         </header>
 
-        <div
-            class="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 min-h-0"
-        >
-            <!-- LEFT PANEL: Triggers & Settings -->
-            <div class="col-span-1 overflow-y-auto pr-0 lg:pr-2 max-h-[40vh] lg:max-h-none">
-                <!-- Triggers -->
-                <div
-                    class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 mb-6 relative group rounded-xl"
-                >
-                    <div
-                        class="text-xs text-wa-green mb-4 flex justify-between items-center"
-                    >
-                        <span x-text="$t('triggers')"></span>
-                        <div class="flex gap-1">
-                            <button
-                                @click="addTrigger('TEXT')"
-                                class="px-2 py-1 flex items-center gap-1 bg-wa-green/20 hover:bg-wa-green/40 text-wa-green hover:text-white text-[10px] leading-none transition-colors rounded-lg"
-                                title="Text trigger">+ Text</button>
-                            <button
-                                @click="addTrigger('LABEL')"
-                                class="px-2 py-1 flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/40 text-purple-400 hover:text-white text-[10px] leading-none transition-colors rounded-lg"
-                                title="Label trigger">+ Label</button>
-                        </div>
-                    </div>
+        <!-- Layout: Steps first, Triggers sidebar -->
+        <div class="flex-1 overflow-hidden flex flex-col lg:flex-row gap-4 min-h-0">
 
-                    <!-- Flow Global Settings -->
-                    <div class="mb-4 bg-wa-bg-deep p-3 border border-wa-border rounded-lg">
-                        <h4
-                            class="text-[10px] text-wa-text-secondary font-sans mb-2"
-                        >
-                            Flow Limits & Rules
-                        </h4>
-                        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-3">
-                            <div class="flex-1">
-                                <label
-                                    class="block text-[10px] text-wa-text-secondary font-sans mb-1"
-                                    x-text="$t('usage_limit')"></label>
-                                <select
-                                    x-model="flow.usageLimit"
-                                    class="w-full bg-wa-bg-hover text-gray-200 text-xs px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green rounded-lg"
-                                >
-                                    <option
-                                        value="0"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >&#8734;</option
-                                    >
-                                    <option
-                                        value="1"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >1x</option
-                                    >
-                                    <option
-                                        value="3"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >3x</option
-                                    >
-                                    <option
-                                        value="5"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >5x</option
-                                    >
-                                    <option
-                                        value="10"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >10x</option
-                                    >
-                                </select>
-                            </div>
-                            <div class="flex-1">
-                                <label
-                                    class="block text-[10px] text-wa-text-secondary font-sans mb-1"
-                                    x-text="$t('cooldown')"></label>
-                                <select
-                                    x-model="flow.cooldownMs"
-                                    class="w-full bg-wa-bg-hover text-gray-200 text-xs px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green rounded-lg"
-                                >
-                                    <option
-                                        value="0"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >-</option
-                                    >
-                                    <option
-                                        value="60000"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >1min</option
-                                    >
-                                    <option
-                                        value="300000"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >5min</option
-                                    >
-                                    <option
-                                        value="3600000"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >1h</option
-                                    >
-                                    <option
-                                        value="86400000"
-                                        class="bg-wa-bg-deep text-gray-300"
-                                        >24h</option
-                                    >
-                                </select>
-                            </div>
-                        </div>
+            <!-- Main: Steps area -->
+            <div class="flex-1 flex flex-col min-h-0">
 
-                        <!-- Mutual Exclusions -->
-                         <div x-show="availableFlows.length > 0 || true">
-                            <label class="block text-[10px] text-wa-text-secondary font-sans mb-2" title="If any of these flows have run in the session, this flow will NOT run.">
-                                MUTUALLY EXCLUSIVE WITH:
-                            </label>
-                            <div class="max-h-32 overflow-y-auto space-y-1 pr-1 bg-wa-bg-deep/50 p-2 sm:p-2 border border-wa-border rounded-lg">
-                                <template x-for="f in availableFlows" :key="f.id">
-                                    <label class="flex items-center gap-2 cursor-pointer hover:bg-wa-bg-hover p-1 rounded">
-                                        <input type="checkbox" :value="f.id" x-model="flow.excludesFlows" class="accent-wa-green">
-                                        <span class="text-[10px] font-mono text-gray-300 truncate" x-text="f.name"></span>
-                                    </label>
-                                </template>
-                                <div x-show="availableFlows.length === 0" class="text-[10px] text-wa-text-secondary font-sans italic p-1">
-                                    (No other flows available)
+                <!-- Triggers collapsible (mobile only) -->
+                <div class="lg:hidden mb-3">
+                    <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden">
+                        <button @click="showTriggers = !showTriggers"
+                                class="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
+                                :class="showTriggers ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                <span class="text-sm font-semibold" x-text="$t('triggers') + ' (' + flow.triggers.length + ')'"></span>
+                            </div>
+                            <svg class="w-4 h-4 text-wa-text-secondary transition-transform duration-200" :class="showTriggers && 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="grid transition-[grid-template-rows] duration-300 ease-out"
+                             :style="showTriggers ? 'grid-template-rows:1fr' : 'grid-template-rows:0fr'">
+                            <div class="overflow-hidden">
+                                <div class="p-4 space-y-3">
+                                    <FlowSettings />
+                                    <div class="flex gap-1 mb-2">
+                                        <button @click="addTrigger('TEXT')" class="px-2 py-1 flex items-center gap-1 bg-wa-green/20 hover:bg-wa-green/40 text-wa-green hover:text-white text-[10px] leading-none transition-colors rounded-lg">+ Text</button>
+                                        <button @click="addTrigger('LABEL')" class="px-2 py-1 flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/40 text-purple-400 hover:text-white text-[10px] leading-none transition-colors rounded-lg">+ Label</button>
+                                    </div>
+                                    <template x-for="(trigger, index) in flow.triggers" :key="index">
+                                        <TriggerCard />
+                                    </template>
+                                    <div x-show="flow.triggers.length === 0" class="text-center py-3 text-wa-text-secondary text-xs" x-text="$t('no_triggers')"></div>
                                 </div>
                             </div>
-                         </div>
-                    </div>
+                        </div>
+                    </section>
+                </div>
 
-                    <div class="space-y-3">
-                        <template
-                            x-for="(trigger, index) in flow.triggers"
-                            :key="index"
-                        >
-                            <div
-                                class="bg-wa-bg-deep p-4 border border-wa-border space-y-3 rounded-lg"
-                                :class="trigger.triggerType === 'LABEL' ? 'border-purple-500/30' : ''"
-                            >
-                                <!-- Header: Type badge + Delete -->
-                                <div class="flex justify-between items-center">
-                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded"
-                                        :class="trigger.triggerType === 'LABEL' ? 'text-purple-400 bg-purple-500/10' : 'text-wa-green bg-wa-green/10'"
-                                        x-text="trigger.triggerType === 'LABEL' ? 'LABEL' : 'TEXT'"></span>
-                                    <button
-                                        @click="removeTrigger(index)"
-                                        class="text-red-500 hover:text-red-400 font-bold px-2 py-1 text-lg"
-                                        >&times;</button>
-                                </div>
+                <!-- Add step bar (desktop: inline above steps) -->
+                <div class="hidden lg:flex items-center justify-between gap-2 mb-3 shrink-0">
+                    <h3 class="text-xs text-wa-green font-sans" x-text="$t('sequence_steps')"></h3>
+                    <StepAddBar />
+                </div>
 
-                                <!-- TEXT trigger UI -->
-                                <template x-if="!trigger.triggerType || trigger.triggerType === 'TEXT'">
-                                    <div class="space-y-3">
-                                        <div class="flex gap-2 items-center">
-                                            <select x-model="trigger.scope"
-                                                class="bg-wa-bg-hover text-[10px] font-mono text-wa-green px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green flex-1 min-w-0 rounded-lg">
-                                                <option value="INCOMING">INCOMING</option>
-                                                <option value="OUTGOING">OUTGOING</option>
-                                                <option value="BOTH">ALL</option>
-                                            </select>
-                                            <select x-model="trigger.matchType"
-                                                class="bg-wa-bg-hover text-xs font-mono text-white px-2 py-1.5 border border-wa-border focus:outline-none focus:border-wa-green flex-1 min-w-0 rounded-lg">
-                                                <template x-for="opt in ['CONTAINS', 'EXACT', 'REGEX']">
-                                                    <option :value="opt" x-text="opt" class="bg-wa-bg-deep"></option>
-                                                </template>
-                                            </select>
-                                        </div>
-                                        <textarea x-model="trigger.keyword" rows="1"
-                                            class="w-full bg-wa-bg-hover text-sm px-3 py-2 border border-wa-border focus:outline-none focus:border-wa-green resize-none overflow-hidden font-mono leading-relaxed min-h-[40px] max-w-full rounded-lg"
-                                            :placeholder="$t('keyword') || 'Enter keyword or regex...'"
-                                            x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
-                                            @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
-                                        ></textarea>
-                                    </div>
-                                </template>
-
-                                <!-- LABEL trigger UI -->
-                                <template x-if="trigger.triggerType === 'LABEL'">
-                                    <div class="space-y-3">
-                                        <select x-model="trigger.labelAction"
-                                            class="w-full bg-wa-bg-hover text-xs font-mono px-2 py-1.5 border border-purple-500/30 focus:outline-none focus:border-purple-400 text-purple-300 rounded-lg">
-                                            <option value="ADD">Cuando se asigna</option>
-                                            <option value="REMOVE">Cuando se remueve</option>
-                                        </select>
-
-                                        <!-- Template mode: variable selector -->
-                                        <template x-if="templateId">
-                                            <div>
-                                                <select @change="trigger.labelName = $event.target.value"
-                                                    class="w-full bg-wa-bg-hover text-xs font-mono px-2 py-1.5 border border-purple-500/30 focus:outline-none focus:border-purple-400 text-purple-300 rounded-lg">
-                                                    <option value="" :selected="!trigger.labelName">Seleccionar variable...</option>
-                                                    <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
-                                                        <option :value="'{{' + v.name + '}}'" x-text="v.name" :selected="trigger.labelName === '{{' + v.name + '}}'"></option>
-                                                    </template>
-                                                </select>
-                                                <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta en la plantilla.</p>
-                                            </div>
-                                        </template>
-
-                                        <!-- Bot mode: label picker -->
-                                        <template x-if="!templateId">
-                                            <div class="flex flex-wrap gap-2">
-                                                <template x-for="lbl in botLabels" :key="lbl.id">
-                                                    <button type="button"
-                                                        @click="trigger.labelName = (trigger.labelName === lbl.name ? '' : lbl.name)"
-                                                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
-                                                        :class="trigger.labelName === lbl.name
-                                                            ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
-                                                            : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'">
-                                                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
-                                                        <span x-text="lbl.name"></span>
-                                                    </button>
-                                                </template>
-                                                <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
+                <!-- Steps container (scrollable) -->
+                <div class="flex-1 overflow-y-auto bg-wa-bg-panel/30 border border-wa-border rounded-xl relative">
+                    <div id="steps-container" class="p-3 sm:p-4 space-y-3 pb-24 lg:pb-6">
+                        <template x-for="(step, index) in flow.steps" :key="step.tempId || step.id || index">
+                            <StepCard />
                         </template>
 
-                        <div
-                            x-show="flow.triggers.length === 0"
-                            class="text-center py-4 text-wa-text-secondary text-xs font-sans"
-                            x-text="$t('no_triggers')"
-                        >
+                        <div x-show="flow.steps.length === 0" class="text-center py-12 text-wa-text-secondary">
+                            <p class="text-xs font-sans" x-text="$t('empty_flow')"></p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Sticky bottom bar (mobile only) -->
+                <div class="lg:hidden sticky bottom-0 bg-wa-bg-deep/95 backdrop-blur-sm border-t border-wa-border px-3 py-2.5 -mx-4 sm:-mx-6">
+                    <StepAddBar />
                 </div>
             </div>
 
-            <!-- RIGHT PANEL: Steps Builder -->
-            <div class="col-span-1 lg:col-span-2 flex flex-col h-full min-h-0">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 shrink-0">
-                    <h3
-                        class="text-xs text-wa-green font-sans"
-                        x-text="$t('sequence_steps')"
-                    >
-                    </h3>
-                    <div class="flex flex-wrap gap-2">
-                        <button
-                            @click="addStep('TEXT')"
-                            class="px-3 py-1 bg-wa-bg-hover hover:bg-wa-bg-hover text-[10px] font-sans border border-wa-border rounded-lg"
-                            x-text="$t('add_step_text')"></button>
-                        <button
-                            @click="addStep('IMAGE')"
-                            class="px-3 py-1 bg-wa-bg-hover hover:bg-wa-bg-hover text-[10px] font-sans border border-wa-border rounded-lg"
-                            x-text="$t('add_step_image')"></button>
-                        <button
-                            @click="addStep('AUDIO')"
-                            class="px-3 py-1 bg-wa-bg-hover hover:bg-wa-bg-hover text-[10px] font-sans border border-wa-border rounded-lg"
-                            x-text="$t('add_step_audio')"></button>
-                        <button
-                            @click="addStep('VIDEO')"
-                            class="px-3 py-1 bg-wa-bg-hover hover:bg-wa-bg-hover text-[10px] font-sans border border-wa-border rounded-lg"
-                            x-text="$t('add_step_video')"></button>
-                        <button
-                            @click="addStep('CONDITIONAL_TIME')"
-                            class="px-3 py-1 bg-wa-green/20 text-wa-green hover:bg-wa-green/40 text-[10px] font-sans border border-wa-green/30 rounded-lg"
-                            title="Time Condition"
-                        >🕒 TIME</button>
-                        <button
-                            @click="addStep('TOOL')"
-                            class="px-3 py-1 bg-purple-500/20 text-purple-400 hover:bg-purple-500/40 text-[10px] font-sans border border-purple-500/30 rounded-lg"
-                            title="Execute Tool"
-                        >⚡ TOOL</button>
-                    </div>
-                </div>
-
-                <div
-                    class="flex-1 overflow-y-auto bg-wa-bg-panel/30 border border-wa-border relative rounded-xl"
-                >
-                    <div id="steps-container" class="p-3 sm:p-6 space-y-4 pb-20">
-                        <template
-                            x-for="(step, index) in flow.steps"
-                            :key="step.tempId || step.id || index"
-                        >
-                            <div
-                                class="step-card bg-wa-bg-deep border border-wa-border rounded-lg p-3 sm:p-4 relative group hover:border-wa-green/50 transition-colors overflow-hidden"
-                                :data-id="index"
-                            >
-                                <!-- Reorder Controls -->
-                                <div
-                                    class="absolute left-2 top-4 flex flex-col gap-1 items-center z-10 w-6"
-                                >
-                                    <button
-                                        @click="moveUp(index)"
-                                        class="text-wa-text-secondary hover:text-wa-green text-[10px] leading-none p-1 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                                        :disabled="index === 0"
-                                    >▲</button>
-
-                                    <div class="text-wa-text-secondary cursor-move handle py-1 hover:text-white select-none" title="Drag">⋮⋮</div>
-
-                                    <button
-                                        @click="moveDown(index)"
-                                        class="text-wa-text-secondary hover:text-wa-green text-[10px] leading-none p-1 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                                        :disabled="index === flow.steps.length - 1"
-                                    >▼</button>
-                                </div>
-
-                                <div class="pl-8 sm:pl-10">
-                                    <div
-                                        class="flex flex-wrap justify-between text-xs font-sans text-wa-text-secondary mb-3 tracking-wide items-center gap-2"
-                                    >
-                                        <span
-                                            x-text="step.type"
-                                            class="text-wa-green font-bold shrink-0"
-                                        ></span>
-                                        <label class="flex items-center gap-1 cursor-pointer">
-                                            <input type="checkbox" x-model="step.aiOnly"
-                                                   class="accent-wa-green w-3 h-3" />
-                                            <span class="text-purple-400 text-[10px] font-semibold"
-                                                  x-text="$t('ai_only')"></span>
-                                        </label>
-                                        <div
-                                            class="flex gap-2 sm:gap-4 items-center flex-wrap"
-                                        >
-                                            <span
-                                                class="flex items-center gap-1 text-wa-text-secondary"
-                                            >
-                                                <span x-text="$t('delay')"
-                                                ></span>:
-                                                <input
-                                                    type="number"
-                                                    x-model="step.delayMs"
-                                                    class="w-14 sm:w-16 bg-wa-bg-hover text-center px-1 sm:px-2 py-1 border border-wa-border focus:outline-none focus:border-wa-green text-white rounded-lg"
-                                                    min="0"
-                                                /><span class="text-wa-text-secondary"
-                                                    >ms</span
-                                                >
-                                            </span>
-                                            <span
-                                                class="flex items-center gap-1 text-wa-text-secondary"
-                                            >
-                                                <span class="text-wa-text-secondary"
-                                                    >±</span
-                                                >
-                                                <input
-                                                    type="number"
-                                                    x-model="step.jitterPct"
-                                                    class="w-12 sm:w-14 bg-wa-bg-hover text-center px-1 sm:px-2 py-1 border border-wa-border focus:outline-none focus:border-wa-green text-white rounded-lg"
-                                                    min="0"
-                                                    max="100"
-                                                /><span class="text-wa-text-secondary"
-                                                    >%</span
-                                                >
-                                            </span>
-                                            <button
-                                                @click="removeStep(index)"
-                                                class="text-red-500 hover:text-white px-2 py-1 hover:bg-red-500/20 transition-colors rounded-lg"
-                                                x-text="$t('remove')"></button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Step Content -->
-                                    <div class="space-y-2">
-                                        <template x-if="step.type === 'TEXT'">
-                                            <textarea
-                                                x-model="step.content"
-                                                rows="2"
-                                                class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-sm focus:border-wa-green focus:outline-none resize-none overflow-hidden font-mono leading-relaxed min-h-[60px] rounded-lg"
-                                                :placeholder="$t('message_content')"
-                                                x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
-                                                @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
-                                            ></textarea>
-                                        </template>
-
-                                        <template
-                                            x-if="['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT'].includes(step.type)"
-                                        >
-                                            <div>
-                                                <div class="flex flex-col sm:flex-row gap-2 mb-2">
-                                                    <input
-                                                        type="text"
-                                                        x-model="step.mediaUrl"
-                                                        class="flex-1 min-w-0 bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg"
-                                                        :placeholder="$t('media_url_placeholder')"
-                                                    />
-                                                    <button
-                                                        @click="selectMedia(index)"
-                                                        class="bg-wa-bg-hover px-3 py-2 sm:py-0 text-xs hover:bg-wa-bg-hover shrink-0 rounded-lg"
-                                                        x-text="$t('select_media')"
-                                                    ></button>
-                                                </div>
-                                                <template
-                                                    x-if="step.type === 'IMAGE' && step.mediaUrl"
-                                                >
-                                                    <img
-                                                        :src="step.mediaUrl"
-                                                        class="h-24 opacity-50 hover:opacity-100 transition-opacity border border-wa-border rounded-lg"
-                                                    />
-                                                </template>
-                                                <template
-                                                    x-if="step.type === 'VIDEO' && step.mediaUrl"
-                                                >
-                                                    <video
-                                                        :src="step.mediaUrl"
-                                                        class="h-24 opacity-50 hover:opacity-100 transition-opacity border border-wa-border rounded-lg"
-                                                        muted
-                                                        preload="metadata"
-                                                    ></video>
-                                                </template>
-                                                <template
-                                                    x-if="step.type === 'IMAGE' || step.type === 'VIDEO'"
-                                                >
-                                                    <textarea
-                                                        x-model="step.content"
-                                                        rows="1"
-                                                        class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs mt-1 focus:border-wa-green focus:outline-none resize-none overflow-hidden font-mono leading-relaxed min-h-[40px] rounded-lg"
-                                                        :placeholder="$t('caption_placeholder')"
-                                                        x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
-                                                        @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
-                                                    ></textarea>
-                                                </template>
-                                            </div>
-                                        </template>
-
-                                        <!-- Tool Step -->
-                                        <template x-if="step.type === 'TOOL'">
-                                            <div x-init="!step.metadata && (step.metadata = { toolName: '', toolArgs: {} }); !step.metadata.toolArgs && (step.metadata.toolArgs = {})">
-                                                <div class="text-[10px] text-wa-text-secondary font-sans mb-2">Select a tool to execute:</div>
-                                                <select
-                                                    x-model="step.metadata.toolName"
-                                                    @change="step.metadata.toolArgs = {}"
-                                                    class="w-full bg-wa-bg-hover text-gray-200 text-xs px-2 py-1.5 border border-wa-border focus:outline-none focus:border-purple-400 rounded-lg font-mono"
-                                                >
-                                                    <option value="">-- Select tool --</option>
-                                                    <optgroup label="Built-in">
-                                                        <option value="toggle_session_ai">toggle_session_ai</option>
-                                                        <option value="activate_session_ai">activate_session_ai</option>
-                                                        <option value="deactivate_session_ai">deactivate_session_ai</option>
-                                                        <option value="clear_conversation">clear_conversation</option>
-                                                        <option value="get_current_time">get_current_time</option>
-                                                        <option value="get_labels">get_labels</option>
-                                                        <option value="assign_label">assign_label</option>
-                                                        <option value="remove_label">remove_label</option>
-                                                        <option value="get_sessions_by_label">get_sessions_by_label</option>
-                                                        <option value="reply_to_message">reply_to_message</option>
-                                                        <option value="send_followup_message">send_followup_message</option>
-                                                        <option value="set_notification_channel">set_notification_channel</option>
-                                                        <option value="notify">notify</option>
-                                                    </optgroup>
-                                                    <optgroup label="Custom" x-show="availableTools.length > 0">
-                                                        <template x-for="tool in availableTools" :key="tool.name">
-                                                            <option :value="tool.name" x-text="tool.name"></option>
-                                                        </template>
-                                                    </optgroup>
-                                                </select>
-
-                                                <!-- Tool Args: No config tools -->
-                                                <div x-show="['toggle_session_ai', 'activate_session_ai', 'deactivate_session_ai', 'clear_conversation', 'get_labels', 'set_notification_channel'].includes(step.metadata.toolName)" class="mt-3">
-                                                    <span class="inline-block bg-wa-bg-deep/50 border border-wa-border text-wa-text-secondary text-[10px] font-mono px-2 py-1 rounded-lg">No requiere configuración</span>
-                                                </div>
-
-                                                <!-- Tool Args: assign_label -->
-                                                <div x-show="step.metadata.toolName === 'assign_label'" class="mt-3 space-y-2">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">Etiqueta <span class="text-red-400">*</span></label>
-                                                    <!-- Template mode: variable selector -->
-                                                    <template x-if="templateId">
-                                                        <div>
-                                                            <select @change="step.metadata.toolArgs.label_name = $event.target.value"
-                                                                class="w-full bg-wa-bg-deep/50 border border-purple-500/30 p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none text-purple-300">
-                                                                <option value="" :selected="!step.metadata.toolArgs.label_name">Seleccionar variable...</option>
-                                                                <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
-                                                                    <option :value="'{{' + v.name + '}}'" x-text="v.name" :selected="step.metadata.toolArgs.label_name === '{{' + v.name + '}}'"></option>
-                                                                </template>
-                                                            </select>
-                                                            <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta definidas en la plantilla.</p>
-                                                        </div>
-                                                    </template>
-                                                    <!-- Bot mode: label picker -->
-                                                    <template x-if="!templateId">
-                                                        <div class="flex flex-wrap gap-2">
-                                                            <template x-for="lbl in botLabels" :key="lbl.id">
-                                                                <button type="button"
-                                                                    @click="step.metadata.toolArgs.label_name = (step.metadata.toolArgs.label_name === lbl.name ? '' : lbl.name)"
-                                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
-                                                                    :class="step.metadata.toolArgs.label_name === lbl.name
-                                                                        ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
-                                                                        : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
-                                                                >
-                                                                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
-                                                                    <span x-text="lbl.name"></span>
-                                                                </button>
-                                                            </template>
-                                                            <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-
-                                                <!-- Tool Args: remove_label -->
-                                                <div x-show="step.metadata.toolName === 'remove_label'" class="mt-3 space-y-2">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">Etiqueta <span class="text-red-400">*</span></label>
-                                                    <template x-if="templateId">
-                                                        <div>
-                                                            <select @change="step.metadata.toolArgs.label_name = $event.target.value"
-                                                                class="w-full bg-wa-bg-deep/50 border border-red-500/30 p-2 text-xs font-mono rounded-lg focus:border-red-400 focus:outline-none text-red-300">
-                                                                <option value="" :selected="!step.metadata.toolArgs.label_name">Seleccionar variable...</option>
-                                                                <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
-                                                                    <option :value="'{{' + v.name + '}}'" x-text="v.name" :selected="step.metadata.toolArgs.label_name === '{{' + v.name + '}}'"></option>
-                                                                </template>
-                                                            </select>
-                                                            <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta definidas en la plantilla.</p>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="!templateId">
-                                                        <div class="flex flex-wrap gap-2">
-                                                            <template x-for="lbl in botLabels" :key="lbl.id">
-                                                                <button type="button"
-                                                                    @click="step.metadata.toolArgs.label_name = (step.metadata.toolArgs.label_name === lbl.name ? '' : lbl.name)"
-                                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
-                                                                    :class="step.metadata.toolArgs.label_name === lbl.name
-                                                                        ? 'bg-red-500/15 border-red-500/40 text-red-400'
-                                                                        : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
-                                                                >
-                                                                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
-                                                                    <span x-text="lbl.name"></span>
-                                                                </button>
-                                                            </template>
-                                                            <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-
-                                                <!-- Tool Args: get_current_time -->
-                                                <div x-show="step.metadata.toolName === 'get_current_time'" class="mt-3 space-y-2">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">timezone</label>
-                                                    <input type="text" x-model="step.metadata.toolArgs.timezone" placeholder="America/Mexico_City"
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none">
-                                                </div>
-
-                                                <!-- Tool Args: get_sessions_by_label -->
-                                                <div x-show="step.metadata.toolName === 'get_sessions_by_label'" class="mt-3 space-y-2">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">Etiqueta <span class="text-red-400">*</span></label>
-                                                    <template x-if="templateId">
-                                                        <div>
-                                                            <select @change="step.metadata.toolArgs.label_name = $event.target.value"
-                                                                class="w-full bg-wa-bg-deep/50 border border-purple-500/30 p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none text-purple-300">
-                                                                <option value="" :selected="!step.metadata.toolArgs.label_name">Seleccionar variable...</option>
-                                                                <template x-for="v in templateVarDefs.filter(d => d.type === 'label')" :key="v.name">
-                                                                    <option :value="'{{' + v.name + '}}'" x-text="v.name" :selected="step.metadata.toolArgs.label_name === '{{' + v.name + '}}'"></option>
-                                                                </template>
-                                                            </select>
-                                                            <p x-show="templateVarDefs.filter(d => d.type === 'label').length === 0" class="text-[9px] text-yellow-400/70 mt-1">No hay variables tipo etiqueta definidas en la plantilla.</p>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="!templateId">
-                                                        <div class="flex flex-wrap gap-2">
-                                                            <template x-for="lbl in botLabels" :key="lbl.id">
-                                                                <button type="button"
-                                                                    @click="step.metadata.toolArgs.label_name = (step.metadata.toolArgs.label_name === lbl.name ? '' : lbl.name)"
-                                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
-                                                                    :class="step.metadata.toolArgs.label_name === lbl.name
-                                                                        ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
-                                                                        : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
-                                                                >
-                                                                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
-                                                                    <span x-text="lbl.name"></span>
-                                                                </button>
-                                                            </template>
-                                                            <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
-                                                        </div>
-                                                    </template>
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">include_messages</label>
-                                                    <input type="number" x-model.number="step.metadata.toolArgs.include_messages" placeholder="5"
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none">
-                                                </div>
-
-                                                <!-- Tool Args: reply_to_message -->
-                                                <div x-show="step.metadata.toolName === 'reply_to_message'" class="mt-3 space-y-2">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">message_id <span class="text-red-400">*</span></label>
-                                                    <input type="text" x-model="step.metadata.toolArgs.message_id" required
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">text <span class="text-red-400">*</span></label>
-                                                    <textarea x-model="step.metadata.toolArgs.text" rows="2" required
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none resize-none"></textarea>
-                                                </div>
-
-                                                <!-- Tool Args: send_followup_message -->
-                                                <div x-show="step.metadata.toolName === 'send_followup_message'" class="mt-3 space-y-2">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">session_id <span class="text-red-400">*</span></label>
-                                                    <input type="text" x-model="step.metadata.toolArgs.session_id" required
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">message <span class="text-red-400">*</span></label>
-                                                    <textarea x-model="step.metadata.toolArgs.message" rows="2" required
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none resize-none"></textarea>
-                                                </div>
-
-                                                <!-- Tool Args: notify -->
-                                                <div x-show="step.metadata.toolName === 'notify'" class="mt-3 space-y-2">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">message <span class="text-red-400">*</span></label>
-                                                    <textarea x-model="step.metadata.toolArgs.message" rows="2" required
-                                                        placeholder="Texto de la notificación"
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none resize-none"></textarea>
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">priority</label>
-                                                    <select x-model="step.metadata.toolArgs.priority"
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none">
-                                                        <option value="normal">normal</option>
-                                                        <option value="low">low</option>
-                                                        <option value="high">high</option>
-                                                    </select>
-                                                </div>
-
-                                                <!-- Tool Args: Custom tools (JSON textarea) -->
-                                                <div x-show="step.metadata.toolName && !['toggle_session_ai','activate_session_ai','deactivate_session_ai','clear_conversation','get_labels','set_notification_channel','assign_label','remove_label','get_current_time','get_sessions_by_label','reply_to_message','send_followup_message','notify'].includes(step.metadata.toolName)" class="mt-3 space-y-2">
-                                                    <label class="text-[10px] text-wa-text-secondary font-sans">Arguments (JSON)</label>
-                                                    <textarea
-                                                        :value="JSON.stringify(step.metadata.toolArgs, null, 2)"
-                                                        @change="try { step.metadata.toolArgs = JSON.parse($event.target.value) } catch(e) {}"
-                                                        rows="3"
-                                                        placeholder='{ "key": "value" }'
-                                                        class="w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg focus:border-purple-400 focus:outline-none resize-none"
-                                                    ></textarea>
-                                                </div>
-                                            </div>
-                                        </template>
-
-                                        <!-- Conditional Time Step -->
-                                        <template x-if="step.type === 'CONDITIONAL_TIME'">
-                                            <div class="space-y-4" x-init="!step.metadata && (step.metadata = { branches: [], fallback: { type: 'TEXT', content: '' } })">
-
-                                                <template x-if="step.metadata && step.metadata.branches && step.metadata.fallback">
-                                                    <div>
-                                                        <div class="text-[10px] text-wa-text-secondary font-sans mb-2" x-text="$t('time_condition_desc')"></div>
-
-                                                        <!-- Branches -->
-                                                        <template x-for="(branch, bIndex) in step.metadata.branches" :key="bIndex">
-                                                            <div class="bg-wa-bg-deep/50 border border-wa-border p-2 sm:p-3 relative group/branch rounded-lg">
-                                                                <div class="flex flex-wrap justify-between items-center mb-2 gap-2">
-                                                                    <div class="flex gap-2 items-center min-w-0">
-                                                                        <input type="time" x-model="branch.startTime" class="bg-wa-bg-hover text-white text-xs px-1.5 sm:px-2 py-1 border border-wa-border focus:border-wa-green focus:outline-none rounded-lg font-mono min-w-0">
-                                                                        <span class="text-wa-text-secondary text-xs shrink-0">-</span>
-                                                                        <input type="time" x-model="branch.endTime" class="bg-wa-bg-hover text-white text-xs px-1.5 sm:px-2 py-1 border border-wa-border focus:border-wa-green focus:outline-none rounded-lg font-mono min-w-0">
-                                                                    </div>
-                                                                    <button @click="step.metadata.branches.splice(bIndex, 1)" class="text-red-500 hover:text-white font-bold shrink-0">&times;</button>
-                                                                </div>
-
-                                                                <div class="flex gap-2 mb-2">
-                                                                    <select x-model="branch.type" class="bg-wa-bg-hover text-[10px] text-gray-300 border border-wa-border px-2 py-1 w-full focus:outline-none font-mono rounded-lg">
-                                                                        <option value="TEXT">TEXT</option>
-                                                                        <option value="IMAGE">IMAGE</option>
-                                                                        <option value="VIDEO">VIDEO</option>
-                                                                        <option value="AUDIO">AUDIO</option>
-                                                                    </select>
-                                                                </div>
-
-                                                                <div class="space-y-2">
-                                                                    <textarea
-                                                                        x-model="branch.content"
-                                                                        rows="2"
-                                                                        class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs focus:border-wa-green focus:outline-none resize-none overflow-hidden min-h-[40px] font-mono rounded-lg"
-                                                                        :placeholder="branch.type === 'TEXT' ? $t('message_content') : $t('caption_placeholder')"
-                                                                        x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = ($el.scrollHeight + 2) + 'px' })"
-                                                                        @input="$el.style.height = 'auto'; $el.style.height = ($el.scrollHeight + 2) + 'px'"></textarea>
-
-                                                                    <div x-show="branch.type !== 'TEXT'" class="flex flex-col sm:flex-row gap-2">
-                                                                        <input type="text" x-model="branch.mediaUrl" class="flex-1 min-w-0 bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg" :placeholder="$t('media_url_placeholder')">
-                                                                        <button @click="selectMediaForBranch(index, bIndex)" class="bg-wa-bg-hover px-2 py-2 sm:py-0 text-[10px] hover:bg-wa-bg-hover shrink-0 rounded-lg" x-text="$t('pick')"></button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </template>
-
-                                                        <button @click="step.metadata.branches.push({ startTime: '09:00', endTime: '18:00', type: 'TEXT', content: '' })" class="w-full py-2 border border-dashed border-wa-border text-xs text-wa-text-secondary hover:text-wa-green hover:border-wa-green/30 transition-colors font-sans rounded-lg" x-text="'+ ' + $t('add_time_range')"></button>
-
-                                                        <div x-show="hasOverlap(step.metadata.branches)" class="text-red-400 text-[10px] font-sans mt-2 bg-red-500/10 p-2 border border-red-500/20 flex items-center gap-2 rounded-lg">
-                                                            <span>⚠</span> <span x-text="$t('overlap_warning')"></span>
-                                                        </div>
-
-                                                        <!-- Fallback -->
-                                                        <div class="mt-4 pt-4 border-t border-wa-border">
-                                                            <div class="text-[10px] text-wa-text-secondary mb-2 font-sans" x-text="$t('fallback_label')"></div>
-                                                            <div class="bg-wa-bg-deep/50 p-2 sm:p-3 border border-wa-border rounded-lg">
-                                                                <div class="flex gap-2 mb-2">
-                                                                    <select x-model="step.metadata.fallback.type" class="bg-wa-bg-hover text-[10px] text-gray-300 border border-wa-border px-2 py-1 w-full focus:outline-none font-mono rounded-lg">
-                                                                        <option value="TEXT">TEXT</option>
-                                                                        <option value="IMAGE">IMAGE</option>
-                                                                        <option value="VIDEO">VIDEO</option>
-                                                                        <option value="AUDIO">AUDIO</option>
-                                                                    </select>
-                                                                </div>
-                                                                <textarea
-                                                                    x-model="step.metadata.fallback.content"
-                                                                    rows="2"
-                                                                    class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs focus:border-wa-green focus:outline-none resize-none overflow-hidden min-h-[40px] font-mono rounded-lg"
-                                                                    :placeholder="$t('message_content')"
-                                                                    x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = ($el.scrollHeight + 2) + 'px' })"
-                                                                    @input="$el.style.height = 'auto'; $el.style.height = ($el.scrollHeight + 2) + 'px'"></textarea>
-                                                                <div x-show="step.metadata.fallback.type !== 'TEXT'" class="flex flex-col sm:flex-row gap-2 mt-2">
-                                                                    <input type="text" x-model="step.metadata.fallback.mediaUrl" class="flex-1 min-w-0 bg-wa-bg-deep/50 border border-wa-border p-2 text-xs font-mono rounded-lg" :placeholder="$t('media_url_placeholder')">
-                                                                    <button @click="selectMediaForFallback(index)" class="bg-wa-bg-hover px-2 py-2 sm:py-0 text-[10px] hover:bg-wa-bg-hover shrink-0 rounded-lg" x-text="$t('pick')"></button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-
-                        <div
-                            x-show="flow.steps.length === 0"
-                            class="text-center py-12 text-wa-text-secondary"
-                        >
-                            <p
-                                class="text-xs font-sans"
-                                x-text="$t('empty_flow')"
-                            >
-                            </p>
+            <!-- Sidebar: Triggers & Settings (desktop only) -->
+            <div class="hidden lg:flex flex-col w-80 xl:w-96 overflow-y-auto shrink-0 gap-4">
+                <div class="bg-wa-bg-panel border border-wa-border p-4 rounded-xl">
+                    <div class="text-xs text-wa-green mb-4 flex justify-between items-center">
+                        <span x-text="$t('triggers')"></span>
+                        <div class="flex gap-1">
+                            <button @click="addTrigger('TEXT')" class="px-2 py-1 flex items-center gap-1 bg-wa-green/20 hover:bg-wa-green/40 text-wa-green hover:text-white text-[10px] leading-none transition-colors rounded-lg">+ Text</button>
+                            <button @click="addTrigger('LABEL')" class="px-2 py-1 flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/40 text-purple-400 hover:text-white text-[10px] leading-none transition-colors rounded-lg">+ Label</button>
                         </div>
+                    </div>
+                    <FlowSettings />
+                    <div class="space-y-3 mt-4">
+                        <template x-for="(trigger, index) in flow.triggers" :key="index">
+                            <TriggerCard />
+                        </template>
+                        <div x-show="flow.triggers.length === 0" class="text-center py-4 text-wa-text-secondary text-xs" x-text="$t('no_triggers')"></div>
                     </div>
                 </div>
             </div>
@@ -826,6 +201,8 @@ import MediaPicker from "../components/MediaPicker.astro";
             id: null as string | null,
             ready: false,
             saving: false,
+            showTriggers: false,
+            stepSettings: -1 as number,
             availableFlows: [] as { id: string; name: string }[],
             availableTools: [] as { name: string }[],
             botLabels: [] as { id: string; name: string; color: number }[],
