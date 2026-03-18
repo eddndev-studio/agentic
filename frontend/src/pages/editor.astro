@@ -82,7 +82,7 @@ import FlowSettings from "../components/editor/FlowSettings.astro";
                         <div class="grid transition-[grid-template-rows] duration-300 ease-out"
                              :style="showTriggers ? 'grid-template-rows:1fr' : 'grid-template-rows:0fr'">
                             <div class="overflow-hidden">
-                                <div class="p-4 space-y-3">
+                                <div class="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
                                     <FlowSettings />
                                     <div class="flex gap-1 mb-2">
                                         <button @click="addTrigger('TEXT')" class="px-2 py-1 flex items-center gap-1 bg-wa-green/20 hover:bg-wa-green/40 text-wa-green hover:text-white text-[10px] leading-none transition-colors rounded-lg">+ Text</button>
