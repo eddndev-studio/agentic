@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Step" ADD COLUMN "aiOnly" BOOLEAN NOT NULL DEFAULT false;
