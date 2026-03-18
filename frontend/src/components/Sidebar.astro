@@ -29,189 +29,43 @@ const menuItems = [
 ];
 ---
 
-<!-- Mobile Backdrop -->
-<div
-    x-show="$store.sidebar.mobileOpen"
-    x-transition.opacity.duration.300ms
-    @click="$store.sidebar.closeMobile()"
-    class="fixed inset-0 bg-black/80 z-40 md:hidden"
-    style="display: none;"
->
-</div>
-
-<aside
-    class="fixed left-0 top-0 h-screen z-50 bg-wa-bg-panel border-r border-wa-border transition-all duration-300 flex flex-col shadow-2xl"
+<!-- Bottom Navigation Bar -->
+<nav
+    class="fixed bottom-0 left-0 right-0 z-50 bg-wa-bg-panel/95 backdrop-blur-md border-t border-wa-border"
     x-data={`{ menuItems: ${JSON.stringify(menuItems)} }`}
-    :class="[
-        $store.sidebar.mobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0',
-        $store.sidebar.expanded ? 'md:w-64' : 'md:w-16'
-    ]"
 >
-    <!-- Toggle Handle (Desktop only) -->
-    <button
-        @click="$store.sidebar.toggle()"
-        class="hidden md:flex absolute -right-3 top-10 bg-wa-green text-white p-0.5 rounded-full border border-wa-bg-deep z-50 hover:bg-wa-green-hover transition-transform duration-300 items-center justify-center"
-        :class="$store.sidebar.expanded ? 'rotate-180' : 'rotate-0'"
-    >
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-4 w-4"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-        >
-            <path
-                fill-rule="evenodd"
-                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                clip-rule="evenodd"></path>
-        </svg>
-    </button>
-
-    <!-- Logo area -->
-    <div
-        class="h-16 flex items-center px-4 border-b border-wa-border overflow-hidden flex-shrink-0"
-    >
-        <div
-            class="min-w-[32px] h-8 bg-wa-green flex items-center justify-center font-bold text-white tracking-tighter text-sm rounded-lg"
-        >
-            S
-        </div>
-        <span
-            class="ml-4 font-bold tracking-tight text-white whitespace-nowrap overflow-hidden transition-all duration-300"
-            :class="($store.sidebar.expanded || $store.sidebar.mobileOpen) ? 'opacity-100 max-w-[200px]' : 'opacity-0 max-w-0'"
-            >Agentic</span
-        >
-    </div>
-
-    <!-- Navigation -->
-    <nav class="mt-6 space-y-2 px-2 flex-1 overflow-y-auto overflow-x-hidden">
+    <div class="flex items-stretch justify-around max-w-lg mx-auto">
         <template x-for="item in menuItems">
             <a
                 :href="item.href"
-                class="flex items-center p-2.5 rounded-lg transition-all duration-200 border border-transparent hover:border-wa-border relative group"
-                :class="(item.href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(item.href)) ? 'bg-wa-green/10 text-wa-green' : 'text-wa-text-secondary hover:bg-wa-bg-hover hover:text-white'"
+                class="flex flex-col items-center justify-center gap-1 py-2.5 px-3 flex-1 transition-colors relative"
+                :class="(item.href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(item.href))
+                    ? 'text-wa-green'
+                    : 'text-wa-text-secondary hover:text-white'"
             >
-                <div class="min-w-[24px] flex justify-center">
-                    <svg
-                        class="w-5 h-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="1.5"
-                            :d="item.icon"></path>
-                    </svg>
-                </div>
-
+                <!-- Active indicator dot -->
                 <span
-                    class="ml-4 font-sans text-sm whitespace-nowrap overflow-hidden transition-all duration-300"
-                    :class="($store.sidebar.expanded || $store.sidebar.mobileOpen) ? 'opacity-100 max-w-[200px]' : 'opacity-0 max-w-0'"
-                    x-text="$t(item.id)"></span>
-
-                <!-- Tooltip for collapsed state -->
-                <div
-                    x-show="!$store.sidebar.expanded"
-                    class="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-wa-bg-header text-white text-xs font-sans rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap"
-                    x-text="$t(item.id)"
-                >
-                </div>
-
-                <!-- Active Indicator -->
-                <div
                     x-show="item.href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(item.href)"
-                    class="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-wa-green rounded-r"
-                >
-                </div>
+                    class="absolute top-1 w-1 h-1 rounded-full bg-wa-green"
+                ></span>
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"></path>
+                </svg>
+                <span class="text-[10px] font-sans leading-none" x-text="$t(item.id)"></span>
             </a>
         </template>
-    </nav>
 
-    <!-- Footer / Language Toggle -->
-    <div
-        class="p-2 border-t border-wa-border space-y-3 flex-shrink-0 bg-wa-bg-panel"
-    >
-        <!-- Language Toggle -->
-        <div
-            class="flex bg-wa-bg-hover p-1 rounded-lg overflow-hidden transition-all duration-300"
-            :class="($store.sidebar.expanded || $store.sidebar.mobileOpen) ? 'opacity-100' : 'opacity-0 h-0 p-0 overflow-hidden'"
-        >
-            <button
-                @click="$store.i18n.setLocale('en')"
-                class="flex-1 px-2 py-1.5 text-[10px] font-sans transition-all text-center rounded-md"
-                :class="$store.i18n.locale === 'en' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
-                >EN</button
-            >
-            <button
-                @click="$store.i18n.setLocale('es')"
-                class="flex-1 px-2 py-1.5 text-[10px] font-sans transition-all text-center rounded-md"
-                :class="$store.i18n.locale === 'es' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
-                >ES</button
-            >
-        </div>
-
-        <!-- Version -->
-        <div
-            class="text-[9px] font-sans text-wa-text-secondary text-center transition-all duration-300"
-            :class="($store.sidebar.expanded || $store.sidebar.mobileOpen) ? 'opacity-100' : 'opacity-0 scale-0 h-0'"
-        >
-            v1.0.2-beta
-        </div>
-
-        <!-- User/Profile -->
-        <div
-            class="px-2 py-2 border-t border-wa-border bg-wa-bg-panel flex-shrink-0"
+        <!-- User / Logout -->
+        <button
+            @click="$store.auth.logout()"
+            class="flex flex-col items-center justify-center gap-1 py-2.5 px-3 flex-1 text-wa-text-secondary hover:text-red-400 transition-colors"
+            title="Logout"
         >
             <div
-                class="flex items-center gap-3 p-2 rounded-lg hover:bg-wa-bg-hover transition-colors group cursor-pointer relative"
-                @click="$store.auth.logout()"
-                title="Logout"
-            >
-                <div
-                    class="w-8 h-8 rounded-full bg-wa-green flex items-center justify-center text-xs font-bold text-white shrink-0"
-                    x-text="$store.auth.user?.fullName?.charAt(0) || $store.auth.user?.email?.charAt(0) || '?'"
-                >
-                    ?
-                </div>
-
-                <div
-                    class="overflow-hidden transition-all duration-300"
-                    :class="($store.sidebar.expanded || $store.sidebar.mobileOpen) ? 'w-auto opacity-100' : 'w-0 opacity-0'"
-                >
-                    <div
-                        class="text-xs font-bold text-white whitespace-nowrap"
-                        x-text="$store.auth.user?.fullName || 'User'"
-                    >
-                    </div>
-                    <div
-                        class="text-[9px] text-wa-text-secondary whitespace-nowrap"
-                        x-text="$store.auth.user?.email"
-                    >
-                    </div>
-                </div>
-
-                <!-- Logout Icon (Visible on hover or when collapsed) -->
-                <div
-                    class="absolute right-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                    x-show="$store.sidebar.expanded || $store.sidebar.mobileOpen"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        ></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
+                class="w-5 h-5 rounded-full bg-wa-green/20 flex items-center justify-center text-[9px] font-bold text-wa-green"
+                x-text="$store.auth.user?.fullName?.charAt(0) || $store.auth.user?.email?.charAt(0) || '?'"
+            >?</div>
+            <span class="text-[10px] font-sans leading-none">Salir</span>
+        </button>
     </div>
-</aside>
+</nav>
