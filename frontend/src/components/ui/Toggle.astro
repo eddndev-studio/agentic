@@ -1,11 +1,13 @@
 ---
 interface Props {
     class?: string;
+    [key: string]: any;
 }
-const { class: cls = '' } = Astro.props;
+const { class: cls = '', ...rest } = Astro.props;
 ---
 
 <button type="button"
+    {...rest}
     class:list={["relative w-11 h-6 rounded-full transition-colors shrink-0", cls]}>
     <span class="absolute w-4 h-4 bg-white rounded-full top-1 transition-all"></span>
 </button>

@@ -1,10 +1,11 @@
 ---
 interface Props {
     class?: string;
+    [key: string]: any;
 }
-const { class: cls = '' } = Astro.props;
+const { class: cls = '', ...rest } = Astro.props;
 ---
 
-<div class:list={["p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg", cls]}>
+<div {...rest} class:list={["p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg", cls]}>
     <slot />
 </div>

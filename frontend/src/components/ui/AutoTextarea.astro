@@ -4,11 +4,13 @@ interface Props {
     rows?: number;
     class?: string;
     minHeight?: string;
+    [key: string]: any;
 }
-const { placeholder = '', rows = 2, class: cls = '', minHeight = '50px' } = Astro.props;
+const { placeholder = '', rows = 2, class: cls = '', minHeight = '50px', ...rest } = Astro.props;
 ---
 
 <textarea
+    {...rest}
     rows={rows}
     class:list={[
         "w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-sm focus:border-wa-green focus:outline-none resize-none overflow-hidden font-mono leading-relaxed rounded-lg",
