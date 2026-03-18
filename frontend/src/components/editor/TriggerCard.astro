@@ -1,3 +1,6 @@
+---
+import AutoTextarea from '../ui/AutoTextarea.astro';
+---
 <!-- Trigger card (used inside x-for="(trigger, index) in flow.triggers") -->
 <div class="bg-wa-bg-deep p-3 border border-wa-border space-y-3 rounded-lg"
      :class="trigger.triggerType === 'LABEL' ? 'border-purple-500/30' : ''">
@@ -30,12 +33,7 @@
                     </template>
                 </select>
             </div>
-            <textarea x-model="trigger.keyword" rows="1"
-                class="w-full bg-wa-bg-hover text-sm px-3 py-2 border border-wa-border focus:outline-none focus:border-wa-green resize-none overflow-hidden font-mono leading-relaxed min-h-[36px] max-w-full rounded-lg"
-                :placeholder="$t('keyword') || 'Enter keyword or regex...'"
-                x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
-                @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
-            ></textarea>
+            <AutoTextarea x-model="trigger.keyword" rows={1} :placeholder="$t('keyword') || 'Enter keyword or regex...'" minHeight="36px" class="bg-wa-bg-hover" />
         </div>
     </template>
 

@@ -1,0 +1,31 @@
+---
+interface Props {
+    cardKey: string;
+    title: string;
+    titleExpr?: string;
+}
+const { cardKey, title, titleExpr } = Astro.props;
+const focusCheck = `focused === '${cardKey}'`;
+---
+
+<section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+         :class={`${focusCheck} ? 'border-wa-green/30' : ''`}>
+    <button @click={`toggleCard('${cardKey}')`}
+            class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200"
+            :class={`${focusCheck} ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'`}>
+        <div class="flex items-center gap-3">
+            <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200"
+                  :class={`${focusCheck} ? 'bg-wa-green' : 'bg-wa-text-secondary/30'`}></span>
+            <h3 class="text-sm font-semibold" {...(titleExpr ? { 'x-text': titleExpr } : {})}>{title}</h3>
+        </div>
+        <slot name="summary" />
+    </button>
+    <div class="grid transition-[grid-template-rows] duration-300 ease-out"
+         :style={`${focusCheck} ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'`}>
+        <div class="overflow-hidden">
+            <div class="p-4 sm:p-6">
+                <slot />
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,6 +1,7 @@
 ---
 import StepToolConfig from './StepToolConfig.astro';
 import StepTimeConfig from './StepTimeConfig.astro';
+import AutoTextarea from '../ui/AutoTextarea.astro';
 ---
 
 <!-- Step card (used inside x-for="(step, index) in flow.steps") -->
@@ -54,14 +55,7 @@ import StepTimeConfig from './StepTimeConfig.astro';
     <div>
         <!-- TEXT -->
         <template x-if="step.type === 'TEXT'">
-            <textarea
-                x-model="step.content"
-                rows="2"
-                class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-sm focus:border-wa-green focus:outline-none resize-none overflow-hidden font-mono leading-relaxed min-h-[50px] rounded-lg"
-                :placeholder="$t('message_content')"
-                x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
-                @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
-            ></textarea>
+            <AutoTextarea x-model="step.content" :placeholder="$t('message_content')" />
         </template>
 
         <!-- MEDIA (IMAGE, AUDIO, VIDEO, DOCUMENT) -->
@@ -82,12 +76,7 @@ import StepTimeConfig from './StepTimeConfig.astro';
                     <video :src="step.mediaUrl" class="h-20 opacity-50 hover:opacity-100 transition-opacity border border-wa-border rounded-lg" muted preload="metadata"></video>
                 </template>
                 <template x-if="step.type === 'IMAGE' || step.type === 'VIDEO'">
-                    <textarea x-model="step.content" rows="1"
-                        class="w-full max-w-full bg-wa-bg-deep/50 border border-wa-border p-2 text-xs mt-1 focus:border-wa-green focus:outline-none resize-none overflow-hidden font-mono leading-relaxed min-h-[36px] rounded-lg"
-                        :placeholder="$t('caption_placeholder')"
-                        x-init="$nextTick(() => { $el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px' })"
-                        @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
-                    ></textarea>
+                    <AutoTextarea x-model="step.content" rows={1} :placeholder="$t('caption_placeholder')" minHeight="36px" class="text-xs mt-1" />
                 </template>
             </div>
         </template>

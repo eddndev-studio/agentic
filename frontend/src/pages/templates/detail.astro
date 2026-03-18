@@ -1,5 +1,7 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import ExpandableCard from "../../components/ui/ExpandableCard.astro";
+import EmptyState from "../../components/ui/EmptyState.astro";
 ---
 
 <Layout title="Template Detail">
@@ -39,18 +41,8 @@ import Layout from "../../layouts/Layout.astro";
 		<!-- Card Stack -->
 		<div class="space-y-2">
 
-		<!-- Card: Configuración IA -->
-		<section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200" :class="focused === 'ai' ? 'border-wa-green/30' : ''">
-			<button @click="toggleCard('ai')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'ai' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
-				<div class="flex items-center gap-3">
-					<span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'ai' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
-					<h3 class="text-sm font-semibold" x-text="$t('ai_config')">Configuración IA</h3>
-				</div>
-				<span class="text-xs text-wa-text-secondary" x-text="aiConfig.aiModel || 'gemini-2.5-flash'"></span>
-			</button>
-			<div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'ai' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
-				<div class="overflow-hidden">
-					<div class="p-4 sm:p-6">
+		<ExpandableCard cardKey="ai" title="Configuración IA" titleExpr="$t('ai_config')">
+			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="aiConfig.aiModel || 'gemini-2.5-flash'"></span>
 				<h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
 				<form @submit.prevent="saveAIConfig()" class="space-y-6">
 					<!-- AI Enabled Toggle -->
@@ -176,23 +168,10 @@ import Layout from "../../layouts/Layout.astro";
 
 					<button type="submit" :disabled="savingAI" class="px-6 py-2 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="savingAI ? $t('saving') : $t('save_changes')">Save</button>
 				</form>
-					</div>
-				</div>
-			</div>
-		</section>
+		</ExpandableCard>
 
-		<!-- Card: Flujos -->
-		<section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200" :class="focused === 'flows' ? 'border-wa-green/30' : ''">
-			<button @click="toggleCard('flows')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'flows' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
-				<div class="flex items-center gap-3">
-					<span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'flows' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
-					<h3 class="text-sm font-semibold" x-text="$t('flows')">Flujos</h3>
-				</div>
-				<span class="text-xs text-wa-text-secondary" x-text="(template.flows?.length || 0) + ' flujos'"></span>
-			</button>
-			<div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'flows' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
-				<div class="overflow-hidden">
-					<div class="p-4 sm:p-6">
+		<ExpandableCard cardKey="flows" title="Flujos" titleExpr="$t('flows')">
+			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="(template.flows?.length || 0) + ' flujos'"></span>
 				<div class="space-y-3">
 					<template x-for="flow in template.flows || []" :key="flow.id">
 						<div class="flex items-center gap-2 p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
@@ -220,27 +199,14 @@ import Layout from "../../layouts/Layout.astro";
 							</button>
 						</div>
 					</template>
-					<div x-show="!template.flows || template.flows.length === 0" class="p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg">
+					<EmptyState x-show="!template.flows || template.flows.length === 0">
 						<span x-text="$t('no_flows')">No flows</span>
-					</div>
+					</EmptyState>
 				</div>
-					</div>
-				</div>
-			</div>
-		</section>
+		</ExpandableCard>
 
-		<!-- Card: Herramientas -->
-		<section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200" :class="focused === 'tools' ? 'border-wa-green/30' : ''">
-			<button @click="toggleCard('tools')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'tools' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
-				<div class="flex items-center gap-3">
-					<span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'tools' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
-					<h3 class="text-sm font-semibold" x-text="$t('tools')">Herramientas</h3>
-				</div>
-				<span class="text-xs text-wa-text-secondary" x-text="tools.length + ' tools'"></span>
-			</button>
-			<div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'tools' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
-				<div class="overflow-hidden">
-					<div class="p-4 sm:p-6">
+		<ExpandableCard cardKey="tools" title="Herramientas" titleExpr="$t('tools')">
+			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="tools.length + ' tools'"></span>
 				<div class="flex justify-between items-center mb-4">
 					<h3 class="text-xs text-wa-green" x-text="$t('tools')">Tools</h3>
 					<a :href="'/tool-editor?templateId=' + templateId" class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover">
@@ -260,27 +226,14 @@ import Layout from "../../layouts/Layout.astro";
 							<span class="text-[10px] text-wa-text-secondary" x-text="tool.actionType"></span>
 						</a>
 					</template>
-					<div x-show="tools.length === 0" class="p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg">
+					<EmptyState x-show="tools.length === 0">
 						<span x-text="$t('no_tools')">No tools</span>
-					</div>
+					</EmptyState>
 				</div>
-					</div>
-				</div>
-			</div>
-		</section>
+		</ExpandableCard>
 
-		<!-- Card: Variables -->
-		<section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200" :class="focused === 'variables' ? 'border-wa-green/30' : ''">
-			<button @click="toggleCard('variables')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'variables' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
-				<div class="flex items-center gap-3">
-					<span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'variables' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
-					<h3 class="text-sm font-semibold" x-text="$t('bot_variables')">Variables</h3>
-				</div>
-				<span class="text-xs text-wa-text-secondary" x-text="templateVars.length + ' vars'"></span>
-			</button>
-			<div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'variables' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
-				<div class="overflow-hidden">
-					<div class="p-4 sm:p-6">
+		<ExpandableCard cardKey="variables" title="Variables" titleExpr="$t('bot_variables')">
+			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="templateVars.length + ' vars'"></span>
 				<h3 class="text-xs text-wa-green tracking-normal mb-2" x-text="$t('bot_variables')">Variables</h3>
 				<p class="text-[10px] text-wa-text-secondary mb-6">Define las variables que cada bot debe configurar al usar esta plantilla.</p>
 
@@ -299,9 +252,9 @@ import Layout from "../../layouts/Layout.astro";
 					</template>
 				</div>
 
-				<div x-show="templateVars.length === 0" class="p-6 border border-dashed border-wa-border rounded-lg text-center text-wa-text-secondary text-xs mb-4">
+				<EmptyState x-show="templateVars.length === 0" class="mb-4">
 					Sin variables definidas. Los bots no necesitan configurar nada.
-				</div>
+				</EmptyState>
 
 				<div class="flex items-center gap-3">
 					<button @click="templateVars.push({ name: '', type: 'text' })" class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors">
@@ -311,23 +264,10 @@ import Layout from "../../layouts/Layout.astro";
 						Save
 					</button>
 				</div>
-					</div>
-				</div>
-			</div>
-		</section>
+		</ExpandableCard>
 
-		<!-- Card: Bots -->
-		<section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200" :class="focused === 'bots' ? 'border-wa-green/30' : ''">
-			<button @click="toggleCard('bots')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'bots' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
-				<div class="flex items-center gap-3">
-					<span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'bots' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
-					<h3 class="text-sm font-semibold">Bots</h3>
-				</div>
-				<span class="text-xs text-wa-text-secondary" x-text="(template.bots?.length || 0) + ' bots'"></span>
-			</button>
-			<div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'bots' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
-				<div class="overflow-hidden">
-					<div class="p-4 sm:p-6">
+		<ExpandableCard cardKey="bots" title="Bots">
+			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="(template.bots?.length || 0) + ' bots'"></span>
 				<div class="flex justify-between items-center mb-4">
 					<h3 class="text-xs text-wa-green" x-text="$t('template_bots_count')">Bots using this template</h3>
 					<button
@@ -350,14 +290,11 @@ import Layout from "../../layouts/Layout.astro";
 							</svg>
 						</a>
 					</template>
-					<div x-show="!template.bots || template.bots.length === 0" class="p-8 text-center text-wa-text-secondary text-xs border border-dashed border-wa-border rounded-lg">
+					<EmptyState x-show="!template.bots || template.bots.length === 0">
 						No hay bots usando esta plantilla.
-					</div>
+					</EmptyState>
 				</div>
-					</div>
-				</div>
-			</div>
-		</section>
+		</ExpandableCard>
 
 		</div> <!-- /Card Stack -->
 	</div>
