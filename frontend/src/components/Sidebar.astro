@@ -1,71 +1,108 @@
 ---
 const currentPath = Astro.url.pathname;
-const menuItems = [
-    {
-        id: "dashboard",
-        href: "/",
-        icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
-    },
-    {
-        id: "bots",
-        href: "/bots",
-        icon: "M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z",
-    },
-    {
-        id: "templates",
-        href: "/templates",
-        icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z",
-    },
-    {
-        id: "logs",
-        href: "/logs",
-        icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
-    },
-    {
-        id: "ads",
-        href: "/ads",
-        icon: "M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z",
-    },
-];
 ---
 
 <!-- Bottom Navigation Bar -->
 <nav
-    class="fixed bottom-0 left-0 right-0 z-50 bg-wa-bg-panel/95 backdrop-blur-md border-t border-wa-border"
-    x-data={`{ menuItems: ${JSON.stringify(menuItems)} }`}
+    class="fixed bottom-0 left-0 right-0 z-50 bg-wa-bg-panel border-t border-wa-border safe-bottom"
+    x-data="{
+        isActive(href) {
+            return href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(href);
+        },
+        showMenu: false
+    }"
 >
-    <div class="flex items-stretch justify-around max-w-lg mx-auto">
-        <template x-for="item in menuItems">
-            <a
-                :href="item.href"
-                class="flex flex-col items-center justify-center gap-1 py-2.5 px-3 flex-1 transition-colors relative"
-                :class="(item.href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(item.href))
-                    ? 'text-wa-green'
-                    : 'text-wa-text-secondary hover:text-white'"
-            >
-                <!-- Active indicator dot -->
-                <span
-                    x-show="item.href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(item.href)"
-                    class="absolute top-1 w-1 h-1 rounded-full bg-wa-green"
-                ></span>
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"></path>
-                </svg>
-                <span class="text-[10px] font-sans leading-none" x-text="$t(item.id)"></span>
-            </a>
-        </template>
+    <div class="flex items-stretch justify-around max-w-md mx-auto h-14">
 
-        <!-- User / Logout -->
-        <button
-            @click="$store.auth.logout()"
-            class="flex flex-col items-center justify-center gap-1 py-2.5 px-3 flex-1 text-wa-text-secondary hover:text-red-400 transition-colors"
-            title="Logout"
-        >
-            <div
-                class="w-5 h-5 rounded-full bg-wa-green/20 flex items-center justify-center text-[9px] font-bold text-wa-green"
-                x-text="$store.auth.user?.fullName?.charAt(0) || $store.auth.user?.email?.charAt(0) || '?'"
-            >?</div>
-            <span class="text-[10px] font-sans leading-none">Salir</span>
-        </button>
+        <!-- Bots (primary) -->
+        <a href="/bots"
+           class="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
+           :class="isActive('/bots') ? 'text-wa-green' : 'text-wa-text-secondary'">
+            <div class="rounded-xl px-4 py-1 transition-colors" :class="isActive('/bots') && 'bg-wa-green/10'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                </svg>
+            </div>
+            <span class="text-[10px] leading-none" x-text="$t('bots')">Bots</span>
+        </a>
+
+        <!-- Templates -->
+        <a href="/templates"
+           class="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
+           :class="isActive('/templates') ? 'text-wa-green' : 'text-wa-text-secondary'">
+            <div class="rounded-xl px-4 py-1 transition-colors" :class="isActive('/templates') && 'bg-wa-green/10'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
+                </svg>
+            </div>
+            <span class="text-[10px] leading-none" x-text="$t('templates')">Plantillas</span>
+        </a>
+
+        <!-- Logs -->
+        <a href="/logs"
+           class="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
+           :class="isActive('/logs') ? 'text-wa-green' : 'text-wa-text-secondary'">
+            <div class="rounded-xl px-4 py-1 transition-colors" :class="isActive('/logs') && 'bg-wa-green/10'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <span class="text-[10px] leading-none" x-text="$t('logs')">Logs</span>
+        </a>
+
+        <!-- More menu (Dashboard, Ads, Logout) -->
+        <div class="flex flex-col items-center justify-center gap-0.5 flex-1 relative">
+            <button @click="showMenu = !showMenu"
+                    class="flex flex-col items-center gap-0.5 transition-colors"
+                    :class="showMenu || isActive('/') || isActive('/ads') ? 'text-wa-green' : 'text-wa-text-secondary'">
+                <div class="rounded-xl px-4 py-1 transition-colors" :class="(showMenu || isActive('/') || isActive('/ads')) && 'bg-wa-green/10'">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path>
+                    </svg>
+                </div>
+                <span class="text-[10px] leading-none">Mas</span>
+            </button>
+
+            <!-- Popup menu -->
+            <div x-show="showMenu"
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 translate-y-2"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-100"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 translate-y-2"
+                 @click.outside="showMenu = false"
+                 class="absolute bottom-full right-0 mb-2 w-48 bg-wa-bg-panel border border-wa-border rounded-xl shadow-2xl overflow-hidden"
+                 style="display: none;">
+
+                <a href="/" @click="showMenu = false"
+                   class="flex items-center gap-3 px-4 py-3 text-sm transition-colors"
+                   :class="isActive('/') ? 'text-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:bg-wa-bg-hover hover:text-white'">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                    </svg>
+                    <span x-text="$t('dashboard')">Dashboard</span>
+                </a>
+
+                <a href="/ads" @click="showMenu = false"
+                   class="flex items-center gap-3 px-4 py-3 text-sm transition-colors"
+                   :class="isActive('/ads') ? 'text-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:bg-wa-bg-hover hover:text-white'">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    <span x-text="$t('ads')">Ads</span>
+                </a>
+
+                <div class="border-t border-wa-border"></div>
+
+                <button @click="$store.auth.logout()"
+                        class="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full text-left">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                    <span>Cerrar sesion</span>
+                </button>
+            </div>
+        </div>
     </div>
 </nav>
