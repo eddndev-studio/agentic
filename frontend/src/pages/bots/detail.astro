@@ -181,71 +181,22 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             </div>
         </header>
 
-        <!-- Tabs -->
-        <div class="flex gap-2 mb-8 bg-wa-bg-header p-1 rounded-xl w-fit max-w-full flex-wrap">
-            <button
-                @click="activeTab = 'flows'"
-                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
-                :class="activeTab === 'flows' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
-            >
-                <span x-text="$t('flows')">Flows</span>
-            </button>
-            <button
-                @click="activeTab = 'clients'"
-                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
-                :class="activeTab === 'clients' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
-            >
-                <span>Clientes</span>
-            </button>
-            <button
-                @click="activeTab = 'ai'"
-                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
-                :class="activeTab === 'ai' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
-            >
-                <span x-text="$t('ai_config')">AI Config</span>
-            </button>
-            <button
-                @click="activeTab = 'tools'; loadTools()"
-                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
-                :class="activeTab === 'tools' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
-            >
-                <span x-text="$t('tools')">Tools</span>
-            </button>
-            <button
-                @click="activeTab = 'automations'; loadAutomations()"
-                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
-                :class="activeTab === 'automations' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
-            >
-                <span x-text="$t('automations')">Automations</span>
-            </button>
-            <button
-                @click="activeTab = 'variables'"
-                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
-                :class="activeTab === 'variables' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
-            >
-                <span x-text="$t('bot_variables')">Variables</span>
-            </button>
-            <button
-                @click="activeTab = 'notifications'"
-                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
-                :class="activeTab === 'notifications' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
-            >
-                <span>Notificaciones</span>
-            </button>
-            <button
-                @click="activeTab = 'logs'; loadLogs()"
-                class="px-3 sm:px-6 py-2 font-sans text-xs sm:text-sm transition-all rounded-lg"
-                :class="activeTab === 'logs' ? 'bg-wa-green text-white shadow-lg' : 'text-wa-text-secondary hover:text-white'"
-            >
-                <span x-text="$t('logs')">Logs</span>
-            </button>
-        </div>
+        <!-- Card Stack -->
+        <div class="space-y-2">
 
-        <!-- Clients Tab -->
-        <div x-show="activeTab === 'clients'" style="display: none;">
-            <div
-                class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative min-h-[400px] rounded-xl"
-            >
+        <!-- Card: Clientes -->
+        <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+                 :class="focused === 'clients' ? 'border-wa-green/30' : ''">
+            <button @click="toggleCard('clients')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'clients' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                <div class="flex items-center gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'clients' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
+                    <h3 class="text-sm font-semibold">Clientes</h3>
+                </div>
+                <span class="text-xs text-wa-text-secondary"></span>
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'clients' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
+                <div class="overflow-hidden">
+                    <div class="p-4 sm:p-6 min-h-[400px]">
 
                 <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
                     <h3
@@ -259,11 +210,24 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 </div>
 
                 <ClientList />
+                    </div>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- AI Config Tab -->
-        <div x-show="activeTab === 'ai'" style="display: none;">
+        <!-- Card: Configuración IA -->
+        <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+                 :class="focused === 'ai' ? 'border-wa-green/30' : ''">
+            <button @click="toggleCard('ai')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'ai' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                <div class="flex items-center gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'ai' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
+                    <h3 class="text-sm font-semibold" x-text="$t('ai_config')">Configuración IA</h3>
+                </div>
+                <span class="text-xs text-wa-text-secondary" x-text="bot.templateId ? (bot.template?.name || 'Plantilla') : (aiConfig.aiModel || 'gemini-2.5-flash')"></span>
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'ai' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
+                <div class="overflow-hidden">
+                    <div class="p-4 sm:p-6">
             <!-- Template override notice -->
             <div x-show="bot.templateId" class="mb-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-start gap-3 max-w-2xl">
                 <svg class="w-5 h-5 text-purple-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -454,11 +418,24 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </div>
                 </form>
             </div>
-        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        <!-- Variables Tab -->
-        <div x-show="activeTab === 'variables'" style="display: none;">
-            <div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
+        <!-- Card: Variables -->
+        <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+                 :class="focused === 'variables' ? 'border-wa-green/30' : ''">
+            <button @click="toggleCard('variables')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'variables' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                <div class="flex items-center gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'variables' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
+                    <h3 class="text-sm font-semibold" x-text="$t('bot_variables')">Variables</h3>
+                </div>
+                <span class="text-xs text-wa-text-secondary" x-text="bot.templateId ? (bot.template?.name || 'Plantilla') : variablesList.length + ' vars'"></span>
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'variables' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
+                <div class="overflow-hidden">
+                    <div class="p-4 sm:p-6">
 
                 <!-- Template Selector -->
                 <div class="mb-8">
@@ -571,12 +548,24 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         Guardado
                     </span>
                 </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Notifications Tab -->
-        <div x-show="activeTab === 'notifications'" style="display: none;">
-            <div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
+        <!-- Card: Notificaciones -->
+        <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+                 :class="focused === 'notifications' ? 'border-wa-green/30' : ''">
+            <button @click="toggleCard('notifications')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'notifications' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                <div class="flex items-center gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'notifications' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
+                    <h3 class="text-sm font-semibold">Notificaciones</h3>
+                </div>
+                <span class="text-xs text-wa-text-secondary" x-text="notificationChannels.length + ' canales'"></span>
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'notifications' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
+                <div class="overflow-hidden">
+                    <div class="p-4 sm:p-6">
 
                 <h3 class="text-xs text-wa-green tracking-normal mb-6">Notificaciones</h3>
 
@@ -671,12 +660,24 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </button>
                     </div>
                 </form>
+                    </div>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Tools Tab -->
-        <div x-show="activeTab === 'tools'" style="display: none;">
-            <div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative rounded-xl">
+        <!-- Card: Herramientas -->
+        <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+                 :class="focused === 'tools' ? 'border-wa-green/30' : ''">
+            <button @click="toggleCard('tools')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'tools' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                <div class="flex items-center gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'tools' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
+                    <h3 class="text-sm font-semibold" x-text="$t('tools')">Herramientas</h3>
+                </div>
+                <span class="text-xs text-wa-text-secondary" x-text="tools.length + ' tools · ' + automations.length + ' autom.'"></span>
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'tools' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
+                <div class="overflow-hidden">
+                    <div class="p-4 sm:p-6">
 
                 <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
                     <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('tools')">Tools</h3>
@@ -753,14 +754,25 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 <template x-if="tools.length === 0">
                     <p class="text-xs text-wa-text-secondary text-center py-4" x-text="$t('no_custom_tools') || 'No custom tools yet. Built-in tools are always active.'"></p>
                 </template>
-            </div>
-        </div>
 
-        <!-- Flows Tab -->
-        <div
-            x-show="activeTab === 'flows'"
-            class="grid grid-cols-1 lg:grid-cols-3 gap-8"
-        >
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Card: Flujos -->
+        <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+                 :class="focused === 'flows' ? 'border-wa-green/30' : ''">
+            <button @click="toggleCard('flows')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'flows' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                <div class="flex items-center gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'flows' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
+                    <h3 class="text-sm font-semibold" x-text="$t('flows')">Flujos</h3>
+                </div>
+                <span class="text-xs text-wa-text-secondary" x-text="flows.length + ' flujos'"></span>
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'flows' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
+                <div class="overflow-hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4 sm:p-6">
             <!-- Connection Panel -->
             <div class="lg:col-span-1">
                 <div
@@ -906,11 +918,24 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </template>
                 </div>
             </div>
-        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        <!-- Automations Tab -->
-        <div x-show="activeTab === 'automations'" style="display: none;">
-            <div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative rounded-xl">
+        <!-- Card: Automations -->
+        <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+                 :class="focused === 'automations' ? 'border-wa-green/30' : ''">
+            <button @click="toggleCard('automations')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'automations' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                <div class="flex items-center gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'automations' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
+                    <h3 class="text-sm font-semibold" x-text="$t('automations')">Automations</h3>
+                </div>
+                <span class="text-xs text-wa-text-secondary" x-text="automations.length + ' autom.'"></span>
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'automations' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
+                <div class="overflow-hidden">
+                    <div class="p-4 sm:p-6">
 
                 <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
                     <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('automations')">Automations</h3>
@@ -978,8 +1003,10 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </button>
                     </div>
                 </template>
+                    </div>
+                </div>
             </div>
-        </div>
+        </section>
 
         <!-- Create/Edit Automation Modal -->
         <div x-show="showAutomationModal"
@@ -1056,9 +1083,19 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             </div>
         </div>
 
-        <!-- Logs Tab -->
-        <div x-show="activeTab === 'logs'" style="display: none;">
-            <div class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative rounded-xl">
+        <!-- Card: Registros -->
+        <section class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden transition-colors duration-200"
+                 :class="focused === 'logs' ? 'border-wa-green/30' : ''">
+            <button @click="toggleCard('logs')" class="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors duration-200" :class="focused === 'logs' ? 'bg-wa-green/5' : 'hover:bg-wa-bg-hover/50'">
+                <div class="flex items-center gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors duration-200" :class="focused === 'logs' ? 'bg-wa-green' : 'bg-wa-text-secondary/30'"></span>
+                    <h3 class="text-sm font-semibold" x-text="$t('logs')">Registros</h3>
+                </div>
+                <span class="text-xs text-wa-text-secondary" x-text="logsPagination.total + ' registros'"></span>
+            </button>
+            <div class="grid transition-[grid-template-rows] duration-300 ease-out" :style="focused === 'logs' ? 'grid-template-rows: 1fr' : 'grid-template-rows: 0fr'">
+                <div class="overflow-hidden">
+                    <div class="p-4 sm:p-6">
 
                 <!-- Filters -->
                 <div class="flex flex-wrap gap-4 mb-6 items-end">
@@ -1301,8 +1338,13 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </button>
                     </div>
                 </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </section>
+
+        </div> <!-- /Card Stack -->
+
         <!-- Loading State -->
         <div
             x-data="botDetail"
@@ -1705,8 +1747,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             ],
             tools: [] as any[],
 
-            // Logs State
-            activeTab: "flows", // 'flows' | 'clients' | 'ai' | 'tools' | 'automations' | 'logs'
+            // Card focus State
+            focused: "flows" as string | null,
             logs: [] as Execution[],
             loadingLogs: false,
             logsPagination: { total: 0, limit: 50, offset: 0 },
@@ -1824,6 +1866,17 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     const error = e as Error;
                     this.error = error.message || "Bot not found";
                 }
+            },
+
+            toggleCard(card: string) {
+                if (this.focused === card) {
+                    this.focused = null;
+                    return;
+                }
+                this.focused = card;
+                if (card === 'tools') this.loadTools();
+                if (card === 'automations') this.loadAutomations();
+                if (card === 'logs') this.loadLogs();
             },
 
             generateConnectionHtml(): string {
