@@ -158,14 +158,23 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             where: { sessionId: id },
             include: { label: true },
         });
+        const addLabelPayload = updatedLabels.map(sl => ({
+            id: sl.label.id, name: sl.label.name,
+            color: sl.label.color, waLabelId: sl.label.waLabelId,
+        }));
+        eventBus.emitBotEvent({
+            type: 'session:labels:add',
+            botId: session.botId,
+            sessionId: id,
+            labels: addLabelPayload,
+            changedLabelId: label.id,
+            changedLabelName: label.name,
+        });
         eventBus.emitBotEvent({
             type: 'session:labels',
             botId: session.botId,
             sessionId: id,
-            labels: updatedLabels.map(sl => ({
-                id: sl.label.id, name: sl.label.name,
-                color: sl.label.color, waLabelId: sl.label.waLabelId,
-            })),
+            labels: addLabelPayload,
             changedLabelId: label.id,
             changedLabelName: label.name,
             action: 'add',
@@ -218,14 +227,23 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             where: { sessionId: id },
             include: { label: true },
         });
+        const removeLabelPayload = remainingLabels.map(sl => ({
+            id: sl.label.id, name: sl.label.name,
+            color: sl.label.color, waLabelId: sl.label.waLabelId,
+        }));
+        eventBus.emitBotEvent({
+            type: 'session:labels:remove',
+            botId: session.botId,
+            sessionId: id,
+            labels: removeLabelPayload,
+            changedLabelId: label.id,
+            changedLabelName: label.name,
+        });
         eventBus.emitBotEvent({
             type: 'session:labels',
             botId: session.botId,
             sessionId: id,
-            labels: remainingLabels.map(sl => ({
-                id: sl.label.id, name: sl.label.name,
-                color: sl.label.color, waLabelId: sl.label.waLabelId,
-            })),
+            labels: removeLabelPayload,
             changedLabelId: label.id,
             changedLabelName: label.name,
             action: 'remove',

@@ -4,7 +4,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL ||
 type BotEventType =
     | 'connected' | 'bot:qr' | 'bot:connected' | 'bot:disconnected'
     | 'message:received' | 'message:sent' | 'session:created'
-    | 'session:updated' | 'session:labels';
+    | 'session:updated' | 'session:labels'
+    | 'session:labels:add' | 'session:labels:remove';
 
 type EventHandler = (data: any) => void;
 

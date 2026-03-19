@@ -412,16 +412,27 @@ export class BaileysService {
                         where: { sessionId: session.id },
                         include: { label: true },
                     });
+                    const labelPayload = updatedLabels.map(sl => ({
+                        id: sl.label.id,
+                        name: sl.label.name,
+                        color: sl.label.color,
+                        waLabelId: sl.label.waLabelId,
+                    }));
+                    // Specific event for notification filtering
+                    eventBus.emitBotEvent({
+                        type: event.type === 'add' ? 'session:labels:add' : 'session:labels:remove',
+                        botId,
+                        sessionId: session.id,
+                        labels: labelPayload,
+                        changedLabelId: label.id,
+                        changedLabelName: label.name,
+                    });
+                    // Generic event for SSE / monitor UI
                     eventBus.emitBotEvent({
                         type: 'session:labels',
                         botId,
                         sessionId: session.id,
-                        labels: updatedLabels.map(sl => ({
-                            id: sl.label.id,
-                            name: sl.label.name,
-                            color: sl.label.color,
-                            waLabelId: sl.label.waLabelId,
-                        })),
+                        labels: labelPayload,
                         changedLabelId: label.id,
                         changedLabelName: label.name,
                         action: event.type as 'add' | 'remove',

@@ -7,13 +7,14 @@ const EVENT_LABELS: Record<string, string> = {
     "flow:completed":     "Flujo completado",
     "flow:failed":        "Flujo fallido",
     "session:created":    "Sesión creada",
-    "session:labels":     "Etiquetas actualizadas",
+    "session:labels:add":    "Etiqueta asignada",
+    "session:labels:remove": "Etiqueta retirada",
     "bot:connected":      "Bot conectado",
     "bot:disconnected":   "Bot desconectado",
     "tool:executed":      "Herramienta ejecutada",
 };
 
-const IGNORED_EVENTS = new Set(['bot:qr', 'message:sent', 'session:updated', 'message:received']);
+const IGNORED_EVENTS = new Set(['bot:qr', 'message:sent', 'session:updated', 'message:received', 'session:labels']);
 
 interface ChannelConfig {
     sessionId: string;
@@ -93,8 +94,8 @@ class NotificationService {
             if (channel.events.length === 0) continue;
             if (!channel.events.includes(event.type)) continue;
 
-            // Per-label filtering for this channel
-            if (event.type === 'session:labels' && event.changedLabelId && channel.labels.length > 0) {
+            // Per-label filtering for label events
+            if ((event.type === 'session:labels:add' || event.type === 'session:labels:remove') && event.changedLabelId && channel.labels.length > 0) {
                 if (!channel.labels.includes(event.changedLabelId)) continue;
             }
 
@@ -135,16 +136,18 @@ class NotificationService {
                 return `\u274C *${label}*${botLine}\nFlujo: ${event.flowName}${chatLine}\nError: ${event.error}\n\u{1F550} ${ts}`;
             case 'session:created':
                 return `\u{1F464} *${label}*${botLine}\nNombre: ${event.session?.name || 'Desconocido'}\nIdentificador: ${event.session?.identifier || 'N/A'}\n\u{1F550} ${ts}`;
-            case 'session:labels': {
+            case 'session:labels:add':
+            case 'session:labels:remove': {
                 const changedLabel = event.changedLabelId
                     ? event.labels.find((l: any) => l.id === event.changedLabelId)
                       ?? (event.changedLabelName ? { name: event.changedLabelName } : null)
                     : null;
-                const actionText = event.action === 'add' ? 'asignada' : event.action === 'remove' ? 'removida' : 'actualizada';
+                const actionText = event.type === 'session:labels:add' ? 'asignada' : 'retirada';
+                const emoji = event.type === 'session:labels:add' ? '\u{1F3F7}\uFE0F' : '\u{1F5D1}\uFE0F';
                 const detail = changedLabel
                     ? `Etiqueta: ${changedLabel.name} (${actionText})`
                     : `Etiquetas: ${event.labels.map((l: any) => l.name).join(', ') || 'ninguna'}`;
-                return `\u{1F3F7}\uFE0F *${label}*${botLine}${chatLine}\n${detail}\n\u{1F550} ${ts}`;
+                return `${emoji} *${label}*${botLine}${chatLine}\n${detail}\n\u{1F550} ${ts}`;
             }
             case 'bot:connected':
                 return `\u{1F7E2} *${label}*${botLine}\n\u{1F550} ${ts}`;

@@ -281,14 +281,23 @@ export class ToolExecutor {
                     where: { sessionId: session.id },
                     include: { label: true },
                 });
+                const assignLabelPayload = addedLabels.map(sl => ({
+                    id: sl.label.id, name: sl.label.name,
+                    color: sl.label.color, waLabelId: sl.label.waLabelId,
+                }));
+                eventBus.emitBotEvent({
+                    type: 'session:labels:add',
+                    botId,
+                    sessionId: session.id,
+                    labels: assignLabelPayload,
+                    changedLabelId: label.id,
+                    changedLabelName: label.name,
+                });
                 eventBus.emitBotEvent({
                     type: 'session:labels',
                     botId,
                     sessionId: session.id,
-                    labels: addedLabels.map(sl => ({
-                        id: sl.label.id, name: sl.label.name,
-                        color: sl.label.color, waLabelId: sl.label.waLabelId,
-                    })),
+                    labels: assignLabelPayload,
                     changedLabelId: label.id,
                     changedLabelName: label.name,
                     action: 'add',
@@ -334,14 +343,23 @@ export class ToolExecutor {
                     where: { sessionId: session.id },
                     include: { label: true },
                 });
+                const removeLabelPayload = remainingLabels.map(sl => ({
+                    id: sl.label.id, name: sl.label.name,
+                    color: sl.label.color, waLabelId: sl.label.waLabelId,
+                }));
+                eventBus.emitBotEvent({
+                    type: 'session:labels:remove',
+                    botId,
+                    sessionId: session.id,
+                    labels: removeLabelPayload,
+                    changedLabelId: labelToRemove.id,
+                    changedLabelName: labelToRemove.name,
+                });
                 eventBus.emitBotEvent({
                     type: 'session:labels',
                     botId,
                     sessionId: session.id,
-                    labels: remainingLabels.map(sl => ({
-                        id: sl.label.id, name: sl.label.name,
-                        color: sl.label.color, waLabelId: sl.label.waLabelId,
-                    })),
+                    labels: removeLabelPayload,
                     changedLabelId: labelToRemove.id,
                     changedLabelName: labelToRemove.name,
                     action: 'remove',
@@ -503,7 +521,7 @@ export class ToolExecutor {
                 if (!channels.some((ch: any) => ch.sessionId === session.id)) {
                     channels.push({
                         sessionId: session.id,
-                        events: ['flow:completed', 'flow:failed', 'session:created', 'session:labels', 'bot:connected', 'bot:disconnected', 'tool:executed'],
+                        events: ['flow:completed', 'flow:failed', 'session:created', 'session:labels:add', 'session:labels:remove', 'bot:connected', 'bot:disconnected', 'tool:executed'],
                         labels: [],
                     });
                     await prisma.bot.update({

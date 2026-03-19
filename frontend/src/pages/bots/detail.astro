@@ -542,7 +542,8 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                                             ['flow:completed', 'Flujo completado'],
                                             ['flow:failed', 'Flujo fallido'],
                                             ['session:created', 'Sesión creada'],
-                                            ['session:labels', 'Etiquetas'],
+                                            ['session:labels:add', 'Etiqueta asignada'],
+                                            ['session:labels:remove', 'Etiqueta retirada'],
                                             ['bot:connected', 'Conectado'],
                                             ['bot:disconnected', 'Desconectado'],
                                             ['tool:executed', 'Herramienta'],
@@ -559,7 +560,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                                 </div>
 
                                 <!-- Per-label filter for this channel -->
-                                <div x-show="ch.events.includes('session:labels')" x-transition>
+                                <div x-show="ch.events.includes('session:labels:add') || ch.events.includes('session:labels:remove')" x-transition>
                                     <label class="block text-[10px] text-wa-text-secondary mb-2">Filtrar etiquetas <span class="text-wa-text-secondary/50">(vacío = todas)</span></label>
                                     <div class="flex flex-wrap gap-1.5">
                                         <template x-for="lbl in botLabels" :key="'lbl-' + idx + '-' + lbl.id">
@@ -2069,7 +2070,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                 const sess = this.notifSessions.find((s: any) => s.id === sessionId);
                 this.notificationChannels.push({
                     sessionId,
-                    events: ['flow:completed', 'flow:failed', 'session:created', 'session:labels', 'bot:connected', 'bot:disconnected', 'tool:executed'],
+                    events: ['flow:completed', 'flow:failed', 'session:created', 'session:labels:add', 'session:labels:remove', 'bot:connected', 'bot:disconnected', 'tool:executed'],
                     labels: [],
                     _name: sess?.name || sess?.identifier || sessionId,
                 });
