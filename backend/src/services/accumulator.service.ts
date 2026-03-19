@@ -5,8 +5,14 @@ import { prisma } from "./postgres.service";
 const REDIS_PREFIX = "acc:";
 const REDIS_TTL = 300; // 5 min safety TTL (well above any realistic messageDelay)
 
+// Maximum accumulation window: delaySec * this multiplier
+// Prevents infinite debounce when messages arrive in continuous bursts
+const MAX_ACCUMULATE_MULTIPLIER = 3;
+
 // In-memory timers only — message IDs are persisted in Redis
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
+// Track when the first message in each batch arrived
+const batchStartTimes = new Map<string, number>();
 
 export class MessageAccumulator {
 
@@ -14,6 +20,9 @@ export class MessageAccumulator {
      * Add a message to the accumulation buffer for a session.
      * Message IDs are stored in Redis (crash-safe); only the debounce timer is in-memory.
      * When the timer expires, messages are re-read from DB and passed to the callback.
+     *
+     * A maximum accumulation window (delaySec * MAX_ACCUMULATE_MULTIPLIER) prevents
+     * infinite debounce when messages keep arriving in rapid succession.
      */
     static async accumulate(
         sessionId: string,
@@ -27,16 +36,40 @@ export class MessageAccumulator {
         await redis.rpush(key, message.id);
         await redis.expire(key, REDIS_TTL);
 
-        // Reset the in-memory debounce timer
+        // Track when the first message in this batch arrived
+        if (!batchStartTimes.has(sessionId)) {
+            batchStartTimes.set(sessionId, Date.now());
+        }
+
+        // Clear existing debounce timer
         const existing = timers.get(sessionId);
         if (existing) clearTimeout(existing);
 
+        // Check if we've exceeded the max accumulation window
+        const batchStart = batchStartTimes.get(sessionId)!;
+        const maxWait = delaySec * MAX_ACCUMULATE_MULTIPLIER * 1000;
+        const elapsed = Date.now() - batchStart;
+
+        if (elapsed >= maxWait) {
+            // Exceeded max window — flush immediately
+            console.log(`[Accumulator] Max accumulation window reached for session ${sessionId}, flushing`);
+            timers.delete(sessionId);
+            batchStartTimes.delete(sessionId);
+            await MessageAccumulator.flush(sessionId, callback);
+            return;
+        }
+
+        // Schedule flush: use remaining max window or delaySec, whichever is shorter
+        const remainingMax = maxWait - elapsed;
+        const actualDelay = Math.min(delaySec * 1000, remainingMax);
+
         timers.set(sessionId, setTimeout(() => {
             timers.delete(sessionId);
+            batchStartTimes.delete(sessionId);
             MessageAccumulator.flush(sessionId, callback).catch(e => {
                 console.error(`[Accumulator] Flush error for session ${sessionId}:`, e);
             });
-        }, delaySec * 1000));
+        }, actualDelay));
     }
 
     /**
@@ -76,6 +109,7 @@ export class MessageAccumulator {
         for (const [sessionId, timer] of timers) {
             clearTimeout(timer);
             timers.delete(sessionId);
+            batchStartTimes.delete(sessionId);
             await MessageAccumulator.flush(sessionId, callback);
         }
 
@@ -83,6 +117,7 @@ export class MessageAccumulator {
         const keys = await redis.keys(`${REDIS_PREFIX}*`);
         for (const key of keys) {
             const sessionId = key.slice(REDIS_PREFIX.length);
+            batchStartTimes.delete(sessionId);
             await MessageAccumulator.flush(sessionId, callback);
         }
     }

@@ -48,6 +48,57 @@ const LABEL_RECONCILE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const recentLabelEvents = new Map<string, number>();
 const LABEL_DEDUP_TTL = 5000; // 5 seconds
 
+// ─── In-memory message dedup cache (prevents reprocessing on reconnect/replay) ───
+const MESSAGE_DEDUP_TTL = 20 * 60 * 1000; // 20 minutes
+const MESSAGE_DEDUP_MAX = 5000;
+const messageDedup = new Map<string, number>(); // dedupKey -> timestamp
+
+function isMessageDuplicate(key: string): boolean {
+    const now = Date.now();
+    // Lazy cleanup when cache reaches max size
+    if (messageDedup.size >= MESSAGE_DEDUP_MAX) {
+        for (const [k, ts] of messageDedup) {
+            if (now - ts > MESSAGE_DEDUP_TTL) messageDedup.delete(k);
+        }
+    }
+    const existing = messageDedup.get(key);
+    if (existing && now - existing < MESSAGE_DEDUP_TTL) return true;
+    messageDedup.set(key, now);
+    return false;
+}
+
+// ─── Watchdog: detect silent socket hangs (no events for extended period) ───
+const WATCHDOG_TIMEOUT = 30 * 60 * 1000; // 30 minutes → force reconnect
+const watchdogTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const connectionTimestamps = new Map<string, number>(); // botId -> connectedAt ms
+
+function resetWatchdog(botId: string): void {
+    const existing = watchdogTimers.get(botId);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+        console.warn(`[Baileys] Watchdog: No messages for ${WATCHDOG_TIMEOUT / 60000}min on Bot ${botId}, forcing reconnect`);
+        watchdogTimers.delete(botId);
+        const sock = sessions.get(botId);
+        if (sock) {
+            try { sock.ws.close(); } catch {}
+        }
+    }, WATCHDOG_TIMEOUT);
+
+    watchdogTimers.set(botId, timer);
+}
+
+function stopWatchdog(botId: string): void {
+    const timer = watchdogTimers.get(botId);
+    if (timer) {
+        clearTimeout(timer);
+        watchdogTimers.delete(botId);
+    }
+}
+
+// ─── Append grace period: offline catch-up messages arrive as "append" within this window ───
+const APPEND_GRACE_PERIOD = 60 * 1000; // 60 seconds after connection
+
 // Simple CacheStore implementation for Baileys msgRetryCounterCache
 class MapCacheStore {
     private cache = new Map<string, { value: any; expires: number }>();
@@ -168,7 +219,39 @@ export class BaileysService {
             fs.mkdirSync(sessionDir, { recursive: true });
         }
 
-        const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+        // ─── Credential recovery: restore from backup if creds.json is corrupted ───
+        const credsPath = path.join(sessionDir, 'creds.json');
+        const backupPath = path.join(sessionDir, 'creds.json.bak');
+        if (fs.existsSync(credsPath)) {
+            try {
+                JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
+            } catch {
+                if (fs.existsSync(backupPath)) {
+                    try {
+                        JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
+                        fs.copyFileSync(backupPath, credsPath);
+                        console.warn(`[Baileys] Recovered corrupted creds.json from backup for Bot ${botId}`);
+                    } catch {
+                        console.error(`[Baileys] Both creds.json and backup are corrupted for Bot ${botId}`);
+                    }
+                }
+            }
+        }
+
+        const { state, saveCreds: rawSaveCreds } = await useMultiFileAuthState(sessionDir);
+
+        // Wrap saveCreds with backup-before-write logic
+        const saveCreds = async () => {
+            try {
+                if (fs.existsSync(credsPath)) {
+                    const content = fs.readFileSync(credsPath, 'utf-8');
+                    JSON.parse(content); // validate current creds before backing up
+                    fs.copyFileSync(credsPath, backupPath);
+                }
+            } catch {} // skip backup if current creds are already invalid
+            await rawSaveCreds();
+        };
+
         const { version, isLatest } = await fetchLatestBaileysVersion();
 
         // Fetch bot config to check for IPv6 assignment
@@ -203,6 +286,8 @@ export class BaileysService {
                     keys: makeCacheableSignalKeyStore(state.keys, logger),
                 },
                 generateHighQualityLinkPreview: true,
+                syncFullHistory: false,
+                markOnlineOnConnect: false,
                 qrTimeout: 60000,
                 // Enable automatic retry for failed message decryption (Bad MAC recovery)
                 msgRetryCounterCache: new MapCacheStore(),
@@ -246,6 +331,8 @@ export class BaileysService {
 
                     sessions.delete(botId);
                     qrCodes.delete(botId);
+                    stopWatchdog(botId);
+                    connectionTimestamps.delete(botId);
                     BaileysService.stopLabelReconciliation(botId);
                     eventBus.emitBotEvent({ type: 'bot:disconnected', botId, statusCode });
 
@@ -273,6 +360,8 @@ export class BaileysService {
                     console.log(`[Baileys] Connection opened for Bot ${botId}`);
                     qrCodes.delete(botId);
                     reconnectAttempts.delete(botId); // Reset backoff on successful connection
+                    connectionTimestamps.set(botId, Date.now());
+                    resetWatchdog(botId);
                     eventBus.emitBotEvent({ type: 'bot:connected', botId, user: sock.user });
 
                     // Force full label sync — reuse syncLabels() which clears cache + version file
@@ -291,21 +380,47 @@ export class BaileysService {
             });
 
             sock.ev.on('messages.upsert', async ({ messages, type }) => {
-                if (type !== 'notify') return;
+                // Process both "notify" (real-time) and "append" (offline catch-up)
+                if (type !== 'notify' && type !== 'append') return;
+
+                // For "append" messages: only process if within grace period after connection
+                const isAppend = type === 'append';
+                if (isAppend) {
+                    const connectedAt = connectionTimestamps.get(botId);
+                    if (!connectedAt || Date.now() - connectedAt > APPEND_GRACE_PERIOD) {
+                        // Outside grace period — these are historical sync messages, skip
+                        return;
+                    }
+                    console.log(`[Baileys] Processing ${messages.length} offline catch-up message(s) for Bot ${botId}`);
+                }
+
+                // Reset watchdog on any message activity
+                resetWatchdog(botId);
 
                 for (const msg of messages) {
-                    if (msg.key.remoteJid === 'status@broadcast') continue;
+                    try {
+                        if (msg.key.remoteJid === 'status@broadcast') continue;
 
-                    // Detect decryption failures (Bad MAC / corrupted Signal sessions)
-                    if (!msg.message && msg.key.remoteJid) {
-                        this.trackDecryptionFailure(botId);
-                        continue;
+                        // Detect decryption failures (Bad MAC / corrupted Signal sessions)
+                        if (!msg.message && msg.key.remoteJid) {
+                            this.trackDecryptionFailure(botId);
+                            continue;
+                        }
+
+                        if (!msg.message) continue;
+
+                        // In-memory dedup: skip if already processed recently
+                        const dedupKey = `${botId}:${msg.key.remoteJid}:${msg.key.id}`;
+                        if (isMessageDuplicate(dedupKey)) {
+                            console.log(`[Baileys] Dedup: skipping already-seen message ${msg.key.id}`);
+                            continue;
+                        }
+
+                        // @ts-ignore
+                        await this.handleIncomingMessage(botId, msg);
+                    } catch (e) {
+                        console.error(`[Baileys] Error in messages.upsert handler for msg ${msg.key.id}:`, e);
                     }
-
-                    if (!msg.message) continue;
-
-                    // @ts-ignore
-                    await this.handleIncomingMessage(botId, msg);
                 }
             });
 
@@ -684,11 +799,24 @@ export class BaileysService {
                 throw e;
             }
 
-            // Download media in background (non-blocking) and update message metadata
+            // Download media BEFORE AI processing so the engine has full context
             if (hasMedia) {
-                BaileysService.downloadAndAttachMedia(msg, msgType, message.id).catch(mediaErr => {
-                    console.error(`[Baileys] Background media download failed for ${messageExternalId}:`, mediaErr);
-                });
+                try {
+                    await BaileysService.downloadAndAttachMedia(msg, msgType, message.id);
+                    // Refresh message object to include updated metadata
+                    const updated = await prisma.message.findUnique({ where: { id: message.id } });
+                    if (updated) message = updated;
+                } catch (mediaErr) {
+                    console.error(`[Baileys] Media download failed for ${messageExternalId}:`, mediaErr);
+                    // Persist placeholder so AI knows media was present but couldn't be downloaded
+                    const placeholder = `[${msgType.toLowerCase()} adjunto no pudo ser descargado]`;
+                    const updatedContent = content ? `${content}\n${placeholder}` : placeholder;
+                    await prisma.message.update({
+                        where: { id: message.id },
+                        data: { content: updatedContent },
+                    }).catch(() => {});
+                    message = { ...message, content: updatedContent };
+                }
             }
 
             // Touch session so it sorts to top of the list
@@ -1075,6 +1203,12 @@ export class BaileysService {
         for (const [botId] of labelReconcileTimers) {
             this.stopLabelReconciliation(botId);
         }
+
+        // Cancel all watchdog timers
+        for (const [botId] of watchdogTimers) {
+            stopWatchdog(botId);
+        }
+        connectionTimestamps.clear();
 
         // Cancel all pending reconnect timers
         for (const [botId, timer] of reconnectTimers) {
