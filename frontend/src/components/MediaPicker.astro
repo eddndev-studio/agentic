@@ -182,6 +182,8 @@
             },
 
             getApiUrl(path: string) {
+                // R2 or external URL: already absolute, use as-is
+                if (path.startsWith('http://') || path.startsWith('https://')) return path;
                 const base =
                     import.meta.env.PUBLIC_API_URL ||
                     (import.meta.env.DEV
