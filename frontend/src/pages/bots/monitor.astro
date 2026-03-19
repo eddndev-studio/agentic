@@ -264,30 +264,63 @@ import Layout from "../../layouts/Layout.astro";
                                      ]"
                                 >
                                     <div
-                                        class="relative max-w-[85%] md:max-w-[65%] px-2.5 py-1.5 text-sm break-words shadow-sm"
+                                        class="relative max-w-[85%] md:max-w-[65%] text-sm break-words shadow-sm overflow-hidden"
                                         :class="[
                                             msg.fromMe ? 'bg-wa-bubble-out text-white' : 'bg-wa-bubble-in text-white',
                                             isLastInGroup(messages, idx)
                                                 ? (msg.fromMe ? 'rounded-lg rounded-br-none wa-bubble-tail-out' : 'rounded-lg rounded-bl-none wa-bubble-tail-in')
-                                                : 'rounded-lg'
+                                                : 'rounded-lg',
+                                            getMediaUrl(msg) && (msg.type === 'IMAGE' || msg.type === 'VIDEO') ? '' : 'px-2.5 py-1.5'
                                         ]"
                                     >
-                                        <!-- Type badge for non-text -->
-                                        <span
-                                            x-show="msg.type !== 'TEXT'"
-                                            class="inline-block text-[9px] bg-white/10 px-1 py-0.5 rounded mb-1 uppercase"
-                                            x-text="msg.type"
-                                        ></span>
-                                        <span x-text="msg.content || '[media]'" class="whitespace-pre-wrap"></span>
-                                        <span class="inline-flex items-center gap-1 float-right ml-2 mt-1 text-[11px] text-wa-text-secondary align-bottom leading-none translate-y-0.5">
-                                            <span x-text="shortTime(msg.createdAt)"></span>
-                                            <template x-if="msg.fromMe">
-                                                <svg class="w-4 h-4 wa-check-blue" viewBox="0 0 16 15" fill="currentColor">
-                                                    <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.3a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l3.605 4.19a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z"/>
-                                                    <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
+                                        <!-- IMAGE -->
+                                        <template x-if="msg.type === 'IMAGE' && getMediaUrl(msg)">
+                                            <a :href="getMediaUrl(msg)" target="_blank" rel="noopener" class="block">
+                                                <img :src="getMediaUrl(msg)" class="w-full max-h-72 object-cover" loading="lazy" alt="" />
+                                            </a>
+                                        </template>
+
+                                        <!-- VIDEO -->
+                                        <template x-if="msg.type === 'VIDEO' && getMediaUrl(msg)">
+                                            <div>
+                                                <video :src="getMediaUrl(msg)" controls preload="metadata" class="w-full max-h-72"></video>
+                                            </div>
+                                        </template>
+
+                                        <!-- AUDIO -->
+                                        <template x-if="msg.type === 'AUDIO' && getMediaUrl(msg)">
+                                            <div class="px-2.5 pt-2 min-w-[240px]">
+                                                <audio :src="getMediaUrl(msg)" controls preload="metadata" class="w-full h-10"></audio>
+                                            </div>
+                                        </template>
+
+                                        <!-- DOCUMENT -->
+                                        <template x-if="msg.type === 'DOCUMENT' && getMediaUrl(msg)">
+                                            <a :href="getMediaUrl(msg)" target="_blank" rel="noopener" class="flex items-center gap-3 bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1 hover:bg-white/10 transition-colors">
+                                                <svg class="w-8 h-8 text-wa-text-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                                 </svg>
-                                            </template>
-                                        </span>
+                                                <div class="min-w-0">
+                                                    <span class="text-xs text-blue-300 block truncate">Documento</span>
+                                                    <span class="text-[10px] text-wa-text-secondary">Toca para abrir</span>
+                                                </div>
+                                            </a>
+                                        </template>
+
+                                        <!-- Text content -->
+                                        <div :class="getMediaUrl(msg) && (msg.type === 'IMAGE' || msg.type === 'VIDEO') ? 'px-2.5 py-1.5' : ''">
+                                            <span x-show="msg.content && msg.content !== '[media]'" x-text="msg.content" class="whitespace-pre-wrap"></span>
+                                            <span x-show="!msg.content && !getMediaUrl(msg) && msg.type !== 'TEXT'" class="text-wa-text-secondary italic">[media]</span>
+                                            <span class="inline-flex items-center gap-1 float-right ml-2 mt-1 text-[11px] text-wa-text-secondary align-bottom leading-none translate-y-0.5">
+                                                <span x-text="shortTime(msg.createdAt)"></span>
+                                                <template x-if="msg.fromMe">
+                                                    <svg class="w-4 h-4 wa-check-blue" viewBox="0 0 16 15" fill="currentColor">
+                                                        <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.3a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l3.605 4.19a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z"/>
+                                                        <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
+                                                    </svg>
+                                                </template>
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -787,6 +820,17 @@ import Layout from "../../layouts/Layout.astro";
                     '#f48fb1', '#9e9e9e', '#78909c', '#8d6e63', '#a1887f',
                 ];
                 return colors[colorIndex % colors.length] || colors[0];
+            },
+
+            getMediaUrl(msg: any): string | null {
+                const url = msg.metadata?.mediaUrl;
+                if (!url) return null;
+                // R2 or external URL: use directly
+                if (url.startsWith('http://') || url.startsWith('https://')) return url;
+                // Local file: serve via upload endpoint
+                const filename = url.split('/').pop();
+                const base = (import.meta.env.PUBLIC_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://agentic-api.w-gateway.cc'));
+                return `${base}/upload/files/${filename}`;
             },
 
             relativeTime(dateStr: string) {
