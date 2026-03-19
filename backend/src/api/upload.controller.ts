@@ -1,14 +1,21 @@
 import { Elysia, t } from "elysia";
 import { join, resolve, sep } from "path";
 import { mkdir, readdir, stat, writeFile, readFile } from "fs/promises";
-import { createReadStream, existsSync } from "fs";
+import { existsSync } from "fs";
 import { lookup } from "mime-types";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { StorageService } from "../services/storage.service";
 
 const UPLOAD_DIR = "./uploads";
 
-// Ensure upload dir exists
+// Ensure local upload dir exists (used as fallback when R2 is not configured)
 await mkdir(UPLOAD_DIR, { recursive: true });
+
+if (StorageService.isConfigured()) {
+    console.log("[Upload] R2 storage configured — media will be stored in Cloudflare R2");
+} else {
+    console.log("[Upload] R2 not configured — using local filesystem (./uploads)");
+}
 
 export const uploadController = new Elysia({ prefix: "/upload" })
     .use(authMiddleware)
@@ -30,17 +37,23 @@ export const uploadController = new Elysia({ prefix: "/upload" })
             const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
             const extension = file.name.split('.').pop() || "bin";
             const filename = `${uniqueSuffix}.${extension}`;
-            const filePath = join(UPLOAD_DIR, filename);
-
-            console.log(`[Upload] Writing to: ${filePath}`);
-
-            // Write file using Node fs
             const buffer = Buffer.from(await file.arrayBuffer());
-            await writeFile(filePath, buffer);
+            const contentType = file.type || lookup(file.name) || "application/octet-stream";
 
-            console.log(`[Upload] File saved: ${filename} (${file.size} bytes)`);
+            let url: string;
 
-            const url = `/upload/files/${filename}`;
+            if (StorageService.isConfigured()) {
+                // Upload to R2
+                const key = `uploads/${filename}`;
+                url = await StorageService.upload(key, buffer, contentType);
+                console.log(`[Upload] File uploaded to R2: ${key} (${file.size} bytes)`);
+            } else {
+                // Fallback: save locally
+                const filePath = join(UPLOAD_DIR, filename);
+                await writeFile(filePath, buffer);
+                url = `/upload/files/${filename}`;
+                console.log(`[Upload] File saved locally: ${filePath} (${file.size} bytes)`);
+            }
 
             return {
                 status: "success",
@@ -60,6 +73,19 @@ export const uploadController = new Elysia({ prefix: "/upload" })
     })
     .get("/list", async () => {
         try {
+            if (StorageService.isConfigured()) {
+                // List from R2
+                const objects = await StorageService.list("uploads/");
+                const files = objects.map(obj => ({
+                    name: obj.key.replace("uploads/", ""),
+                    url: obj.url,
+                    size: obj.size,
+                    createdAt: obj.lastModified,
+                }));
+                return { files: files.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()) };
+            }
+
+            // Fallback: list from local filesystem
             const files = await readdir(UPLOAD_DIR);
 
             const fileList = await Promise.all(files.map(async (f) => {
@@ -81,6 +107,7 @@ export const uploadController = new Elysia({ prefix: "/upload" })
             return { files: [] };
         }
     })
+    // Serve local files (backward compatibility for existing uploads)
     .get("/files/:name", async ({ params: { name }, set }) => {
         // Prevent path traversal: ensure resolved path stays inside UPLOAD_DIR
         const resolved = resolve(UPLOAD_DIR, name);

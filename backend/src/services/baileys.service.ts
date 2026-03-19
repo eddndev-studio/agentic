@@ -21,6 +21,7 @@ import { BotConfigService } from './bot-config.service';
 import { MessageAccumulator } from './accumulator.service';
 import { eventBus } from './event-bus';
 import { SessionStatus, Platform } from '@prisma/client';
+import { StorageService } from './storage.service';
 import pino from 'pino';
 
 const logger = pino({ level: 'silent' });
@@ -802,7 +803,7 @@ export class BaileysService {
             // Download media BEFORE AI processing so the engine has full context
             if (hasMedia) {
                 try {
-                    await BaileysService.downloadAndAttachMedia(msg, msgType, message.id);
+                    await BaileysService.downloadAndAttachMedia(msg, msgType, message.id, botId);
                     // Refresh message object to include updated metadata
                     const updated = await prisma.message.findUnique({ where: { id: message.id } });
                     if (updated) message = updated;
@@ -905,27 +906,44 @@ export class BaileysService {
     }
 
     /**
-     * Download media from a WhatsApp message and attach it to the persisted message.
-     * Runs in background (fire-and-forget) to avoid blocking the message pipeline.
+     * Download media from a WhatsApp message, store in R2 (or local fallback),
+     * and attach the URL to the persisted message.
      */
-    static async downloadAndAttachMedia(msg: WAMessage & { message: any }, msgType: string, messageId: string): Promise<void> {
+    static async downloadAndAttachMedia(msg: WAMessage & { message: any }, msgType: string, messageId: string, botId?: string): Promise<void> {
         const buffer = await downloadMediaMessage(msg, 'buffer', {});
         if (!buffer) return;
 
-        const ext = msgType === 'IMAGE' ? '.jpg' :
-            msgType === 'AUDIO' ? '.ogg' :
-            (msg.message.documentMessage?.fileName?.split('.').pop() || 'pdf');
-        const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext.replace('.', '')}`;
-        const uploadDir = path.resolve('uploads');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        const filePath = path.join(uploadDir, filename);
-        fs.writeFileSync(filePath, buffer as Buffer);
+        const MIME_MAP: Record<string, { ext: string; mime: string }> = {
+            IMAGE:    { ext: 'jpg',  mime: 'image/jpeg' },
+            AUDIO:    { ext: 'ogg',  mime: 'audio/ogg' },
+            VIDEO:    { ext: 'mp4',  mime: 'video/mp4' },
+            DOCUMENT: { ext: msg.message.documentMessage?.fileName?.split('.').pop() || 'pdf',
+                        mime: msg.message.documentMessage?.mimetype || 'application/octet-stream' },
+        };
+        const { ext, mime } = MIME_MAP[msgType] || { ext: 'bin', mime: 'application/octet-stream' };
+        const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        let mediaUrl: string;
+
+        if (StorageService.isConfigured()) {
+            // Upload to R2
+            const key = `media/${botId || 'unknown'}/${filename}`;
+            mediaUrl = await StorageService.upload(key, buffer as Buffer, mime);
+            console.log(`[Baileys] Media uploaded to R2: ${key}`);
+        } else {
+            // Fallback: save locally
+            const uploadDir = path.resolve('uploads');
+            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+            const filePath = path.join(uploadDir, filename);
+            fs.writeFileSync(filePath, buffer as Buffer);
+            mediaUrl = filePath;
+            console.log(`[Baileys] Media saved locally: ${filePath}`);
+        }
 
         await prisma.message.update({
             where: { id: messageId },
-            data: { metadata: { mediaUrl: filePath } },
+            data: { metadata: { mediaUrl } },
         });
-        console.log(`[Baileys] Media saved and attached: ${filePath}`);
     }
 
     /**
