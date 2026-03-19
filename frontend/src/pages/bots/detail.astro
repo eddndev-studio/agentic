@@ -440,13 +440,14 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                                             :class="def.type === 'label' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'"
                                             x-text="def.type === 'label' ? 'Etiqueta' : 'Texto'"></span>
                                     </div>
-                                    <!-- Text type: simple input -->
+                                    <!-- Text type: textarea for multiline support -->
                                     <template x-if="def.type === 'text'">
-                                        <input type="text"
+                                        <textarea
                                             :value="getVarValue(def.name)"
                                             @input="setVarValue(def.name, $event.target.value)"
                                             placeholder="Valor..."
-                                            class="w-full bg-wa-bg-deep/50 border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                                            rows="3"
+                                            class="w-full bg-wa-bg-deep/50 border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-y min-h-[2.5rem]"></textarea>
                                     </template>
                                     <!-- Label type: label picker -->
                                     <template x-if="def.type === 'label'">
@@ -478,11 +479,11 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         <p class="text-[10px] text-wa-text-secondary mb-4" x-text="$t('bot_variables_desc')"></p>
                         <div class="space-y-3 mb-4">
                             <template x-for="(variable, index) in variablesList" :key="index">
-                                <div class="flex items-center gap-2">
-                                    <input type="text" x-model="variable.key" :placeholder="$t('variable_key')" class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono" />
-                                    <span class="text-wa-text-secondary">=</span>
-                                    <input type="text" x-model="variable.value" :placeholder="$t('variable_value')" class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
-                                    <button @click="variablesList.splice(index, 1)" class="p-2 text-red-400 hover:text-red-300 transition-colors">
+                                <div class="flex gap-2">
+                                    <input type="text" x-model="variable.key" :placeholder="$t('variable_key')" class="w-40 shrink-0 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono self-start" />
+                                    <span class="text-wa-text-secondary self-start mt-2.5">=</span>
+                                    <textarea x-model="variable.value" :placeholder="$t('variable_value')" rows="3" class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-y min-h-[2.5rem]"></textarea>
+                                    <button @click="variablesList.splice(index, 1)" class="p-2 text-red-400 hover:text-red-300 transition-colors self-start">
                                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     </button>
                                 </div>
