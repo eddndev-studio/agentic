@@ -117,6 +117,14 @@ export class FlowEngine {
                     }
                 }
 
+                // Prevent self-triggering: skip if this flow is already running for this session
+                const alreadyRunning = await tx.execution.findFirst({
+                    where: { sessionId, flowId: trigger.flowId, status: 'RUNNING' }
+                });
+                if (alreadyRunning) {
+                    throw new Error(`SELF_TRIGGER`);
+                }
+
                 // Validate Exclusions
                 if (trigger.flow.excludesFlows && trigger.flow.excludesFlows.length > 0) {
                     const conflictCount = await tx.execution.count({
@@ -154,7 +162,10 @@ export class FlowEngine {
         } catch (error: any) {
             let errorMessage = error.message;
 
-            if (error.message?.startsWith('COOLDOWN:')) {
+            if (error.message?.startsWith('SELF_TRIGGER')) {
+                console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Flow already running for this session`);
+                return;
+            } else if (error.message?.startsWith('COOLDOWN:')) {
                 console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Cooldown active`);
                 errorMessage = `Cooldown active (${error.message.replace('COOLDOWN:', '')}ms)`;
             } else if (error.message?.startsWith('LIMIT:')) {
