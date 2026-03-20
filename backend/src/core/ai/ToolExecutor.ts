@@ -96,6 +96,26 @@ export class ToolExecutor {
             return { success: false, data: `Flow '${flowId}' not found.` };
         }
 
+        // Create Execution record
+        const execution = await prisma.execution.create({
+            data: {
+                sessionId: session.id,
+                flowId,
+                platformUserId: session.identifier,
+                status: "RUNNING",
+                currentStep: 0,
+                variableContext: {},
+                trigger: tool.name || flow.name,
+            },
+        });
+
+        eventBus.emitBotEvent({
+            type: 'flow:started',
+            botId,
+            flowName: flow.name,
+            sessionId: session.id,
+        });
+
         // Load bot variables for interpolation
         const bot = await BotConfigService.loadBot(botId);
         const botVars = bot ? BotConfigService.getVariables(bot) : {};
@@ -128,7 +148,7 @@ export class ToolExecutor {
                     for (const [k, v] of Object.entries(rawToolArgs)) {
                         toolArgs[k] = typeof v === "string" ? BotConfigService.interpolate(v, botVars) : v;
                     }
-                    const toolResult = await this.executeBuiltin(botId, session, { name: toolName }, toolArgs);
+                    const toolResult = await this.executeBuiltin(botId, session, { name: toolName }, toolArgs, flowId);
                     if (!toolResult.success) {
                         throw new Error(typeof toolResult.data === "string" ? toolResult.data : JSON.stringify(toolResult.data));
                     }
@@ -152,6 +172,10 @@ export class ToolExecutor {
                     });
                 }
                 sentCount++;
+                await prisma.execution.update({
+                    where: { id: execution.id },
+                    data: { currentStep: step.order },
+                });
                 console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (${step.type}) ok`);
             } catch (e: any) {
                 failCount++;
@@ -165,6 +189,26 @@ export class ToolExecutor {
                 await new Promise((r) => setTimeout(r, step.delayMs));
             }
         }
+
+        // Finalize Execution record
+        const finalStatus = failCount === 0 ? "COMPLETED" : "FAILED";
+        const errorMsg = failCount > 0 ? stepResults.join("; ") : undefined;
+        await prisma.execution.update({
+            where: { id: execution.id },
+            data: {
+                status: finalStatus,
+                completedAt: new Date(),
+                error: errorMsg,
+            },
+        });
+
+        eventBus.emitBotEvent({
+            type: failCount === 0 ? 'flow:completed' : 'flow:failed',
+            botId,
+            flowName: flow.name,
+            sessionId: session.id,
+            ...(errorMsg && { error: errorMsg }),
+        });
 
         const summary = failCount === 0
             ? `Flujo "${flow.name}" ejecutado (${sentCount} pasos enviados). El cliente ya recibió la respuesta.`
@@ -217,7 +261,8 @@ export class ToolExecutor {
         botId: string,
         session: Session,
         tool: any,
-        args: Record<string, any>
+        args: Record<string, any>,
+        sourceFlowId?: string
     ): Promise<ToolResult> {
         const builtinName = tool.name || (tool.actionConfig as any)?.builtinName;
 
@@ -302,7 +347,7 @@ export class ToolExecutor {
                     changedLabelName: label.name,
                     action: 'add',
                 });
-                flowEngine.processLabelEvent(session.id, botId, label.name, 'add').catch(err => {
+                flowEngine.processLabelEvent(session.id, botId, label.name, 'add', sourceFlowId).catch(err => {
                     console.error(`[ToolExecutor] FlowEngine label trigger error:`, err);
                 });
 
@@ -364,7 +409,7 @@ export class ToolExecutor {
                     changedLabelName: labelToRemove.name,
                     action: 'remove',
                 });
-                flowEngine.processLabelEvent(session.id, botId, labelToRemove.name, 'remove').catch(err => {
+                flowEngine.processLabelEvent(session.id, botId, labelToRemove.name, 'remove', sourceFlowId).catch(err => {
                     console.error(`[ToolExecutor] FlowEngine label trigger error:`, err);
                 });
 

@@ -44,7 +44,7 @@ export class FlowEngine {
     /**
      * Processes a label change event to see if it triggers any flow.
      */
-    async processLabelEvent(sessionId: string, botId: string, labelName: string, action: 'add' | 'remove') {
+    async processLabelEvent(sessionId: string, botId: string, labelName: string, action: 'add' | 'remove', sourceFlowId?: string) {
         const bot = await BotConfigService.loadBot(botId);
         if (!bot || bot.paused) return;
 
@@ -64,6 +64,7 @@ export class FlowEngine {
             const t = trigger as any;
             if (t.triggerType !== 'LABEL') continue;
             if (t.labelAction !== labelAction) continue;
+            if (sourceFlowId && t.flowId === sourceFlowId) continue;
 
             // Interpolate template variables in labelName
             const resolvedLabelName = BotConfigService.interpolate(t.labelName || '', botVars);
