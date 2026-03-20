@@ -164,7 +164,6 @@ import FlowSettings from "../components/editor/FlowSettings.astro";
     declare const Alpine: any;
 
     import { ApiClient } from "../lib/api";
-    import Sortable from "sortablejs";
 
     // TS Definitions
     interface Trigger {
@@ -313,32 +312,6 @@ import FlowSettings from "../components/editor/FlowSettings.astro";
                     return;
                 }
 
-                // Initialize Sortable
-                // @ts-ignore
-                this.$nextTick(() => {
-                    const el = document.getElementById("steps-container");
-                    if (el) {
-                        Sortable.create(el, {
-                            handle: ".handle",
-                            draggable: ".step-card",
-                            animation: 150,
-                            onEnd: (evt: any) => {
-                                const { oldIndex, newIndex } = evt;
-                                if (oldIndex === newIndex) return;
-
-                                // Reorder array
-                                const item = this.flow.steps.splice(
-                                    oldIndex,
-                                    1,
-                                )[0];
-                                this.flow.steps.splice(newIndex, 0, item);
-
-                                // Update order
-                                this.updateOrder();
-                            },
-                        });
-                    }
-                });
             },
 
             updateOrder() {
