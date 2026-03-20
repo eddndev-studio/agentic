@@ -17,6 +17,19 @@ function generateRandomIPv6(): string {
     return `${IPV6_SUBNET_PREFIX}:${segment()}:${segment()}:${segment()}:${segment()}`;
 }
 
+/**
+ * Binds an IPv6 address to the network interface so Baileys can use it.
+ */
+async function bindIPv6(address: string): Promise<void> {
+    try {
+        const { execSync } = require("child_process");
+        execSync(`ip -6 addr add ${address}/64 dev eth0 2>/dev/null || true`);
+        console.log(`[IPv6] Bound ${address} to eth0`);
+    } catch (e: any) {
+        console.error(`[IPv6] Failed to bind ${address}:`, e.message);
+    }
+}
+
 export const botController = new Elysia({ prefix: "/bots" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
@@ -49,6 +62,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                     credentials: {}
                 }
             });
+            await bindIPv6(assignedIPv6);
             return bot;
         } catch (e: any) {
             if (e.code === 'P2002') {
@@ -229,7 +243,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                         name,
                         identifier,
                         platform: source.platform,
-                        ipv6Address: generateRandomIPv6(),
+                        ipv6Address: generateRandomIPv6(), // bound to eth0 after transaction
                         credentials: {},
                         aiEnabled: source.aiEnabled,
                         aiProvider: source.aiProvider,
@@ -331,6 +345,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                 return newBot;
             });
 
+            if (result.ipv6Address) await bindIPv6(result.ipv6Address);
             return result;
         } catch (e: any) {
             if (e.code === "P2002") {

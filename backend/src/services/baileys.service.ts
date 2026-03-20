@@ -261,7 +261,18 @@ export class BaileysService {
 
         if (botConfig?.ipv6Address) {
             // Check if the IPv6 address is actually available on this machine
-            const isAvailable = await this.isAddressAvailable(botConfig.ipv6Address);
+            let isAvailable = await this.isAddressAvailable(botConfig.ipv6Address);
+            if (!isAvailable) {
+                // Auto-bind: try to add the address to eth0
+                try {
+                    const { execSync } = require("child_process");
+                    execSync(`ip -6 addr add ${botConfig.ipv6Address}/64 dev eth0 2>/dev/null || true`);
+                    isAvailable = await this.isAddressAvailable(botConfig.ipv6Address);
+                    if (isAvailable) {
+                        console.log(`[Baileys] Auto-bound IPv6 ${botConfig.ipv6Address} to eth0`);
+                    }
+                } catch {}
+            }
             if (isAvailable) {
                 console.log(`[Baileys] Bot ${botConfig.name} will bind to IPv6: ${botConfig.ipv6Address}`);
                 socketAgent = new https.Agent({
