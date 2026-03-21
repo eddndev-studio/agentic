@@ -279,6 +279,20 @@ export class ToolExecutor {
                 return { success: true, data: "Conversation history cleared." };
             }
 
+            case "get_current_labels": {
+                const currentLabels = await prisma.sessionLabel.findMany({
+                    where: { sessionId: session.id },
+                    include: { label: true },
+                });
+                return {
+                    success: true,
+                    data: currentLabels.map(sl => ({
+                        name: sl.label.name,
+                        color: sl.label.color,
+                    })),
+                };
+            }
+
             case "get_labels": {
                 const labels = await prisma.label.findMany({
                     where: { botId, deleted: false },

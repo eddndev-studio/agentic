@@ -24,6 +24,14 @@ export const BUILTIN_TOOLS: AIToolDefinition[] = [
         },
     },
     {
+        name: "get_current_labels",
+        description: "Obtiene las etiquetas asignadas al chat actual.",
+        parameters: {
+            type: "object",
+            properties: {},
+        },
+    },
+    {
         name: "get_labels",
         description: "Obtiene todas las etiquetas disponibles del bot con la cantidad de chats asignados.",
         parameters: {
