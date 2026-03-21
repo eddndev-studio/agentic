@@ -22,6 +22,7 @@ import { MessageAccumulator } from './accumulator.service';
 import { eventBus } from './event-bus';
 import { SessionStatus, Platform } from '@prisma/client';
 import { StorageService } from './storage.service';
+import { generateLinkPreview } from './link-preview.service';
 import pino from 'pino';
 
 const logger = pino({ level: 'silent' });
@@ -1021,6 +1022,14 @@ export class BaileysService {
         }
 
         try {
+            // Enrich text messages with explicit link preview
+            if (content?.text && !content.linkPreview) {
+                const preview = await generateLinkPreview(content.text);
+                if (preview) {
+                    content = { ...content, linkPreview: preview };
+                }
+            }
+
             await sock.sendMessage(to, content);
             return true;
         } catch (error: any) {
