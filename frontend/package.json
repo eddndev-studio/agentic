@@ -3,9 +3,14 @@
   "version": "0.0.1",
   "dependencies": {
     "@astrojs/alpinejs": "^0.4.9",
+    "@astrojs/react": "^5.0.1",
+    "@dagrejs/dagre": "^2.0.4",
     "@tailwindcss/vite": "^4.1.18",
+    "@xyflow/react": "^12.10.1",
     "alpinejs": "^3.15.3",
     "astro": "^5.16.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tailwindcss": "^4.1.18"
   },
   "scripts": {
@@ -14,5 +19,9 @@
     "preview": "astro preview",
     "astro": "astro"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
 }
