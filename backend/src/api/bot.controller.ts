@@ -131,6 +131,7 @@ export const botController = new Elysia({ prefix: "/bots" })
     .put("/:id", async ({ params: { id }, body, set }) => {
         const { name, identifier, platform, credentials, ipv6Address,
             aiEnabled, aiProvider, aiModel, systemPrompt, temperature, messageDelay,
+            contextMessages, autoReadReceipts,
             excludeGroups, ignoredLabels, paused, thinkingLevel,
             notificationChannels,
             templateId, botVariables } = body as any;
@@ -160,6 +161,8 @@ export const botController = new Elysia({ prefix: "/bots" })
             if (systemPrompt !== undefined) data.systemPrompt = systemPrompt;
             if (temperature !== undefined) data.temperature = temperature;
             if (messageDelay !== undefined) data.messageDelay = messageDelay;
+            if (contextMessages !== undefined) data.contextMessages = contextMessages;
+            if (autoReadReceipts !== undefined) data.autoReadReceipts = autoReadReceipts;
             if (excludeGroups !== undefined) data.excludeGroups = excludeGroups;
             if (ignoredLabels !== undefined) data.ignoredLabels = ignoredLabels;
             if (paused !== undefined) data.paused = paused;

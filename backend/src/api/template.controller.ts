@@ -69,7 +69,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
 
     // Update template
     .put("/:id", async ({ params: { id }, body, set }) => {
-        const { name, description, aiEnabled, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, excludeGroups, ignoredLabels, variables } = body as any;
+        const { name, description, aiEnabled, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, contextMessages, autoReadReceipts, excludeGroups, ignoredLabels, variables } = body as any;
 
         try {
             const data: any = {};
@@ -82,6 +82,8 @@ export const templateController = new Elysia({ prefix: "/templates" })
             if (temperature !== undefined) data.temperature = temperature;
             if (thinkingLevel !== undefined) data.thinkingLevel = thinkingLevel;
             if (messageDelay !== undefined) data.messageDelay = messageDelay;
+            if (contextMessages !== undefined) data.contextMessages = contextMessages;
+            if (autoReadReceipts !== undefined) data.autoReadReceipts = autoReadReceipts;
             if (excludeGroups !== undefined) data.excludeGroups = excludeGroups;
             if (ignoredLabels !== undefined) data.ignoredLabels = ignoredLabels;
             if (variables !== undefined) data.variables = variables;
