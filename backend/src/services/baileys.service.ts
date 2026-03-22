@@ -833,24 +833,10 @@ export class BaileysService {
 
                         for (const [identifier, externalIds] of keysBySession) {
                             const session = await prisma.session.findUnique({ where: { botId_identifier: { botId, identifier } } });
-                            if (!session) {
-                                console.log(`[Baileys] messages.delete: no session for identifier=${identifier} botId=${botId}`);
-                                continue;
-                            }
+                            if (!session) continue;
 
-                            // Large batch of keys (10+) for a single session = likely "clear chat"
-                            if (externalIds.length >= 10) {
-                                const { count } = await prisma.message.deleteMany({ where: { sessionId: session.id } });
-                                const { ConversationService } = await import('./conversation.service');
-                                await ConversationService.clear(session.id);
-                                console.log(`[Baileys] Chat cleared for ${identifier} (Bot ${botId}): ${count} messages deleted (${externalIds.length} keys)`);
-                                eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
-                                continue;
-                            }
-
-                            // Small batch: try deleting by externalId
                             const { count } = await prisma.message.deleteMany({
-                                where: { externalId: { in: externalIds } },
+                                where: { sessionId: session.id, externalId: { in: externalIds } },
                             });
 
                             if (count > 0) {
