@@ -587,6 +587,20 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     <div class="border-t border-wa-border pt-6 mt-6">
                         <h4 class="text-xs text-wa-green tracking-normal mb-4">Filtros</h4>
 
+                        <!-- Auto Read Receipts Toggle -->
+                        <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
+                            <div class="min-w-0">
+                                <label class="text-sm font-medium text-white">Lectura automática</label>
+                                <p class="text-xs text-wa-text-secondary mt-1">Marcar mensajes como leídos automáticamente. Si se desactiva, la IA decide cuándo marcar como leído usando la herramienta mark_as_read.</p>
+                            </div>
+                            <button type="button" @click="aiConfig.autoReadReceipts = !aiConfig.autoReadReceipts"
+                                class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
+                                :class="aiConfig.autoReadReceipts ? 'bg-wa-green' : 'bg-gray-700'">
+                                <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
+                                    :class="aiConfig.autoReadReceipts ? 'left-6' : 'left-0.5'"></span>
+                            </button>
+                        </div>
+
                         <!-- Exclude Groups Toggle -->
                         <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
                             <div class="min-w-0">
@@ -1594,6 +1608,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 thinkingLevel: "LOW",
                 messageDelay: 0,
                 contextMessages: 20,
+                autoReadReceipts: true,
                 excludeGroups: false,
                 ignoredLabels: [] as string[],
             },
@@ -1691,6 +1706,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         thinkingLevel: this.bot.thinkingLevel || "LOW",
                         messageDelay: this.bot.messageDelay ?? 0,
                         contextMessages: this.bot.contextMessages ?? 20,
+                        autoReadReceipts: this.bot.autoReadReceipts ?? true,
                         excludeGroups: this.bot.excludeGroups || false,
                         ignoredLabels: this.bot.ignoredLabels || [],
                     };
@@ -2107,6 +2123,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         thinkingLevel: this.aiConfig.aiProvider === "GEMINI" ? this.aiConfig.thinkingLevel : null,
                         messageDelay: this.aiConfig.messageDelay,
                         contextMessages: this.aiConfig.contextMessages,
+                        autoReadReceipts: this.aiConfig.autoReadReceipts,
                         excludeGroups: this.aiConfig.excludeGroups,
                         ignoredLabels: this.aiConfig.ignoredLabels,
                     });

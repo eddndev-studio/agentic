@@ -130,6 +130,14 @@ export const BUILTIN_TOOLS: AIToolDefinition[] = [
         },
     },
     {
+        name: "mark_as_read",
+        description: "Marca los mensajes del cliente como leídos (palomitas azules) y muestra indicador de 'escribiendo...'. Usa esto cuando decidas abrir/atender el mensaje.",
+        parameters: {
+            type: "object",
+            properties: {},
+        },
+    },
+    {
         name: "notify",
         description: "Envía un mensaje al canal de notificaciones configurado del bot.",
         parameters: {

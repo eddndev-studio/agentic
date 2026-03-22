@@ -92,16 +92,18 @@ export class AIProcessor {
         }, (LOCK_TTL / 3) * 1000);
 
         try {
-            // 3. Mark read + show typing (via HTTP to main process)
-            const msgIds = messages.map(m => m.externalId).filter(Boolean) as string[];
-            if (msgIds.length > 0) {
-                await mainProcessClient.markRead(bot.id, session.identifier, msgIds).catch(e =>
-                    console.warn(`[AIProcessor] markRead failed:`, e.message)
+            // 3. Mark read + show typing (only if autoReadReceipts is enabled)
+            if (aiConfig.autoReadReceipts) {
+                const msgIds = messages.map(m => m.externalId).filter(Boolean) as string[];
+                if (msgIds.length > 0) {
+                    await mainProcessClient.markRead(bot.id, session.identifier, msgIds).catch(e =>
+                        console.warn(`[AIProcessor] markRead failed:`, e.message)
+                    );
+                }
+                await mainProcessClient.sendPresence(bot.id, session.identifier, "composing").catch(e =>
+                    console.warn(`[AIProcessor] sendPresence failed:`, e.message)
                 );
             }
-            await mainProcessClient.sendPresence(bot.id, session.identifier, "composing").catch(e =>
-                console.warn(`[AIProcessor] sendPresence failed:`, e.message)
-            );
 
             // 4. Preprocess multimodal content
             const contentParts: string[] = [];

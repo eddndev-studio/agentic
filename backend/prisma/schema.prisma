@@ -36,6 +36,7 @@ model Bot {
   paused                Boolean      @default(false)
   messageDelay          Int          @default(0)
   contextMessages       Int          @default(20)
+  autoReadReceipts      Boolean      @default(true)
   clients               Client[]
   flows                 Flow[]
   excludeGroups         Boolean      @default(false)
@@ -63,6 +64,7 @@ model Template {
   thinkingLevel String?      @default("LOW")
   messageDelay      Int          @default(0)
   contextMessages   Int          @default(20)
+  autoReadReceipts  Boolean      @default(true)
   excludeGroups Boolean      @default(false)
   ignoredLabels String[]     @default([])
   variables     Json?        @default("[]")

@@ -12,6 +12,7 @@ interface AIConfig {
     temperature: number;
     thinkingLevel: ThinkingLevel;
     contextMessages: number;
+    autoReadReceipts: boolean;
 }
 
 export class BotConfigService {
@@ -39,6 +40,7 @@ export class BotConfigService {
             temperature: source.temperature,
             thinkingLevel: (source.thinkingLevel as ThinkingLevel) ?? "LOW",
             contextMessages: (source as any).contextMessages ?? 20,
+            autoReadReceipts: (source as any).autoReadReceipts ?? true,
         };
     }
 

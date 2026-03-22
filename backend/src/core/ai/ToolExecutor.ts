@@ -273,6 +273,22 @@ export class ToolExecutor {
                 return { success: true, data: { time: now, timezone: tz } };
             }
 
+            case "mark_as_read": {
+                // Fetch recent unread messages to mark as read
+                const recentMsgs = await prisma.message.findMany({
+                    where: { sessionId: session.id, fromMe: false },
+                    orderBy: { createdAt: "desc" },
+                    take: 10,
+                    select: { externalId: true },
+                });
+                const extIds = recentMsgs.map(m => m.externalId).filter(Boolean) as string[];
+                if (extIds.length > 0) {
+                    await BaileysService.markRead(botId, session.identifier, extIds);
+                }
+                await BaileysService.sendPresence(botId, session.identifier, "composing");
+                return { success: true, data: "Mensajes marcados como leídos." };
+            }
+
             case "clear_conversation": {
                 const { ConversationService } = await import("../../services/conversation.service");
                 await ConversationService.clear(session.id);
