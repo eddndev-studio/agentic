@@ -713,7 +713,14 @@ export class BaileysService {
                                 console.log(`[Baileys] Message ${key.id} revoked for Bot ${botId}`);
                                 const jid = key.remoteJid;
                                 if (jid) {
-                                    const identifier = jid.replace(/@.*$/, '');
+                                    let resolved = jidNormalizedUser(jid);
+                                    if (resolved.endsWith('@lid')) {
+                                        try {
+                                            const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(resolved);
+                                            if (pn) resolved = jidNormalizedUser(pn);
+                                        } catch {}
+                                    }
+                                    const identifier = resolved.replace(/@.*$/, '');
                                     const session = await prisma.session.findFirst({ where: { botId, identifier } });
                                     if (session) {
                                         eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
@@ -748,7 +755,15 @@ export class BaileysService {
             sock.ev.on('chats.delete', async (jids: string[]) => {
                 for (const jid of jids) {
                     try {
-                        const identifier = jid.replace(/@.*$/, '');
+                        // Resolve LID to phone if needed
+                        let resolved = jidNormalizedUser(jid);
+                        if (resolved.endsWith('@lid')) {
+                            try {
+                                const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(resolved);
+                                if (pn) resolved = jidNormalizedUser(pn);
+                            } catch {}
+                        }
+                        const identifier = resolved.replace(/@.*$/, '');
                         const session = await prisma.session.findFirst({
                             where: { botId, identifier },
                         });
@@ -775,40 +790,38 @@ export class BaileysService {
                 }
             });
 
-            // Handle individual message deletion ("delete for everyone")
+            // Handle message deletion (individual or chat clear)
             sock.ev.on('messages.delete', async (deletion: any) => {
-                console.log(`[Baileys] messages.delete event for Bot ${botId}:`, JSON.stringify(deletion).substring(0, 200));
                 try {
+                    // Helper: resolve LID to phone identifier
+                    const resolveJid = async (jid: string): Promise<string> => {
+                        let resolved = jidNormalizedUser(jid);
+                        if (resolved.endsWith('@lid')) {
+                            try {
+                                const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(resolved);
+                                if (pn) resolved = jidNormalizedUser(pn);
+                            } catch {}
+                        }
+                        return resolved.replace(/@.*$/, '');
+                    };
+
                     if (deletion.all) {
-                        // Entire chat cleared — deletion.jid contains the chat JID
                         const jid = deletion.jid;
                         if (!jid) return;
 
-                        const identifier = jid.replace(/@.*$/, '');
-                        const session = await prisma.session.findFirst({
-                            where: { botId, identifier },
-                        });
+                        const identifier = await resolveJid(jid);
+                        const session = await prisma.session.findFirst({ where: { botId, identifier } });
                         if (!session) return;
 
-                        // Delete all messages for this session
-                        const { count } = await prisma.message.deleteMany({
-                            where: { sessionId: session.id },
-                        });
-
-                        // Clear AI conversation history
+                        const { count } = await prisma.message.deleteMany({ where: { sessionId: session.id } });
                         const { ConversationService } = await import('./conversation.service');
                         await ConversationService.clear(session.id);
 
                         console.log(`[Baileys] Chat cleared for ${identifier} (Bot ${botId}): ${count} messages deleted`);
+                        eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
 
-                        eventBus.emitBotEvent({
-                            type: 'messages:deleted',
-                            botId,
-                            sessionId: session.id,
-                            count,
-                        });
                     } else if (deletion.keys?.length) {
-                        // Individual messages deleted
+                        // Delete messages by externalId
                         const externalIds = deletion.keys.map((k: any) => k.id).filter(Boolean);
                         if (externalIds.length === 0) return;
 
@@ -817,14 +830,11 @@ export class BaileysService {
                         });
 
                         if (count > 0) {
-                            // Try to find the session for the event
                             const firstKey = deletion.keys[0];
                             const jid = firstKey?.remoteJid;
                             if (jid) {
-                                const identifier = jid.replace(/@.*$/, '');
-                                const session = await prisma.session.findFirst({
-                                    where: { botId, identifier },
-                                });
+                                const identifier = await resolveJid(jid);
+                                const session = await prisma.session.findFirst({ where: { botId, identifier } });
                                 if (session) {
                                     eventBus.emitBotEvent({
                                         type: 'messages:deleted',
