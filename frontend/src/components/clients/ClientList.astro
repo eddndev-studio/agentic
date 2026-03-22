@@ -51,6 +51,7 @@
             await ApiClient.put('/clients/' + this.detailClient.id, this.editData);
             await this.fetchClients();
             this.closeDetail();
+            window.__toast.success('Cliente actualizado');
         } catch (e) {
             console.error(e);
             window.__toast.error('Error: ' + e.message);
@@ -64,6 +65,7 @@
         try {
             await ApiClient.delete('/clients/' + client.id);
             await this.fetchClients();
+            window.__toast.success('Cliente eliminado');
         } catch (e) {
             console.error(e);
             window.__toast.error('Error: ' + e.message);

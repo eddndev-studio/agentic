@@ -1799,6 +1799,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     });
                     this.bot = updated;
                     this.showEditModal = false;
+                    window.__toast.success("Bot actualizado");
                 } catch (e: unknown) {
                     const error = e as Error;
                     window.__toast.error(error.message || "Failed to update bot");
@@ -1922,6 +1923,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     this.flows = await ApiClient.get(
                         `/flows?botId=${this.botId}`,
                     );
+                    window.__toast.success("Flujo importado");
                 } catch (e: any) {
                     window.__toast.error("Import failed: " + (e.message || "Unknown error"));
                 } finally {
@@ -1935,6 +1937,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                 try {
                     await ApiClient.delete(`/flows/${flowId}`);
                     this.flows = await ApiClient.get(`/flows?botId=${this.botId}`);
+                    window.__toast.success("Flujo eliminado");
                 } catch (e: any) {
                     window.__toast.error("Failed to delete flow: " + (e.message || "Unknown error"));
                 }
@@ -2111,8 +2114,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         botVariables: vars,
                     });
                     this.bot = updated;
-                    this.variablesSaved = true;
-                    setTimeout(() => { this.variablesSaved = false; }, 3000);
+                    window.__toast.success("Variables guardadas");
                 } catch (e: any) {
                     window.__toast.error("Error al guardar variables: " + (e.message || "Unknown error"));
                 } finally {
@@ -2135,6 +2137,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     } else {
                         this.templateVarDefs = [];
                     }
+                    window.__toast.success("Plantilla asignada");
                 } catch (e: any) {
                     window.__toast.error("Error al asignar plantilla: " + (e.message || "Unknown error"));
                 } finally {
@@ -2226,6 +2229,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     this.automationForm = { name: "", event: "INACTIVITY", labelName: "", timeoutValue: 3, timeoutUnit: "days", prompt: "" };
                     this.editingAutomationId = null;
                     await this.loadAutomations();
+                    window.__toast.success("Automatización guardada");
                 } catch (e: any) {
                     window.__toast.error("Failed: " + (e.message || "Unknown error"));
                 }

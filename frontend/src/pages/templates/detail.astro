@@ -406,6 +406,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 				try {
 					await ApiClient.put(`/templates/${this.templateId}`, this.aiConfig);
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+					window.__toast.success("Config IA guardada");
 				} catch (e: any) {
 					window.__toast.error("Error: " + (e.message || "Unknown"));
 				} finally {
@@ -439,6 +440,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					await ApiClient.put(`/templates/${this.templateId}`, { variables: cleaned });
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
 					this.templateVars = [...(this.template.variables || [])];
+					window.__toast.success("Variables guardadas");
 				} catch (e: any) {
 					window.__toast.error("Error: " + (e.message || "Unknown"));
 				} finally {
@@ -473,6 +475,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 				try {
 					await ApiClient.delete(`/flows/${flowId}`);
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+					window.__toast.success("Flujo eliminado");
 				} catch (e: any) {
 					window.__toast.error("Failed to delete flow: " + (e.message || "Unknown error"));
 				}
