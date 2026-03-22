@@ -822,42 +822,38 @@ export class BaileysService {
                         eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
 
                     } else if (deletion.keys?.length) {
-                        // Group keys by resolved session for bulk operations
+                        // Group keys by resolved session
                         const keysBySession = new Map<string, string[]>();
 
                         for (const key of deletion.keys) {
-                            if (!key.id || !key.remoteJid) continue;
+                            if (!key.remoteJid) continue;
                             const identifier = await resolveJid(key.remoteJid);
                             if (!keysBySession.has(identifier)) keysBySession.set(identifier, []);
-                            keysBySession.get(identifier)!.push(key.id);
+                            if (key.id) keysBySession.get(identifier)!.push(key.id);
                         }
 
                         for (const [identifier, externalIds] of keysBySession) {
                             const session = await prisma.session.findFirst({ where: { botId, identifier } });
-                            if (!session) {
-                                console.log(`[Baileys] messages.delete: no session for ${identifier}, trying externalId match`);
+                            if (!session) continue;
+
+                            // Large batch of keys (10+) for a single session = likely "clear chat"
+                            if (externalIds.length >= 10) {
+                                const { count } = await prisma.message.deleteMany({ where: { sessionId: session.id } });
+                                const { ConversationService } = await import('./conversation.service');
+                                await ConversationService.clear(session.id);
+                                console.log(`[Baileys] Chat cleared for ${identifier} (Bot ${botId}): ${count} messages deleted (${externalIds.length} keys)`);
+                                eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
+                                continue;
                             }
 
-                            // Try deleting by externalId first
-                            let { count } = await prisma.message.deleteMany({
+                            // Small batch: try deleting by externalId
+                            const { count } = await prisma.message.deleteMany({
                                 where: { externalId: { in: externalIds } },
                             });
 
-                            // If nothing found by externalId and we have a session,
-                            // the keys might be for bot-sent messages stored without matching externalId.
-                            // Log it for diagnosis.
-                            if (count === 0) {
-                                console.log(`[Baileys] messages.delete: 0 matches for ${externalIds.length} externalIds in session ${identifier}. IDs: ${externalIds.slice(0, 3).join(', ')}`);
-                            }
-
-                            if (count > 0 && session) {
-                                eventBus.emitBotEvent({
-                                    type: 'messages:deleted',
-                                    botId,
-                                    sessionId: session.id,
-                                    count,
-                                });
+                            if (count > 0) {
                                 console.log(`[Baileys] ${count} message(s) deleted for ${identifier} (Bot ${botId})`);
+                                eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
                             }
                         }
                     }
