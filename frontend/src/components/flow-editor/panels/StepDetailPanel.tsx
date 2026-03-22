@@ -24,15 +24,11 @@ export function StepDetailPanel({ stepId, onClose }: Props) {
     };
 
     return (
-        <div style={{
-            width: 320, height: '100%', background: '#111b21',
-            borderLeft: '1px solid #2a3942', display: 'flex', flexDirection: 'column',
-            overflow: 'hidden',
-        }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* Header */}
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 14px', borderBottom: '1px solid #2a3942',
+                paddingBottom: 10, borderBottom: '1px solid #2a3942',
             }}>
                 <span style={{ color: '#00a884', fontWeight: 700, fontSize: 11, fontFamily: 'ui-monospace, monospace' }}>
                     {step.type} #{step.order + 1}
@@ -49,41 +45,38 @@ export function StepDetailPanel({ stepId, onClose }: Props) {
                 </div>
             </div>
 
-            {/* Form */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {/* Common controls */}
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <label style={{ flex: 1 }}>
-                        <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Delay (ms)</span>
-                        <input type="number" value={step.delayMs} onChange={e => onChange({ delayMs: parseInt(e.target.value) || 1000 })}
-                            style={inputStyle} />
-                    </label>
-                    <label style={{ flex: 1 }}>
-                        <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Jitter ±%</span>
-                        <input type="number" value={step.jitterPct} onChange={e => onChange({ jitterPct: parseInt(e.target.value) || 10 })}
-                            style={inputStyle} />
-                    </label>
-                </div>
+            {/* Common controls */}
+            <div style={{ display: 'flex', gap: 8 }}>
+                <label style={{ flex: 1 }}>
+                    <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Delay (ms)</span>
+                    <input type="number" value={step.delayMs} onChange={e => onChange({ delayMs: parseInt(e.target.value) || 1000 })}
+                        style={inputStyle} />
+                </label>
+                <label style={{ flex: 1 }}>
+                    <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Jitter ±%</span>
+                    <input type="number" value={step.jitterPct} onChange={e => onChange({ jitterPct: parseInt(e.target.value) || 10 })}
+                        style={inputStyle} />
+                </label>
+            </div>
 
-                <button
-                    onClick={() => onChange({ aiOnly: !step.aiOnly })}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
-                        borderRadius: 8, fontSize: 10, fontWeight: 600, cursor: 'pointer',
-                        border: step.aiOnly ? '1px solid #a552a140' : '1px solid #2a3942',
-                        background: step.aiOnly ? '#a552a115' : '#202c33',
-                        color: step.aiOnly ? '#a552a1' : '#8696a0',
-                    }}
-                >
-                    AI Only
-                </button>
+            <button
+                onClick={() => onChange({ aiOnly: !step.aiOnly })}
+                style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+                    borderRadius: 8, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                    border: step.aiOnly ? '1px solid #a552a140' : '1px solid #2a3942',
+                    background: step.aiOnly ? '#a552a115' : '#202c33',
+                    color: step.aiOnly ? '#a552a1' : '#8696a0',
+                }}
+            >
+                AI Only
+            </button>
 
-                <div style={{ borderTop: '1px solid #2a3942', paddingTop: 12 }}>
-                    {step.type === 'TEXT' && <TextStepForm step={step} onChange={onChange} />}
-                    {['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT'].includes(step.type) && <MediaStepForm step={step} onChange={onChange} />}
-                    {step.type === 'TOOL' && <ToolStepForm step={step} onChange={onChange} />}
-                    {step.type === 'CONDITIONAL_TIME' && <TimeStepForm step={step} onChange={onChange} />}
-                </div>
+            <div style={{ borderTop: '1px solid #2a3942', paddingTop: 12 }}>
+                {step.type === 'TEXT' && <TextStepForm step={step} onChange={onChange} />}
+                {['IMAGE', 'AUDIO', 'VIDEO', 'DOCUMENT'].includes(step.type) && <MediaStepForm step={step} onChange={onChange} />}
+                {step.type === 'TOOL' && <ToolStepForm step={step} onChange={onChange} />}
+                {step.type === 'CONDITIONAL_TIME' && <TimeStepForm step={step} onChange={onChange} />}
             </div>
         </div>
     );

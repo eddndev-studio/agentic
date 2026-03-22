@@ -29,7 +29,7 @@ function EditorInner() {
         : `/bots/detail?id=${bot.id || new URLSearchParams(window.location.search).get('botId') || ''}`;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 20px)' }}>
             {/* Header */}
             <header style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
