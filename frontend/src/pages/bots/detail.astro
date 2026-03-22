@@ -820,6 +820,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                                             ['bot:connected', 'Conectado'],
                                             ['bot:disconnected', 'Desconectado'],
                                             ['tool:executed', 'Herramienta'],
+                                            ['messages:deleted', 'Chat borrado'],
                                         ]" :key="'ev-' + idx + '-' + key">
                                             <button type="button"
                                                 @click="toggleChannelEvent(idx, key)"
