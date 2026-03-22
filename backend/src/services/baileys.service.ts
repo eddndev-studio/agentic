@@ -720,8 +720,8 @@ export class BaileysService {
                                             if (pn) resolved = jidNormalizedUser(pn);
                                         } catch {}
                                     }
-                                    const identifier = resolved.replace(/@.*$/, '');
-                                    const session = await prisma.session.findFirst({ where: { botId, identifier } });
+                                    const identifier = resolved;
+                                    const session = await prisma.session.findUnique({ where: { botId_identifier: { botId, identifier } } });
                                     if (session) {
                                         eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
                                     }
@@ -755,17 +755,16 @@ export class BaileysService {
             sock.ev.on('chats.delete', async (jids: string[]) => {
                 for (const jid of jids) {
                     try {
-                        // Resolve LID to phone if needed
-                        let resolved = jidNormalizedUser(jid);
-                        if (resolved.endsWith('@lid')) {
+                        // Resolve LID to normalized JID
+                        let identifier = jidNormalizedUser(jid);
+                        if (identifier.endsWith('@lid')) {
                             try {
-                                const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(resolved);
-                                if (pn) resolved = jidNormalizedUser(pn);
+                                const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(identifier);
+                                if (pn) identifier = jidNormalizedUser(pn);
                             } catch {}
                         }
-                        const identifier = resolved.replace(/@.*$/, '');
-                        const session = await prisma.session.findFirst({
-                            where: { botId, identifier },
+                        const session = await prisma.session.findUnique({
+                            where: { botId_identifier: { botId, identifier } },
                         });
                         if (!session) continue;
 
@@ -794,8 +793,8 @@ export class BaileysService {
             sock.ev.on('messages.delete', async (deletion: any) => {
                 console.log(`[Baileys] messages.delete for Bot ${botId}:`, JSON.stringify(deletion).substring(0, 300));
                 try {
-                    // Helper: resolve LID to phone identifier
-                    const resolveJid = async (jid: string): Promise<string> => {
+                    // Helper: resolve LID to normalized JID (keeps @s.whatsapp.net suffix)
+                    const resolveToIdentifier = async (jid: string): Promise<string> => {
                         let resolved = jidNormalizedUser(jid);
                         if (resolved.endsWith('@lid')) {
                             try {
@@ -803,15 +802,15 @@ export class BaileysService {
                                 if (pn) resolved = jidNormalizedUser(pn);
                             } catch {}
                         }
-                        return resolved.replace(/@.*$/, '');
+                        return resolved;
                     };
 
                     if (deletion.all) {
                         const jid = deletion.jid;
                         if (!jid) return;
 
-                        const identifier = await resolveJid(jid);
-                        const session = await prisma.session.findFirst({ where: { botId, identifier } });
+                        const identifier = await resolveToIdentifier(jid);
+                        const session = await prisma.session.findUnique({ where: { botId_identifier: { botId, identifier } } });
                         if (!session) return;
 
                         const { count } = await prisma.message.deleteMany({ where: { sessionId: session.id } });
@@ -827,14 +826,17 @@ export class BaileysService {
 
                         for (const key of deletion.keys) {
                             if (!key.remoteJid) continue;
-                            const identifier = await resolveJid(key.remoteJid);
+                            const identifier = await resolveToIdentifier(key.remoteJid);
                             if (!keysBySession.has(identifier)) keysBySession.set(identifier, []);
                             if (key.id) keysBySession.get(identifier)!.push(key.id);
                         }
 
                         for (const [identifier, externalIds] of keysBySession) {
-                            const session = await prisma.session.findFirst({ where: { botId, identifier } });
-                            if (!session) continue;
+                            const session = await prisma.session.findUnique({ where: { botId_identifier: { botId, identifier } } });
+                            if (!session) {
+                                console.log(`[Baileys] messages.delete: no session for identifier=${identifier} botId=${botId}`);
+                                continue;
+                            }
 
                             // Large batch of keys (10+) for a single session = likely "clear chat"
                             if (externalIds.length >= 10) {
