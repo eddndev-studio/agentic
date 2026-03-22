@@ -16,6 +16,7 @@ const { title, fullWidth = false } = Astro.props;
 	import { i18nPlugin } from "../i18n";
 	import storePlugin from "../lib/store";
 	import { ApiClient } from "../lib/api";
+	import "../lib/toast"; // Initialize toast globally
 
 	document.addEventListener("alpine:init", () => {
 		i18nPlugin(Alpine);

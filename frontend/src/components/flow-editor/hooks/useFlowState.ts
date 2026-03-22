@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ApiClient } from '../../../lib/api';
+import { toast } from '../../../lib/toast';
 import type { Flow, Step, Trigger } from '../lib/types';
 
 interface Bot {
@@ -99,7 +100,7 @@ export function useFlowState(): FlowState {
             }
             setReady(true);
         } catch {
-            alert('Failed to load flow');
+            toast.error('Failed to load flow');
             window.location.href = '/bots';
         }
     }
@@ -169,7 +170,7 @@ export function useFlowState(): FlowState {
     }, []);
 
     const save = useCallback(async () => {
-        if (!flow.name) { alert('Name Required'); return; }
+        if (!flow.name) { toast.error('Name required'); return; }
         setSaving(true);
         try {
             const payload = {
@@ -190,10 +191,10 @@ export function useFlowState(): FlowState {
                 window.location.href = `/editor?id=${res.id}`;
             } else {
                 await ApiClient.put(`/flows/${flowId}`, payload);
-                alert('Saved!');
+                toast.success('Saved!');
             }
         } catch (e) {
-            alert('Error saving flow');
+            toast.error('Error saving flow');
             console.error(e);
         } finally {
             setSaving(false);

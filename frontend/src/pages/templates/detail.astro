@@ -407,7 +407,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					await ApiClient.put(`/templates/${this.templateId}`, this.aiConfig);
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
 				} catch (e: any) {
-					alert("Error: " + (e.message || "Unknown"));
+					window.__toast.error("Error: " + (e.message || "Unknown"));
 				} finally {
 					this.savingAI = false;
 				}
@@ -440,7 +440,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
 					this.templateVars = [...(this.template.variables || [])];
 				} catch (e: any) {
-					alert("Error: " + (e.message || "Unknown"));
+					window.__toast.error("Error: " + (e.message || "Unknown"));
 				} finally {
 					this.savingVars = false;
 				}
@@ -461,7 +461,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					});
 					window.location.href = `/bots/detail?id=${bot.id}`;
 				} catch (e: any) {
-					alert("Error: " + (e.message || "Unknown"));
+					window.__toast.error("Error: " + (e.message || "Unknown"));
 				} finally {
 					this.creatingBot = false;
 				}
@@ -474,7 +474,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					await ApiClient.delete(`/flows/${flowId}`);
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
 				} catch (e: any) {
-					alert("Failed to delete flow: " + (e.message || "Unknown error"));
+					window.__toast.error("Failed to delete flow: " + (e.message || "Unknown error"));
 				}
 			},
 
@@ -484,7 +484,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					await ApiClient.delete(`/templates/${this.templateId}`);
 					window.location.href = "/templates";
 				} catch (e: any) {
-					alert("Error: " + (e.message || "Unknown"));
+					window.__toast.error("Error: " + (e.message || "Unknown"));
 				}
 			},
 

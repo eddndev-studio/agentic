@@ -206,7 +206,7 @@ const botId = Astro.url.searchParams.get("botId") || "";
                         this.form.webhookMethod = (tool.actionConfig as any)?.method || "POST";
                         this.form.builtinName = (tool.actionConfig as any)?.builtinName || tool.name;
                     } catch (e: any) {
-                        alert("Failed to load tool: " + e.message);
+                        window.__toast.error("Failed to load tool: " + e.message);
                     }
                 }
 
@@ -272,9 +272,9 @@ const botId = Astro.url.searchParams.get("botId") || "";
                         return;
                     }
 
-                    alert("Tool saved!");
+                    window.__toast.success("Tool saved!");
                 } catch (e: any) {
-                    alert("Failed to save: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed to save: " + (e.message || "Unknown error"));
                 } finally {
                     this.saving = false;
                 }
@@ -286,7 +286,7 @@ const botId = Astro.url.searchParams.get("botId") || "";
                     await ApiClient.delete(`/tools/${this.toolId}`);
                     window.location.href = `/bots/detail?id=${this.currentBotId}`;
                 } catch (e: any) {
-                    alert("Failed to delete: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed to delete: " + (e.message || "Unknown error"));
                 }
             },
         }));

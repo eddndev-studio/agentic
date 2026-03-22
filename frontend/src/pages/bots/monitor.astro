@@ -693,7 +693,7 @@ import Layout from "../../layouts/Layout.astro";
                     this.messageInput = "";
                     await this.loadMessages();
                 } catch (e: any) {
-                    alert("Send failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Send failed: " + (e.message || "Unknown error"));
                 } finally {
                     this.sending = false;
                 }
@@ -710,7 +710,7 @@ import Layout from "../../layouts/Layout.astro";
                     // Wait a bit then reload messages
                     setTimeout(() => this.loadMessages(), 2000);
                 } catch (e: any) {
-                    alert("Force AI failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Force AI failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -732,7 +732,7 @@ import Layout from "../../layouts/Layout.astro";
                     this.showFlowModal = false;
                     setTimeout(() => this.loadMessages(), 2000);
                 } catch (e: any) {
-                    alert("Execute flow failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Execute flow failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -752,7 +752,7 @@ import Layout from "../../layouts/Layout.astro";
                 try {
                     args = JSON.parse(this.toolArgsJson);
                 } catch {
-                    alert("Invalid JSON in arguments");
+                    window.__toast.error("Invalid JSON in arguments");
                     return;
                 }
                 try {
@@ -761,9 +761,9 @@ import Layout from "../../layouts/Layout.astro";
                         args,
                     });
                     this.showToolModal = false;
-                    alert("Tool result: " + JSON.stringify(res.result, null, 2));
+                    window.__toast.info("Tool result: " + JSON.stringify(res.result, null, 2));
                 } catch (e: any) {
-                    alert("Execute tool failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Execute tool failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -789,7 +789,7 @@ import Layout from "../../layouts/Layout.astro";
                         if (s) s.labels = [...this.selectedSession.labels];
                     }
                 } catch (e: any) {
-                    alert("Assign label failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Assign label failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -802,7 +802,7 @@ import Layout from "../../layouts/Layout.astro";
                     const s = this.sessions.find((s: any) => s.id === this.selectedSession.id);
                     if (s) s.labels = [...this.selectedSession.labels];
                 } catch (e: any) {
-                    alert("Remove label failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Remove label failed: " + (e.message || "Unknown error"));
                 }
             },
 

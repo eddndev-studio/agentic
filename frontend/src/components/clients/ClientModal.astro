@@ -24,7 +24,7 @@
             window.location.reload();
         } catch (e) {
             console.error(e);
-            alert('Error: ' + e.message);
+            window.__toast.error('Error: ' + e.message);
         } finally {
             this.loading = false;
         }

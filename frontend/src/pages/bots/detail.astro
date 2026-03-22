@@ -1775,7 +1775,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     window.location.href = `/bots/detail?id=${newBot.id}`;
                 } catch (e: unknown) {
                     const error = e as Error;
-                    alert(error.message || "Failed to clone bot");
+                    window.__toast.error(error.message || "Failed to clone bot");
                 } finally {
                     this.savingClone = false;
                 }
@@ -1801,7 +1801,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     this.showEditModal = false;
                 } catch (e: unknown) {
                     const error = e as Error;
-                    alert(error.message || "Failed to update bot");
+                    window.__toast.error(error.message || "Failed to update bot");
                 } finally {
                     this.savingEdit = false;
                 }
@@ -1818,7 +1818,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     window.location.href = "/bots";
                 } catch (e: unknown) {
                     const error = e as Error;
-                    alert(error.message || "Failed to delete bot");
+                    window.__toast.error(error.message || "Failed to delete bot");
                 }
             },
 
@@ -1923,7 +1923,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         `/flows?botId=${this.botId}`,
                     );
                 } catch (e: any) {
-                    alert("Import failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Import failed: " + (e.message || "Unknown error"));
                 } finally {
                     this.loadingImport = false;
                 }
@@ -1936,7 +1936,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     await ApiClient.delete(`/flows/${flowId}`);
                     this.flows = await ApiClient.get(`/flows?botId=${this.botId}`);
                 } catch (e: any) {
-                    alert("Failed to delete flow: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed to delete flow: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -1979,7 +1979,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     });
                     this.bot = updated;
                 } catch (e: any) {
-                    alert("Failed to toggle pause: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed to toggle pause: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -1998,9 +1998,9 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         ignoredLabels: this.aiConfig.ignoredLabels,
                     });
                     this.bot = updated;
-                    alert("AI config saved!");
+                    window.__toast.success("AI config saved!");
                 } catch (e: any) {
-                    alert("Failed to save AI config: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed to save AI config: " + (e.message || "Unknown error"));
                 } finally {
                     this.savingAI = false;
                 }
@@ -2012,9 +2012,9 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                 try {
                     await ApiClient.post(`/bots/${this.botId}/clear-conversations`, {});
                     // @ts-ignore
-                    alert(this.$t('conversations_cleared') || 'Conversations cleared');
+                    window.__toast.success(this.$t('conversations_cleared') || 'Conversations cleared');
                 } catch (e: any) {
-                    alert("Failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -2070,9 +2070,9 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         notificationChannels: channelsToSave,
                     });
                     this.bot = updated;
-                    alert("Notificaciones guardadas!");
+                    window.__toast.success("Notificaciones guardadas!");
                 } catch (e: any) {
-                    alert("Error al guardar: " + (e.message || "Unknown error"));
+                    window.__toast.error("Error al guardar: " + (e.message || "Unknown error"));
                 } finally {
                     this.savingNotifications = false;
                 }
@@ -2114,7 +2114,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     this.variablesSaved = true;
                     setTimeout(() => { this.variablesSaved = false; }, 3000);
                 } catch (e: any) {
-                    alert("Error al guardar variables: " + (e.message || "Unknown error"));
+                    window.__toast.error("Error al guardar variables: " + (e.message || "Unknown error"));
                 } finally {
                     this.savingVariables = false;
                 }
@@ -2136,7 +2136,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         this.templateVarDefs = [];
                     }
                 } catch (e: any) {
-                    alert("Error al asignar plantilla: " + (e.message || "Unknown error"));
+                    window.__toast.error("Error al asignar plantilla: " + (e.message || "Unknown error"));
                 } finally {
                     this.savingTemplate = false;
                 }
@@ -2154,9 +2154,9 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                 try {
                     await ApiClient.post(`/tools/from-flow/${flowId}`, {});
                     await this.loadTools();
-                    alert("Flow converted to tool!");
+                    window.__toast.success("Flow converted to tool!");
                 } catch (e: any) {
-                    alert("Failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -2227,7 +2227,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     this.editingAutomationId = null;
                     await this.loadAutomations();
                 } catch (e: any) {
-                    alert("Failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -2236,7 +2236,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     await ApiClient.put(`/bots/${this.botId}/automations/${autoId}`, { enabled });
                     await this.loadAutomations();
                 } catch (e: any) {
-                    alert("Failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -2247,7 +2247,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     await ApiClient.delete(`/bots/${this.botId}/automations/${autoId}`);
                     await this.loadAutomations();
                 } catch (e: any) {
-                    alert("Failed: " + (e.message || "Unknown error"));
+                    window.__toast.error("Failed: " + (e.message || "Unknown error"));
                 }
             },
 
@@ -2327,7 +2327,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         await this.checkStatus();
                     } catch (e: unknown) {
                         const error = e as Error;
-                        alert(error.message || "Failed to start connection");
+                        window.__toast.error(error.message || "Failed to start connection");
                     } finally {
                         this.loading = false;
                     }
@@ -2350,7 +2350,7 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         this.qr = null;
                     } catch (e: unknown) {
                         const error = e as Error;
-                        alert(error.message || "Failed to disconnect");
+                        window.__toast.error(error.message || "Failed to disconnect");
                     } finally {
                         this.loading = false;
                     }

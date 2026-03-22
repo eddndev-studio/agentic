@@ -387,7 +387,7 @@ import Layout from "../../layouts/Layout.astro";
 					window.location.reload();
 				} catch (e: unknown) {
 					const error = e as Error;
-					alert(error.message || "Failed to create bot");
+					window.__toast.error(error.message || "Failed to create bot");
 				} finally {
 					this.loading = false;
 				}

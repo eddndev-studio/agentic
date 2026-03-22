@@ -80,7 +80,7 @@ const { botId } = Astro.props;
                         await this.checkStatus();
                     } catch (e) {
                         // @ts-ignore
-                        alert(this.$t("error"));
+                        window.__toast.error(this.$t("error"));
                     } finally {
                         this.loading = false;
                     }

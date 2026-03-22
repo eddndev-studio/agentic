@@ -239,7 +239,7 @@
                         this.select(res.url);
                     }
                 } catch (e) {
-                    alert("Upload failed");
+                    window.__toast.error("Upload failed");
                 } finally {
                     this.uploading = false;
                 }
