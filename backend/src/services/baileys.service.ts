@@ -703,6 +703,26 @@ export class BaileysService {
                 for (const { key, update } of updates) {
                     try {
                         if (!key?.id) continue;
+
+                        // Detect "delete for everyone" (messageStubType 1 = REVOKE)
+                        if (update?.messageStubType === 1 || update?.messageStubType === 68) {
+                            const { count } = await prisma.message.deleteMany({
+                                where: { externalId: key.id },
+                            });
+                            if (count > 0) {
+                                console.log(`[Baileys] Message ${key.id} revoked for Bot ${botId}`);
+                                const jid = key.remoteJid;
+                                if (jid) {
+                                    const identifier = jid.replace(/@.*$/, '');
+                                    const session = await prisma.session.findFirst({ where: { botId, identifier } });
+                                    if (session) {
+                                        eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+
                         const editedMessage = update?.message;
                         if (!editedMessage) continue;
 
@@ -724,8 +744,40 @@ export class BaileysService {
                 }
             });
 
-            // Handle message/chat deletion
+            // Handle full chat deletion (client deletes entire chat)
+            sock.ev.on('chats.delete', async (jids: string[]) => {
+                for (const jid of jids) {
+                    try {
+                        const identifier = jid.replace(/@.*$/, '');
+                        const session = await prisma.session.findFirst({
+                            where: { botId, identifier },
+                        });
+                        if (!session) continue;
+
+                        const { count } = await prisma.message.deleteMany({
+                            where: { sessionId: session.id },
+                        });
+
+                        const { ConversationService } = await import('./conversation.service');
+                        await ConversationService.clear(session.id);
+
+                        console.log(`[Baileys] Chat deleted for ${identifier} (Bot ${botId}): ${count} messages removed`);
+
+                        eventBus.emitBotEvent({
+                            type: 'messages:deleted',
+                            botId,
+                            sessionId: session.id,
+                            count,
+                        });
+                    } catch (e: any) {
+                        console.warn(`[Baileys] chats.delete error:`, e.message);
+                    }
+                }
+            });
+
+            // Handle individual message deletion ("delete for everyone")
             sock.ev.on('messages.delete', async (deletion: any) => {
+                console.log(`[Baileys] messages.delete event for Bot ${botId}:`, JSON.stringify(deletion).substring(0, 200));
                 try {
                     if (deletion.all) {
                         // Entire chat cleared — deletion.jid contains the chat JID
