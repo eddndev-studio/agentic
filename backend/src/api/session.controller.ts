@@ -118,6 +118,71 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         body: t.Object({ botId: t.String() }),
     })
 
+    // GET /sessions/:id/ai-context — Debug: show exactly what the AI receives
+    .get("/:id/ai-context", async ({ params: { id }, set }) => {
+        const session = await prisma.session.findUnique({
+            where: { id },
+            include: { bot: { include: { template: true } } },
+        });
+        if (!session || !session.bot) {
+            set.status = 404;
+            return { error: "Session not found" };
+        }
+
+        const { BotConfigService } = await import("../services/bot-config.service");
+        const { ConversationService } = await import("../services/conversation.service");
+
+        const bot = session.bot as any;
+        const aiConfig = BotConfigService.resolveAIConfig(bot);
+        const botVars = BotConfigService.getVariables(bot);
+
+        // System prompt with interpolation
+        let systemPrompt = aiConfig.systemPrompt || "";
+        if (systemPrompt) {
+            systemPrompt = BotConfigService.interpolate(systemPrompt, botVars);
+        }
+
+        // Chat context (real messages)
+        const contextCount = aiConfig.contextMessages || 20;
+        let chatContext: string[] = [];
+        if (contextCount > 0) {
+            const recentMessages = await prisma.message.findMany({
+                where: { sessionId: id },
+                orderBy: { createdAt: "desc" },
+                take: contextCount,
+                select: { content: true, type: true, fromMe: true, createdAt: true, metadata: true },
+            });
+            chatContext = recentMessages.reverse().map(m => {
+                const time = new Date(m.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
+                const sender = m.fromMe ? "Bot" : "Cliente";
+                const meta = m.metadata as any;
+                let text = m.content || "";
+                if (meta?.mediaDescription) {
+                    text = text ? `${text} [${meta.mediaDescription}]` : `[${meta.mediaDescription}]`;
+                } else if (!text && m.type !== "TEXT") {
+                    text = `[${m.type.toLowerCase()} adjunto]`;
+                }
+                return `[${time} ${sender}] ${text}`;
+            });
+        }
+
+        // Conversation history (AI memory)
+        const history = await ConversationService.getHistory(id);
+
+        return {
+            systemPrompt,
+            chatContext,
+            conversationHistory: history,
+            config: {
+                aiProvider: aiConfig.aiProvider,
+                aiModel: aiConfig.aiModel,
+                temperature: aiConfig.temperature,
+                contextMessages: aiConfig.contextMessages,
+                autoReadReceipts: aiConfig.autoReadReceipts,
+            },
+        };
+    })
+
     // POST /sessions/:id/labels — Assign label to session
     .post("/:id/labels", async ({ params: { id }, body, set }) => {
         const session = await prisma.session.findUnique({
