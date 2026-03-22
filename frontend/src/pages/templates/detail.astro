@@ -201,6 +201,19 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						</p>
 					</div>
 					<div>
+						<label class="block text-xs text-wa-text-secondary mb-2">Contexto del chat</label>
+						<div class="flex items-center gap-3">
+							<input type="number" x-model.number="aiConfig.contextMessages" min="0" max="100" step="5"
+								class="w-24 bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
+							<span class="text-xs text-wa-text-secondary">mensajes</span>
+						</div>
+						<p class="text-[10px] text-wa-text-secondary mt-1"
+							x-text="aiConfig.contextMessages === 0
+								? 'Sin contexto de chat (solo historial de IA)'
+								: 'Se envían los últimos ' + aiConfig.contextMessages + ' mensajes reales del chat a la IA'">
+						</p>
+					</div>
+					<div>
 						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_name')"></label>
 						<input type="text" x-model="aiConfig.name" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
 					</div>
@@ -448,6 +461,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 				temperature: 0.7,
 				thinkingLevel: "LOW",
 				messageDelay: 0,
+				contextMessages: 20,
 				excludeGroups: false,
 				ignoredLabels: [] as string[],
 			},
@@ -478,6 +492,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						temperature: this.template.temperature ?? 0.7,
 						thinkingLevel: this.template.thinkingLevel || "LOW",
 						messageDelay: this.template.messageDelay ?? 0,
+						contextMessages: this.template.contextMessages ?? 20,
 						excludeGroups: this.template.excludeGroups ?? false,
 						ignoredLabels: this.template.ignoredLabels || [],
 					};

@@ -568,6 +568,21 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </p>
                     </div>
 
+                    <!-- Context Messages -->
+                    <div>
+                        <label class="block text-xs font-sans text-wa-text-secondary mb-2">Contexto del chat</label>
+                        <div class="flex items-center gap-3">
+                            <input type="number" x-model.number="aiConfig.contextMessages" min="0" max="100" step="5"
+                                class="w-24 bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
+                            <span class="text-xs text-wa-text-secondary">mensajes</span>
+                        </div>
+                        <p class="text-[10px] text-wa-text-secondary mt-1"
+                            x-text="aiConfig.contextMessages === 0
+                                ? 'Sin contexto de chat (solo historial de IA)'
+                                : 'Se envían los últimos ' + aiConfig.contextMessages + ' mensajes reales del chat a la IA'">
+                        </p>
+                    </div>
+
                     <!-- Filters Section -->
                     <div class="border-t border-wa-border pt-6 mt-6">
                         <h4 class="text-xs text-wa-green tracking-normal mb-4">Filtros</h4>
@@ -1578,6 +1593,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 temperature: 0.7,
                 thinkingLevel: "LOW",
                 messageDelay: 0,
+                contextMessages: 20,
                 excludeGroups: false,
                 ignoredLabels: [] as string[],
             },
@@ -1674,6 +1690,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         temperature: this.bot.temperature ?? 0.7,
                         thinkingLevel: this.bot.thinkingLevel || "LOW",
                         messageDelay: this.bot.messageDelay ?? 0,
+                        contextMessages: this.bot.contextMessages ?? 20,
                         excludeGroups: this.bot.excludeGroups || false,
                         ignoredLabels: this.bot.ignoredLabels || [],
                     };
@@ -2089,6 +2106,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         temperature: this.aiConfig.temperature,
                         thinkingLevel: this.aiConfig.aiProvider === "GEMINI" ? this.aiConfig.thinkingLevel : null,
                         messageDelay: this.aiConfig.messageDelay,
+                        contextMessages: this.aiConfig.contextMessages,
                         excludeGroups: this.aiConfig.excludeGroups,
                         ignoredLabels: this.aiConfig.ignoredLabels,
                     });

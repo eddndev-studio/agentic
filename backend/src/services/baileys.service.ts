@@ -819,6 +819,9 @@ export class BaileysService {
                     // Refresh message object to include updated metadata
                     const updated = await prisma.message.findUnique({ where: { id: message.id } });
                     if (updated) message = updated;
+
+                    // Fire-and-forget: generate brief media description for chat context
+                    BaileysService.generateMediaDescription(message.id, msgType, (message.metadata as any)?.mediaUrl, bot.aiProvider).catch(() => {});
                 } catch (mediaErr) {
                     console.error(`[Baileys] Media download failed for ${messageExternalId}:`, mediaErr);
                     // Persist placeholder so AI knows media was present but couldn't be downloaded
@@ -955,6 +958,40 @@ export class BaileysService {
             where: { id: messageId },
             data: { metadata: { mediaUrl } },
         });
+    }
+
+    /**
+     * Fire-and-forget: generate a brief media description for chat context.
+     * Uses a cheap vision/transcription call and caches in message metadata.
+     */
+    static async generateMediaDescription(messageId: string, msgType: string, mediaUrl: string | undefined, aiProvider: string): Promise<void> {
+        if (!mediaUrl) return;
+
+        try {
+            let description: string | null = null;
+
+            if (msgType === 'IMAGE') {
+                const { VisionService } = await import('./media/vision.service');
+                description = await VisionService.analyze(mediaUrl, "Describe this image briefly in 1 sentence in Spanish.", aiProvider);
+            } else if (msgType === 'DOCUMENT' && mediaUrl.toLowerCase().endsWith('.pdf')) {
+                const { PDFService } = await import('./media/pdf.service');
+                const text = await PDFService.extractText(mediaUrl);
+                description = text.substring(0, 200);
+            }
+            // Audio transcriptions are cached by AIProcessor after full processing
+
+            if (description) {
+                const msg = await prisma.message.findUnique({ where: { id: messageId } });
+                if (msg) {
+                    await prisma.message.update({
+                        where: { id: messageId },
+                        data: { metadata: { ...(msg.metadata as any || {}), mediaDescription: description } },
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn(`[Baileys] Media description failed for ${messageId}:`, (e as Error).message);
+        }
     }
 
     /**

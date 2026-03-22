@@ -35,6 +35,7 @@ model Bot {
   thinkingLevel         String?      @default("LOW")
   paused                Boolean      @default(false)
   messageDelay          Int          @default(0)
+  contextMessages       Int          @default(20)
   clients               Client[]
   flows                 Flow[]
   excludeGroups         Boolean      @default(false)
@@ -60,7 +61,8 @@ model Template {
   systemPrompt  String?
   temperature   Float        @default(0.7)
   thinkingLevel String?      @default("LOW")
-  messageDelay  Int          @default(0)
+  messageDelay      Int          @default(0)
+  contextMessages   Int          @default(20)
   excludeGroups Boolean      @default(false)
   ignoredLabels String[]     @default([])
   variables     Json?        @default("[]")

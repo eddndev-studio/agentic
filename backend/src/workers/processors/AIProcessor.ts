@@ -130,6 +130,13 @@ export class AIProcessor {
                             const pdfText = await PDFService.extractText(mediaUrl);
                             partContent = `[PDF content]: ${pdfText.substring(0, 3000)}`;
                         }
+                        // Cache the preprocessed result in message metadata for future chat context
+                        if (partContent && partContent !== msg.content) {
+                            prisma.message.update({
+                                where: { id: msg.id },
+                                data: { metadata: { ...(metadata || {}), mediaDescription: partContent.substring(0, 500) } },
+                            }).catch(() => {});
+                        }
                     } catch (mediaError: any) {
                         console.error(`[AIProcessor] Media preprocessing error:`, mediaError);
                         partContent = partContent || "[Media file received but could not be processed]";
@@ -170,12 +177,44 @@ export class AIProcessor {
             const filteredBuiltins = BUILTIN_TOOLS.filter((b) => !dbToolNames.has(b.name));
             const toolDefinitions: AIToolDefinition[] = [...dbToolDefs, ...filteredBuiltins];
 
-            // 6. Build messages array
+            // 6. Fetch real chat history for context
+            const contextCount = aiConfig.contextMessages || 20;
+            let chatContext = "";
+            if (contextCount > 0) {
+                const recentMessages = await prisma.message.findMany({
+                    where: { sessionId },
+                    orderBy: { createdAt: "desc" },
+                    take: contextCount,
+                    select: { content: true, type: true, fromMe: true, createdAt: true, metadata: true },
+                });
+                if (recentMessages.length > 0) {
+                    const lines = recentMessages.reverse().map(m => {
+                        const time = new Date(m.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
+                        const sender = m.fromMe ? "Bot" : "Cliente";
+                        const meta = m.metadata as any;
+                        let text = m.content || "";
+                        if (meta?.mediaDescription) {
+                            text = text ? `${text} [${meta.mediaDescription}]` : `[${meta.mediaDescription}]`;
+                        } else if (!text && m.type !== "TEXT") {
+                            text = `[${m.type.toLowerCase()} adjunto]`;
+                        }
+                        return `[${time} ${sender}] ${text}`;
+                    });
+                    chatContext = lines.join("\n");
+                }
+            }
+
+            // 7. Build messages array
             const history = await ConversationService.getHistory(sessionId);
             const aiMessages: AIMessage[] = [];
 
             if (aiConfig.systemPrompt) {
-                aiMessages.push({ role: "system", content: aiConfig.systemPrompt });
+                const systemContent = chatContext
+                    ? `${aiConfig.systemPrompt}\n\n--- Chat reciente ---\n${chatContext}`
+                    : aiConfig.systemPrompt;
+                aiMessages.push({ role: "system", content: systemContent });
+            } else if (chatContext) {
+                aiMessages.push({ role: "system", content: `--- Chat reciente ---\n${chatContext}` });
             }
             aiMessages.push(...history);
 

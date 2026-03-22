@@ -11,6 +11,7 @@ interface AIConfig {
     systemPrompt: string | null;
     temperature: number;
     thinkingLevel: ThinkingLevel;
+    contextMessages: number;
 }
 
 export class BotConfigService {
@@ -37,6 +38,7 @@ export class BotConfigService {
             systemPrompt: source.systemPrompt,
             temperature: source.temperature,
             thinkingLevel: (source.thinkingLevel as ThinkingLevel) ?? "LOW",
+            contextMessages: (source as any).contextMessages ?? 20,
         };
     }
 
