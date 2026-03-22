@@ -3,7 +3,6 @@ import Layout from "../../layouts/Layout.astro";
 import BotConnection from "../../components/BotConnection.astro";
 import ClientList from "../../components/clients/ClientList.astro";
 import ClientModal from "../../components/clients/ClientModal.astro";
-import ExpandableCard from "../../components/ui/ExpandableCard.astro";
 ---
 
 <Layout title="Bot Detail">
@@ -185,29 +184,272 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
             </div>
         </header>
 
-        <!-- Card Stack -->
-        <div class="space-y-2">
+        <!-- ZONE 1: Primary content (always visible) -->
+        <div class="space-y-8">
 
-        <ExpandableCard cardKey="clients" title="Clientes">
-            <div class="min-h-[400px]">
+        <!-- Flujos section -->
+        <section class="mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3
+                            class="text-xs text-wa-green tracking-normal"
+                            x-text="$t('flows')"
+                        >
+                            Flows
+                        </h3>
+                        <span
+                            class="text-xs font-sans text-wa-text-secondary"
+                            x-text="flows.length + ' total'"></span>
+                    </div>
 
+                    <!-- Flow Grid -->
+                    <template x-if="flows.length > 0">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <template x-for="flow in flows" :key="flow.id">
+                                <a :href="'/editor?id=' + flow.id"
+                                   class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[120px]">
+                                    <div>
+                                        <div class="flex items-start justify-between gap-2">
+                                            <h4 class="text-sm font-bold tracking-tight group-hover:text-wa-green transition-colors leading-tight" x-text="flow.name"></h4>
+                                            <button
+                                                @click.prevent.stop="deleteFlow(flow.id, flow.name)"
+                                                class="p-1 text-wa-text-secondary/40 hover:text-red-400 transition-colors flex-shrink-0 -mt-1 -mr-1"
+                                                :title="$t('delete_flow') || 'Delete Flow'"
+                                            >
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <p x-show="flow.description" class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="flow.description"></p>
+                                    </div>
+                                    <div class="flex gap-2 mt-3 flex-wrap">
+                                        <template x-for="trigger in flow.triggers.slice(0, 3)" :key="trigger.id">
+                                            <span class="text-[10px] font-sans bg-wa-bg-hover px-2 py-0.5 text-wa-text-secondary rounded-md" x-text="trigger.matchType + ': ' + trigger.keyword"></span>
+                                        </template>
+                                        <span x-show="flow.triggers.length > 3" class="text-[10px] font-sans text-wa-text-secondary" x-text="'+' + (flow.triggers.length - 3) + ' more'"></span>
+                                        <span x-show="flow.triggers.length === 0" class="text-[10px] text-wa-text-secondary/50">No triggers</span>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Empty State -->
+                    <template x-if="flows.length === 0">
+                        <div
+                            class="text-center py-12 border border-dashed border-wa-border rounded-xl"
+                        >
+                            <svg
+                                class="w-10 h-10 mx-auto mb-4 text-wa-text-secondary"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="1"
+                                    d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
+                                ></path>
+                            </svg>
+                            <p
+                                class="text-xs font-sans text-wa-text-secondary mb-4"
+                                x-text="$t('no_flows')"
+                            >
+                                No flows configured
+                            </p>
+                            <a
+                                :href="'/editor?botId=' + botId"
+                                class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg"
+                            >
+                                + <span x-text="$t('new_flow')"
+                                    >Create Flow</span
+                                >
+                            </a>
+                        </div>
+                    </template>
+        </section>
+
+        <!-- Herramientas section -->
+        <section class="mb-8">
                 <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
-                    <h3
-                        class="text-xs text-wa-green tracking-normal"
-                    >
-                        Listado de Clientes
-                    </h3>
-                    <div class="flex gap-2">
-                        <ClientModal />
+                    <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('tools')">Tools</h3>
+                    <a :href="'/tool-editor?botId=' + botId"
+                        class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
+                        <span>+</span>
+                        <span x-text="$t('new_tool')">New Tool</span>
+                    </a>
+                </div>
+
+                <!-- Built-in Tools -->
+                <div class="mb-6">
+                    <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('builtin_tools') || 'Built-in Tools'">Built-in Tools</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <template x-for="bt in builtinTools" :key="bt.name">
+                            <div class="flex flex-col justify-between p-3 bg-wa-bg-deep border border-wa-border/50 rounded-xl opacity-80 min-h-[80px]">
+                                <div>
+                                    <div class="flex items-start justify-between gap-2 mb-1">
+                                        <span class="font-bold font-mono text-xs text-white leading-tight" x-text="bt.name"></span>
+                                        <span class="text-[8px] font-sans bg-wa-green/10 text-wa-green px-1.5 py-0.5 rounded shrink-0">BUILTIN</span>
+                                    </div>
+                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="bt.description"></p>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
-                <ClientList />
-            </div>
-        </ExpandableCard>
+                <!-- Custom Tools -->
+                <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('custom_tools') || 'Custom Tools'">Custom Tools</h4>
+                <template x-if="tools.length > 0">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <template x-for="tool in tools" :key="tool.id">
+                            <a :href="'/tool-editor?id=' + tool.id"
+                                class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[100px]">
+                                <div>
+                                    <div class="flex items-start justify-between gap-2 mb-1">
+                                        <h4 class="text-sm font-bold font-mono group-hover:text-wa-green transition-colors leading-tight" x-text="tool.name"></h4>
+                                        <span class="text-[10px] font-sans px-1.5 py-0.5 rounded shrink-0"
+                                            :class="tool.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-wa-text-secondary'"
+                                            x-text="tool.status"></span>
+                                    </div>
+                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="tool.description"></p>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="text-[10px] font-sans bg-wa-green/10 text-wa-green px-2 py-0.5 rounded" x-text="tool.actionType"></span>
+                                </div>
+                            </a>
+                        </template>
+                    </div>
+                </template>
 
-        <ExpandableCard cardKey="ai" title="Configuración IA" titleExpr="$t('ai_config')">
-            <span slot="summary" class="text-xs text-wa-text-secondary" x-text="bot.templateId ? (bot.template?.name || 'Plantilla') : (aiConfig.aiModel || 'gemini-2.5-flash')"></span>
+                <!-- Convert Flows Section -->
+                <template x-if="flows.length > 0">
+                    <div class="mt-8 pt-6 border-t border-wa-border">
+                        <h4 class="text-xs text-wa-text-secondary tracking-normal mb-4" x-text="$t('convert_to_tool')">Convert Flows to Tools</h4>
+                        <div class="space-y-2">
+                            <template x-for="flow in flows" :key="'convert-' + flow.id">
+                                <div class="flex items-center justify-between gap-3 p-3 bg-wa-bg-deep border border-wa-border rounded-lg">
+                                    <span class="text-sm text-wa-text-secondary min-w-0 break-words" x-text="flow.name"></span>
+                                    <button @click="convertFlowToTool(flow.id)"
+                                        class="px-3 py-1 text-[10px] font-sans border border-wa-green/30 text-wa-green hover:bg-wa-green/10 transition-colors rounded-lg flex-shrink-0 whitespace-nowrap"
+                                        x-text="$t('convert_to_tool')">
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Empty Custom Tools hint -->
+                <template x-if="tools.length === 0">
+                    <p class="text-xs text-wa-text-secondary text-center py-4" x-text="$t('no_custom_tools') || 'No custom tools yet. Built-in tools are always active.'"></p>
+                </template>
+
+                <!-- Automations subsection -->
+                <div class="mt-8 pt-6 border-t border-wa-border">
+                    <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
+                        <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('automations')">Automations</h3>
+                        <button @click="openCreateAutomation()"
+                            class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
+                            <span>+</span>
+                            <span x-text="$t('create_automation')">Create Automation</span>
+                        </button>
+                    </div>
+
+                    <!-- Automation List -->
+                    <template x-if="automations.length > 0">
+                        <div class="space-y-3">
+                            <template x-for="auto in automations" :key="auto.id">
+                                <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+                                    <div class="flex justify-between items-start gap-3">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                                <h4 class="font-bold font-sans text-white" x-text="auto.name"></h4>
+                                                <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400" x-text="auto.event"></span>
+                                                <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-wa-green/10 text-wa-green" x-text="auto.labelName"></span>
+                                            </div>
+                                            <p class="text-xs text-wa-text-secondary mb-2" x-text="auto.description || ''"></p>
+                                            <div class="flex items-center gap-4 text-[10px] text-wa-text-secondary">
+                                                <span x-text="'Timeout: ' + formatTimeout(auto.timeoutMs)"></span>
+                                                <span class="truncate max-w-xs" x-text="'Prompt: ' + auto.prompt.substring(0, 60) + (auto.prompt.length > 60 ? '...' : '')"></span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2 flex-shrink-0">
+                                            <!-- Toggle -->
+                                            <button @click="toggleAutomation(auto.id, !auto.enabled)"
+                                                class="relative w-10 h-5 rounded-full transition-colors"
+                                                :class="auto.enabled ? 'bg-wa-green' : 'bg-gray-700'">
+                                                <span class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all"
+                                                    :class="auto.enabled ? 'left-5' : 'left-0.5'"></span>
+                                            </button>
+                                            <!-- Edit -->
+                                            <button @click="editAutomation(auto)"
+                                                class="p-1 text-wa-text-secondary hover:text-wa-green transition-colors">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                </svg>
+                                            </button>
+                                            <!-- Delete -->
+                                            <button @click="deleteAutomation(auto.id)"
+                                                class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Empty State -->
+                    <template x-if="automations.length === 0">
+                        <div class="text-center py-12 border border-dashed border-wa-border mt-4 rounded-xl">
+                            <p class="text-xs font-sans text-wa-text-secondary mb-4" x-text="$t('no_automations')">No automations configured</p>
+                            <button @click="openCreateAutomation()"
+                                class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg">
+                                + <span x-text="$t('create_automation')">Create Automation</span>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+        </section>
+
+        <!-- ZONE 2: Configuration (tabs with URL persistence) -->
+        <section>
+            <!-- Tab bar -->
+            <div class="flex gap-1 border-b border-wa-border mb-6">
+                <button @click="activeTab = 'config'; updateTabUrl()"
+                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
+                    :class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                    Config IA
+                </button>
+                <button @click="activeTab = 'variables'; updateTabUrl()"
+                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
+                    :class="activeTab === 'variables' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                    Variables
+                </button>
+                <button @click="activeTab = 'notifications'; updateTabUrl()"
+                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
+                    :class="activeTab === 'notifications' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                    Notificaciones
+                </button>
+                <button @click="activeTab = 'clients'; updateTabUrl()"
+                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
+                    :class="activeTab === 'clients' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                    Clientes
+                </button>
+                <button @click="activeTab = 'logs'; updateTabUrl(); if (!logsLoaded) { loadLogs(); logsLoaded = true; }"
+                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
+                    :class="activeTab === 'logs' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                    Registros
+                </button>
+            </div>
+
+            <!-- Tab content: Config IA -->
+            <div x-show="activeTab === 'config'" x-transition:enter>
             <!-- Template override notice -->
             <div x-show="bot.templateId" class="mb-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-start gap-3 max-w-2xl">
                 <svg class="w-5 h-5 text-purple-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -398,11 +640,10 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                     </div>
                 </form>
             </div>
-        </ExpandableCard>
+            </div>
 
-        <ExpandableCard cardKey="variables" title="Variables" titleExpr="$t('bot_variables')">
-            <span slot="summary" class="text-xs text-wa-text-secondary" x-text="bot.templateId ? (bot.template?.name || 'Plantilla') : variablesList.length + ' vars'"></span>
-
+            <!-- Tab content: Variables -->
+            <div x-show="activeTab === 'variables'" x-transition:enter>
                 <!-- Template Selector -->
                 <div class="mb-8">
                     <h3 class="text-xs text-wa-green tracking-normal mb-4" x-text="$t('template_assigned')">Template</h3>
@@ -515,11 +756,10 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         Guardado
                     </span>
                 </div>
-        </ExpandableCard>
+            </div>
 
-        <ExpandableCard cardKey="notifications" title="Notificaciones">
-            <span slot="summary" class="text-xs text-wa-text-secondary" x-text="notificationChannels.length + ' canales'"></span>
-
+            <!-- Tab content: Notifications -->
+            <div x-show="activeTab === 'notifications'" x-transition:enter>
                 <h3 class="text-xs text-wa-green tracking-normal mb-6">Notificaciones</h3>
 
                 <form @submit.prevent="saveNotifications()" class="space-y-6">
@@ -614,320 +854,29 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         </button>
                     </div>
                 </form>
-        </ExpandableCard>
+            </div>
 
-        <ExpandableCard cardKey="tools" title="Herramientas" titleExpr="$t('tools')">
-            <span slot="summary" class="text-xs text-wa-text-secondary" x-text="tools.length + ' tools · ' + automations.length + ' autom.'"></span>
+            <!-- Tab content: Clients -->
+            <div x-show="activeTab === 'clients'" x-transition:enter>
+                <div class="min-h-[400px]">
 
-                <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
-                    <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('tools')">Tools</h3>
-                    <a :href="'/tool-editor?botId=' + botId"
-                        class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
-                        <span>+</span>
-                        <span x-text="$t('new_tool')">New Tool</span>
-                    </a>
-                </div>
-
-                <!-- Built-in Tools -->
-                <div class="mb-6">
-                    <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('builtin_tools') || 'Built-in Tools'">Built-in Tools</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <template x-for="bt in builtinTools" :key="bt.name">
-                            <div class="flex flex-col justify-between p-3 bg-wa-bg-deep border border-wa-border/50 rounded-xl opacity-80 min-h-[80px]">
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-1">
-                                        <span class="font-bold font-mono text-xs text-white leading-tight" x-text="bt.name"></span>
-                                        <span class="text-[8px] font-sans bg-wa-green/10 text-wa-green px-1.5 py-0.5 rounded shrink-0">BUILTIN</span>
-                                    </div>
-                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="bt.description"></p>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Custom Tools -->
-                <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('custom_tools') || 'Custom Tools'">Custom Tools</h4>
-                <template x-if="tools.length > 0">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <template x-for="tool in tools" :key="tool.id">
-                            <a :href="'/tool-editor?id=' + tool.id"
-                                class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[100px]">
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-1">
-                                        <h4 class="text-sm font-bold font-mono group-hover:text-wa-green transition-colors leading-tight" x-text="tool.name"></h4>
-                                        <span class="text-[10px] font-sans px-1.5 py-0.5 rounded shrink-0"
-                                            :class="tool.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-wa-text-secondary'"
-                                            x-text="tool.status"></span>
-                                    </div>
-                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="tool.description"></p>
-                                </div>
-                                <div class="mt-3">
-                                    <span class="text-[10px] font-sans bg-wa-green/10 text-wa-green px-2 py-0.5 rounded" x-text="tool.actionType"></span>
-                                </div>
-                            </a>
-                        </template>
-                    </div>
-                </template>
-
-                <!-- Convert Flows Section -->
-                <template x-if="flows.length > 0">
-                    <div class="mt-8 pt-6 border-t border-wa-border">
-                        <h4 class="text-xs text-wa-text-secondary tracking-normal mb-4" x-text="$t('convert_to_tool')">Convert Flows to Tools</h4>
-                        <div class="space-y-2">
-                            <template x-for="flow in flows" :key="'convert-' + flow.id">
-                                <div class="flex items-center justify-between gap-3 p-3 bg-wa-bg-deep border border-wa-border rounded-lg">
-                                    <span class="text-sm text-wa-text-secondary min-w-0 break-words" x-text="flow.name"></span>
-                                    <button @click="convertFlowToTool(flow.id)"
-                                        class="px-3 py-1 text-[10px] font-sans border border-wa-green/30 text-wa-green hover:bg-wa-green/10 transition-colors rounded-lg flex-shrink-0 whitespace-nowrap"
-                                        x-text="$t('convert_to_tool')">
-                                    </button>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- Empty Custom Tools hint -->
-                <template x-if="tools.length === 0">
-                    <p class="text-xs text-wa-text-secondary text-center py-4" x-text="$t('no_custom_tools') || 'No custom tools yet. Built-in tools are always active.'"></p>
-                </template>
-
-        </ExpandableCard>
-
-        <ExpandableCard cardKey="flows" title="Flujos" titleExpr="$t('flows')">
-            <span slot="summary" class="text-xs text-wa-text-secondary" x-text="flows.length + ' flujos'"></span>
-
-                    <div class="flex justify-between items-center mb-6">
+                    <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
                         <h3
                             class="text-xs text-wa-green tracking-normal"
-                            x-text="$t('flows')"
                         >
-                            Flows
+                            Listado de Clientes
                         </h3>
-                        <span
-                            class="text-xs font-sans text-wa-text-secondary"
-                            x-text="flows.length + ' total'"></span>
-                    </div>
-
-                    <!-- Flow Grid -->
-                    <template x-if="flows.length > 0">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            <template x-for="flow in flows" :key="flow.id">
-                                <a :href="'/editor?id=' + flow.id"
-                                   class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[120px]">
-                                    <div>
-                                        <div class="flex items-start justify-between gap-2">
-                                            <h4 class="text-sm font-bold tracking-tight group-hover:text-wa-green transition-colors leading-tight" x-text="flow.name"></h4>
-                                            <button
-                                                @click.prevent.stop="deleteFlow(flow.id, flow.name)"
-                                                class="p-1 text-wa-text-secondary/40 hover:text-red-400 transition-colors flex-shrink-0 -mt-1 -mr-1"
-                                                :title="$t('delete_flow') || 'Delete Flow'"
-                                            >
-                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <p x-show="flow.description" class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="flow.description"></p>
-                                    </div>
-                                    <div class="flex gap-2 mt-3 flex-wrap">
-                                        <template x-for="trigger in flow.triggers.slice(0, 3)" :key="trigger.id">
-                                            <span class="text-[10px] font-sans bg-wa-bg-hover px-2 py-0.5 text-wa-text-secondary rounded-md" x-text="trigger.matchType + ': ' + trigger.keyword"></span>
-                                        </template>
-                                        <span x-show="flow.triggers.length > 3" class="text-[10px] font-sans text-wa-text-secondary" x-text="'+' + (flow.triggers.length - 3) + ' more'"></span>
-                                        <span x-show="flow.triggers.length === 0" class="text-[10px] text-wa-text-secondary/50">No triggers</span>
-                                    </div>
-                                </a>
-                            </template>
-                        </div>
-                    </template>
-
-                    <!-- Empty State -->
-                    <template x-if="flows.length === 0">
-                        <div
-                            class="text-center py-12 border border-dashed border-wa-border rounded-xl"
-                        >
-                            <svg
-                                class="w-10 h-10 mx-auto mb-4 text-wa-text-secondary"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="1"
-                                    d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
-                                ></path>
-                            </svg>
-                            <p
-                                class="text-xs font-sans text-wa-text-secondary mb-4"
-                                x-text="$t('no_flows')"
-                            >
-                                No flows configured
-                            </p>
-                            <a
-                                :href="'/editor?botId=' + botId"
-                                class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg"
-                            >
-                                + <span x-text="$t('new_flow')"
-                                    >Create Flow</span
-                                >
-                            </a>
-                        </div>
-                    </template>
-        </ExpandableCard>
-
-        <ExpandableCard cardKey="automations" title="Automations" titleExpr="$t('automations')">
-            <span slot="summary" class="text-xs text-wa-text-secondary" x-text="automations.length + ' autom.'"></span>
-
-                <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
-                    <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('automations')">Automations</h3>
-                    <button @click="openCreateAutomation()"
-                        class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
-                        <span>+</span>
-                        <span x-text="$t('create_automation')">Create Automation</span>
-                    </button>
-                </div>
-
-                <!-- Automation List -->
-                <template x-if="automations.length > 0">
-                    <div class="space-y-3">
-                        <template x-for="auto in automations" :key="auto.id">
-                            <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
-                                <div class="flex justify-between items-start gap-3">
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                            <h4 class="font-bold font-sans text-white" x-text="auto.name"></h4>
-                                            <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400" x-text="auto.event"></span>
-                                            <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-wa-green/10 text-wa-green" x-text="auto.labelName"></span>
-                                        </div>
-                                        <p class="text-xs text-wa-text-secondary mb-2" x-text="auto.description || ''"></p>
-                                        <div class="flex items-center gap-4 text-[10px] text-wa-text-secondary">
-                                            <span x-text="'Timeout: ' + formatTimeout(auto.timeoutMs)"></span>
-                                            <span class="truncate max-w-xs" x-text="'Prompt: ' + auto.prompt.substring(0, 60) + (auto.prompt.length > 60 ? '...' : '')"></span>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-2 flex-shrink-0">
-                                        <!-- Toggle -->
-                                        <button @click="toggleAutomation(auto.id, !auto.enabled)"
-                                            class="relative w-10 h-5 rounded-full transition-colors"
-                                            :class="auto.enabled ? 'bg-wa-green' : 'bg-gray-700'">
-                                            <span class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all"
-                                                :class="auto.enabled ? 'left-5' : 'left-0.5'"></span>
-                                        </button>
-                                        <!-- Edit -->
-                                        <button @click="editAutomation(auto)"
-                                            class="p-1 text-wa-text-secondary hover:text-wa-green transition-colors">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                            </svg>
-                                        </button>
-                                        <!-- Delete -->
-                                        <button @click="deleteAutomation(auto.id)"
-                                            class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </template>
-
-                <!-- Empty State -->
-                <template x-if="automations.length === 0">
-                    <div class="text-center py-12 border border-dashed border-wa-border mt-4 rounded-xl">
-                        <p class="text-xs font-sans text-wa-text-secondary mb-4" x-text="$t('no_automations')">No automations configured</p>
-                        <button @click="openCreateAutomation()"
-                            class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg">
-                            + <span x-text="$t('create_automation')">Create Automation</span>
-                        </button>
-                    </div>
-                </template>
-        </ExpandableCard>
-
-        <!-- Create/Edit Automation Modal -->
-        <div x-show="showAutomationModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-            style="display: none;">
-            <div class="bg-wa-bg-deep border border-wa-border p-6 sm:p-8 max-w-md w-full relative rounded-xl"
-                @click.outside="showAutomationModal = false">
-
-                <h2 class="text-xl font-bold mb-6 tracking-tight"
-                    x-text="editingAutomationId ? 'Edit Automation' : $t('create_automation')">Create Automation</h2>
-
-                <form @submit.prevent="saveAutomation()" class="space-y-4">
-                    <!-- Name -->
-                    <div>
-                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_name')">Name</label>
-                        <input type="text" x-model="automationForm.name" required
-                            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg"
-                            placeholder="Follow-up reminder" />
-                    </div>
-
-                    <!-- Event -->
-                    <div>
-                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_event')">Event</label>
-                        <select x-model="automationForm.event"
-                            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
-                            <option value="INACTIVITY" x-text="$t('inactivity')">Inactivity</option>
-                        </select>
-                    </div>
-
-                    <!-- Label -->
-                    <div>
-                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_label')">Label</label>
-                        <select x-model="automationForm.labelName"
-                            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
-                            <option value="">Sin etiqueta (todos sin etiquetar)</option>
-                            <template x-for="lbl in botLabels" :key="lbl.id">
-                                <option :value="lbl.name" x-text="lbl.name"></option>
-                            </template>
-                        </select>
-                    </div>
-
-                    <!-- Timeout -->
-                    <div>
-                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_timeout')">Timeout</label>
                         <div class="flex gap-2">
-                            <input type="number" x-model.number="automationForm.timeoutValue" min="1" required
-                                class="flex-1 bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
-                            <select x-model="automationForm.timeoutUnit"
-                                class="bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
-                                <option value="minutes" x-text="$t('minutes')">minutes</option>
-                                <option value="hours" x-text="$t('hours')">hours</option>
-                                <option value="days" x-text="$t('days')">days</option>
-                            </select>
+                            <ClientModal />
                         </div>
                     </div>
 
-                    <!-- Prompt -->
-                    <div>
-                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_prompt')">Prompt</label>
-                        <textarea x-model="automationForm.prompt" rows="3" required
-                            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y rounded-lg"
-                            placeholder="Dale seguimiento al cliente..."></textarea>
-                    </div>
-
-                    <div class="pt-4 flex justify-end gap-3">
-                        <button type="button" @click="showAutomationModal = false"
-                            class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
-                            x-text="$t('cancel')">Cancel</button>
-                        <button type="submit"
-                            class="px-6 py-2 bg-wa-green text-white text-xs hover:bg-wa-green-hover transition-colors rounded-lg"
-                            x-text="editingAutomationId ? ($t('save') || 'Save') : $t('create_automation')">Create</button>
-                    </div>
-                </form>
+                    <ClientList />
+                </div>
             </div>
-        </div>
 
-        <ExpandableCard cardKey="logs" title="Registros" titleExpr="$t('logs')">
-            <span slot="summary" class="text-xs text-wa-text-secondary" x-text="logsPagination.total + ' registros'"></span>
-
+            <!-- Tab content: Logs -->
+            <div x-show="activeTab === 'logs'" x-transition:enter>
                 <!-- Filters -->
                 <div class="flex flex-wrap gap-4 mb-6 items-end">
                     <div>
@@ -1169,9 +1118,85 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         </button>
                     </div>
                 </div>
-        </ExpandableCard>
+            </div>
+        </section>
 
-        </div> <!-- /Card Stack -->
+        </div> <!-- /Two-zone layout -->
+
+        <!-- Create/Edit Automation Modal -->
+        <div x-show="showAutomationModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            style="display: none;">
+            <div class="bg-wa-bg-deep border border-wa-border p-6 sm:p-8 max-w-md w-full relative rounded-xl"
+                @click.outside="showAutomationModal = false">
+
+                <h2 class="text-xl font-bold mb-6 tracking-tight"
+                    x-text="editingAutomationId ? 'Edit Automation' : $t('create_automation')">Create Automation</h2>
+
+                <form @submit.prevent="saveAutomation()" class="space-y-4">
+                    <!-- Name -->
+                    <div>
+                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_name')">Name</label>
+                        <input type="text" x-model="automationForm.name" required
+                            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg"
+                            placeholder="Follow-up reminder" />
+                    </div>
+
+                    <!-- Event -->
+                    <div>
+                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_event')">Event</label>
+                        <select x-model="automationForm.event"
+                            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                            <option value="INACTIVITY" x-text="$t('inactivity')">Inactivity</option>
+                        </select>
+                    </div>
+
+                    <!-- Label -->
+                    <div>
+                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_label')">Label</label>
+                        <select x-model="automationForm.labelName"
+                            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                            <option value="">Sin etiqueta (todos sin etiquetar)</option>
+                            <template x-for="lbl in botLabels" :key="lbl.id">
+                                <option :value="lbl.name" x-text="lbl.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Timeout -->
+                    <div>
+                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_timeout')">Timeout</label>
+                        <div class="flex gap-2">
+                            <input type="number" x-model.number="automationForm.timeoutValue" min="1" required
+                                class="flex-1 bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
+                            <select x-model="automationForm.timeoutUnit"
+                                class="bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                                <option value="minutes" x-text="$t('minutes')">minutes</option>
+                                <option value="hours" x-text="$t('hours')">hours</option>
+                                <option value="days" x-text="$t('days')">days</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Prompt -->
+                    <div>
+                        <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_prompt')">Prompt</label>
+                        <textarea x-model="automationForm.prompt" rows="3" required
+                            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y rounded-lg"
+                            placeholder="Dale seguimiento al cliente..."></textarea>
+                    </div>
+
+                    <div class="pt-4 flex justify-end gap-3">
+                        <button type="button" @click="showAutomationModal = false"
+                            class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
+                            x-text="$t('cancel')">Cancel</button>
+                        <button type="submit"
+                            class="px-6 py-2 bg-wa-green text-white text-xs hover:bg-wa-green-hover transition-colors rounded-lg"
+                            x-text="editingAutomationId ? ($t('save') || 'Save') : $t('create_automation')">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- Loading State -->
         <div
@@ -1576,8 +1601,9 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
             ],
             tools: [] as any[],
 
-            // Card focus State
-            focused: "flows" as string | null,
+            // Tab State
+            activeTab: "config" as string,
+            logsLoaded: false,
             logs: [] as Execution[],
             loadingLogs: false,
             logsPagination: { total: 0, limit: 50, offset: 0 },
@@ -1595,6 +1621,12 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                 if (!this.botId) {
                     this.error = "No bot ID provided";
                     return;
+                }
+
+                // Read tab from URL
+                const tabParam = params.get('tab');
+                if (tabParam && ['config', 'variables', 'notifications', 'clients', 'logs'].includes(tabParam)) {
+                    this.activeTab = tabParam;
                 }
 
                 try {
@@ -1676,6 +1708,16 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                         }
                     }
 
+                    // Load tools and automations (always visible in Zone 1)
+                    this.loadTools();
+                    this.loadAutomations();
+
+                    // If tab=logs from URL, load logs immediately
+                    if (this.activeTab === 'logs') {
+                        this.loadLogs();
+                        this.logsLoaded = true;
+                    }
+
                     // Generate connection component HTML (will be hydrated by Alpine)
                     this.connectionHtml = this.generateConnectionHtml();
                     this.connectionHeaderHtml = this.generateConnectionHeaderHtml();
@@ -1704,15 +1746,10 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                 }
             },
 
-            toggleCard(card: string) {
-                if (this.focused === card) {
-                    this.focused = null;
-                    return;
-                }
-                this.focused = card;
-                if (card === 'tools') this.loadTools();
-                if (card === 'automations') this.loadAutomations();
-                if (card === 'logs') this.loadLogs();
+            updateTabUrl() {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', this.activeTab);
+                window.history.replaceState({}, '', url.toString());
             },
 
             generateConnectionHtml(): string {
