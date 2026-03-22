@@ -15,7 +15,8 @@ export type BotEvent =
     | { type: 'flow:started';     botId: string; flowName: string; sessionId: string }
     | { type: 'flow:completed';   botId: string; flowName: string; sessionId: string }
     | { type: 'flow:failed';      botId: string; flowName: string; sessionId: string; error: string }
-    | { type: 'tool:executed';    botId: string; toolName: string; sessionId: string; success: boolean };
+    | { type: 'tool:executed';    botId: string; toolName: string; sessionId: string; success: boolean }
+    | { type: 'messages:deleted'; botId: string; sessionId: string; count: number };
 
 export type SystemEvent = { type: 'system:log'; log: LogEntry };
 

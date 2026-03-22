@@ -12,6 +12,7 @@ const EVENT_LABELS: Record<string, string> = {
     "bot:connected":      "Bot conectado",
     "bot:disconnected":   "Bot desconectado",
     "tool:executed":      "Herramienta ejecutada",
+    "messages:deleted":   "Chat borrado",
 };
 
 const IGNORED_EVENTS = new Set(['bot:qr', 'message:sent', 'session:updated', 'message:received', 'session:labels']);
@@ -155,6 +156,8 @@ class NotificationService {
                 return `\u{1F534} *${label}*${botLine}\nCódigo: ${event.statusCode ?? 'N/A'}\n\u{1F550} ${ts}`;
             case 'tool:executed':
                 return `\u{1F527} *${label}*${botLine}\nHerramienta: ${event.toolName}${chatLine}\nResultado: ${event.success ? '\u2705 Éxito' : '\u274C Error'}\n\u{1F550} ${ts}`;
+            case 'messages:deleted':
+                return `\u{1F5D1} *${label}*${botLine}${chatLine}\n${event.count} mensaje(s) eliminado(s)\n\u{1F550} ${ts}`;
             default:
                 return null;
         }
