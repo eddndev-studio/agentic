@@ -1234,6 +1234,31 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             </div>
         </div>
 
+        <!-- QR Code Modal -->
+        <div
+            x-show="showQrModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            style="display: none;"
+            @keydown.escape.window="showQrModal = false"
+        >
+            <div
+                class="bg-wa-bg-deep border border-wa-border p-6 sm:p-8 max-w-sm w-full relative rounded-xl text-center"
+                @click.outside="showQrModal = false"
+            >
+                <h2 class="text-lg font-bold mb-2 tracking-tight">Escanear QR</h2>
+                <p class="text-xs text-wa-text-secondary mb-6">Escanea este código con WhatsApp para conectar el bot.</p>
+
+                <div x-show="botId" x-html="qrModalHtml"></div>
+
+                <button
+                    @click="showQrModal = false"
+                    class="mt-6 px-6 py-2 border border-wa-border text-wa-text-secondary font-sans text-xs hover:bg-wa-bg-hover rounded-lg transition-colors"
+                >
+                    Cerrar
+                </button>
+            </div>
+        </div>
+
         <!-- Import Flow Modal -->
         <div
             x-show="showImportModal"
@@ -1517,6 +1542,8 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             connectionHeaderHtml: "",
 
             // Import State
+            showQrModal: false,
+            qrModalHtml: "",
             showImportModal: false,
             loadingImport: false,
             sourceBots: [] as Bot[],
@@ -1721,23 +1748,16 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     // Generate connection component HTML (will be hydrated by Alpine)
                     this.connectionHtml = this.generateConnectionHtml();
                     this.connectionHeaderHtml = this.generateConnectionHeaderHtml();
+                    this.qrModalHtml = this.generateQrModalHtml();
 
                     this.ready = true;
 
                     // Re-initialize Alpine on the injected content
                     // @ts-ignore
                     this.$nextTick(() => {
-                        const container = document.querySelector(
-                            '[x-html="connectionHtml"]',
-                        );
-                        if (container) {
-                            Alpine.initTree(container);
-                        }
-                        const headerConn = document.querySelector(
-                            '[x-html="connectionHeaderHtml"]',
-                        );
-                        if (headerConn) {
-                            Alpine.initTree(headerConn);
+                        for (const sel of ['[x-html="connectionHtml"]', '[x-html="connectionHeaderHtml"]', '[x-html="qrModalHtml"]']) {
+                            const el = document.querySelector(sel);
+                            if (el) Alpine.initTree(el);
                         }
                     });
                 } catch (e: unknown) {
@@ -1795,6 +1815,35 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                             <button @click="showQrModal = true"
                                 class="px-3 py-2 text-xs font-sans border border-yellow-500/30 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 transition-colors rounded-lg flex items-center gap-1.5 animate-pulse"
                                 x-text="$t('scan_qr')"></button>
+                        </template>
+                    </div>
+                `;
+            },
+
+            generateQrModalHtml(): string {
+                const safeId = this.botId?.replace(/-/g, "_");
+                return `
+                    <div x-data="botConnection_${safeId}" x-init="init()">
+                        <template x-if="qr && !connected">
+                            <div class="inline-block bg-white p-4 rounded-xl">
+                                <img :src="qr" alt="QR Code" class="w-56 h-56" />
+                            </div>
+                        </template>
+                        <template x-if="connected">
+                            <div class="py-4">
+                                <div class="w-14 h-14 bg-green-500/20 text-green-400 rounded-xl flex items-center justify-center mx-auto mb-3 border border-green-500/50">
+                                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                                <p class="text-sm text-green-400 font-semibold">Conectado</p>
+                            </div>
+                        </template>
+                        <template x-if="!qr && !connected">
+                            <div class="py-4">
+                                <p class="text-xs text-wa-text-secondary mb-3">Esperando código QR...</p>
+                                <button @click="connect()" :disabled="loading"
+                                    class="px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors"
+                                    x-text="loading ? 'Conectando...' : 'Iniciar conexión'"></button>
+                            </div>
                         </template>
                     </div>
                 `;

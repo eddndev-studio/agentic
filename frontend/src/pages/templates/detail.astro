@@ -1,6 +1,5 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import ExpandableCard from "../../components/ui/ExpandableCard.astro";
 import EmptyState from "../../components/ui/EmptyState.astro";
 ---
 
@@ -38,11 +37,106 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 			</div>
 		</header>
 
-		<!-- Card Stack -->
-		<div class="space-y-2">
+		<!-- ZONE 1: Primary content (always visible) -->
 
-		<ExpandableCard cardKey="ai" title="Configuración IA" titleExpr="$t('ai_config')">
-			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="aiConfig.aiModel || 'gemini-2.5-flash'"></span>
+		<!-- Flujos section -->
+		<section class="mb-8">
+			<div class="flex justify-between items-center mb-6">
+				<h3 class="text-xs text-wa-green tracking-normal">Flujos</h3>
+				<div class="flex items-center gap-3">
+					<span class="text-xs text-wa-text-secondary" x-text="(template.flows?.length || 0) + ' flujos'"></span>
+					<a :href="'/editor?templateId=' + templateId" class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover">+ Nuevo Flujo</a>
+				</div>
+			</div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+				<template x-for="flow in template.flows || []" :key="flow.id">
+					<a :href="'/editor?id=' + flow.id + '&templateId=' + templateId"
+					   class="flex flex-col justify-between p-4 bg-wa-bg-hover rounded-xl border border-transparent hover:border-wa-green/30 transition-all group min-h-[120px]">
+						<div>
+							<div class="flex items-start justify-between gap-2">
+								<h4 class="text-sm font-bold tracking-tight group-hover:text-wa-green transition-colors leading-tight" x-text="flow.name"></h4>
+								<button
+									@click.prevent.stop="deleteFlow(flow.id, flow.name)"
+									class="p-1 text-wa-text-secondary/40 hover:text-red-400 transition-colors flex-shrink-0 -mt-1 -mr-1"
+									:title="$t('delete_flow') || 'Delete Flow'"
+								>
+									<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+									</svg>
+								</button>
+							</div>
+							<p class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="flow.description || '—'"></p>
+						</div>
+						<div class="flex gap-3 mt-3 text-[10px] text-wa-text-secondary">
+							<span class="flex items-center gap-1">
+								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" /></svg>
+								<span x-text="(flow.steps?.length || 0) + ' pasos'"></span>
+							</span>
+							<span class="flex items-center gap-1">
+								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+								<span x-text="(flow.triggers?.length || 0) + ' triggers'"></span>
+							</span>
+						</div>
+					</a>
+				</template>
+			</div>
+			<EmptyState x-show="!template.flows || template.flows.length === 0">
+				<span x-text="$t('no_flows')">No flows</span>
+			</EmptyState>
+		</section>
+
+		<!-- Herramientas section -->
+		<section class="mb-8">
+			<div class="flex justify-between items-center mb-6">
+				<h3 class="text-xs text-wa-green tracking-normal">Herramientas</h3>
+				<div class="flex items-center gap-3">
+					<span class="text-xs text-wa-text-secondary" x-text="tools.length + ' tools'"></span>
+					<a :href="'/tool-editor?templateId=' + templateId" class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover">+ Nueva Herramienta</a>
+				</div>
+			</div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+				<template x-for="tool in tools" :key="tool.id">
+					<a :href="'/tool-editor?id=' + tool.id + '&templateId=' + templateId"
+					   class="flex flex-col justify-between p-4 bg-wa-bg-hover rounded-xl border border-transparent hover:border-wa-green/30 transition-all group min-h-[100px]">
+						<div>
+							<div class="flex items-start justify-between gap-2">
+								<h4 class="text-sm font-mono font-bold group-hover:text-wa-green transition-colors leading-tight" x-text="tool.name"></h4>
+								<span class="text-[10px] px-1.5 py-0.5 rounded shrink-0" :class="tool.status === 'ACTIVE' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10'" x-text="tool.status"></span>
+							</div>
+							<p class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="tool.description"></p>
+						</div>
+						<div class="mt-3">
+							<span class="text-[10px] text-wa-text-secondary bg-wa-bg-deep px-2 py-0.5 rounded" x-text="tool.actionType"></span>
+						</div>
+					</a>
+				</template>
+			</div>
+			<EmptyState x-show="tools.length === 0">
+				<span x-text="$t('no_tools')">No tools</span>
+			</EmptyState>
+		</section>
+
+		<!-- ZONE 2: Configuration (tabs with URL persistence) -->
+		<section>
+			<div class="flex gap-1 border-b border-wa-border mb-6 overflow-x-auto">
+				<button @click="activeTab = 'config'; updateTabUrl()"
+					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+					:class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+					Config IA
+				</button>
+				<button @click="activeTab = 'variables'; updateTabUrl()"
+					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+					:class="activeTab === 'variables' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+					Variables
+				</button>
+				<button @click="activeTab = 'bots'; updateTabUrl()"
+					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+					:class="activeTab === 'bots' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+					Bots
+				</button>
+			</div>
+
+			<div x-show="activeTab === 'config'" x-transition:enter>
 				<h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
 				<form @submit.prevent="saveAIConfig()" class="space-y-6">
 					<!-- AI Enabled Toggle -->
@@ -168,79 +262,9 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 
 					<button type="submit" :disabled="savingAI" class="px-6 py-2 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="savingAI ? $t('saving') : $t('save_changes')">Save</button>
 				</form>
-		</ExpandableCard>
+			</div>
 
-		<ExpandableCard cardKey="flows" title="Flujos" titleExpr="$t('flows')">
-			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="(template.flows?.length || 0) + ' flujos'"></span>
-				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-					<template x-for="flow in template.flows || []" :key="flow.id">
-						<a :href="'/editor?id=' + flow.id + '&templateId=' + templateId"
-						   class="flex flex-col justify-between p-4 bg-wa-bg-hover rounded-xl border border-transparent hover:border-wa-green/30 transition-all group min-h-[120px]">
-							<div>
-								<div class="flex items-start justify-between gap-2">
-									<h4 class="text-sm font-bold tracking-tight group-hover:text-wa-green transition-colors leading-tight" x-text="flow.name"></h4>
-									<button
-										@click.prevent.stop="deleteFlow(flow.id, flow.name)"
-										class="p-1 text-wa-text-secondary/40 hover:text-red-400 transition-colors flex-shrink-0 -mt-1 -mr-1"
-										:title="$t('delete_flow') || 'Delete Flow'"
-									>
-										<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-										</svg>
-									</button>
-								</div>
-								<p class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="flow.description || '—'"></p>
-							</div>
-							<div class="flex gap-3 mt-3 text-[10px] text-wa-text-secondary">
-								<span class="flex items-center gap-1">
-									<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" /></svg>
-									<span x-text="(flow.steps?.length || 0) + ' pasos'"></span>
-								</span>
-								<span class="flex items-center gap-1">
-									<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-									<span x-text="(flow.triggers?.length || 0) + ' triggers'"></span>
-								</span>
-							</div>
-						</a>
-					</template>
-				</div>
-				<EmptyState x-show="!template.flows || template.flows.length === 0">
-					<span x-text="$t('no_flows')">No flows</span>
-				</EmptyState>
-		</ExpandableCard>
-
-		<ExpandableCard cardKey="tools" title="Herramientas" titleExpr="$t('tools')">
-			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="tools.length + ' tools'"></span>
-				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-xs text-wa-green" x-text="$t('tools')">Tools</h3>
-					<a :href="'/tool-editor?templateId=' + templateId" class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover">
-						+ <span x-text="$t('new_tool')">New Tool</span>
-					</a>
-				</div>
-				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-					<template x-for="tool in tools" :key="tool.id">
-						<a :href="'/tool-editor?id=' + tool.id + '&templateId=' + templateId"
-						   class="flex flex-col justify-between p-4 bg-wa-bg-hover rounded-xl border border-transparent hover:border-wa-green/30 transition-all group min-h-[100px]">
-							<div>
-								<div class="flex items-start justify-between gap-2">
-									<h4 class="text-sm font-mono font-bold group-hover:text-wa-green transition-colors leading-tight" x-text="tool.name"></h4>
-									<span class="text-[10px] px-1.5 py-0.5 rounded shrink-0" :class="tool.status === 'ACTIVE' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10'" x-text="tool.status"></span>
-								</div>
-								<p class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="tool.description"></p>
-							</div>
-							<div class="mt-3">
-								<span class="text-[10px] text-wa-text-secondary bg-wa-bg-deep px-2 py-0.5 rounded" x-text="tool.actionType"></span>
-							</div>
-						</a>
-					</template>
-				</div>
-				<EmptyState x-show="tools.length === 0">
-					<span x-text="$t('no_tools')">No tools</span>
-				</EmptyState>
-		</ExpandableCard>
-
-		<ExpandableCard cardKey="variables" title="Variables" titleExpr="$t('bot_variables')">
-			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="templateVars.length + ' vars'"></span>
+			<div x-show="activeTab === 'variables'" x-transition:enter>
 				<p class="text-[10px] text-wa-text-secondary mb-4">Define las variables que cada bot debe configurar al usar esta plantilla.</p>
 
 				<!-- Variable chips -->
@@ -324,10 +348,9 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						</div>
 					</div>
 				</div>
-		</ExpandableCard>
+			</div>
 
-		<ExpandableCard cardKey="bots" title="Bots">
-			<span slot="summary" class="text-xs text-wa-text-secondary" x-text="(template.bots?.length || 0) + ' bots'"></span>
+			<div x-show="activeTab === 'bots'" x-transition:enter>
 				<div class="flex justify-between items-center mb-4">
 					<h3 class="text-xs text-wa-green" x-text="$t('template_bots_count')">Bots using this template</h3>
 					<button
@@ -354,9 +377,9 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						No hay bots usando esta plantilla.
 					</EmptyState>
 				</div>
-		</ExpandableCard>
+			</div>
+		</section>
 
-		</div> <!-- /Card Stack -->
 	</div>
 
 	<!-- Create Bot from Template Modal -->
@@ -404,7 +427,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 			tools: [] as any[],
 			ready: false,
 			error: null as string | null,
-			focused: "ai" as string | null,
+			activeTab: "config" as string,
 			savingAI: false,
 			templateVars: [] as { name: string; type: string }[],
 			savingVars: false,
@@ -438,6 +461,11 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					return;
 				}
 
+				const tabParam = params.get('tab');
+				if (tabParam && ['config', 'variables', 'bots'].includes(tabParam)) {
+					this.activeTab = tabParam;
+				}
+
 				try {
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
 					this.aiConfig = {
@@ -454,6 +482,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						ignoredLabels: this.template.ignoredLabels || [],
 					};
 					this.templateVars = Array.isArray(this.template.variables) ? [...this.template.variables] : [];
+					this.loadTools();
 					this.ready = true;
 				} catch (e: any) {
 					this.error = e.message || "Template not found";
@@ -473,13 +502,10 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 				}
 			},
 
-			toggleCard(card: string) {
-				if (this.focused === card) {
-					this.focused = null;
-					return;
-				}
-				this.focused = card;
-				if (card === 'tools') this.loadTools();
+			updateTabUrl() {
+				const url = new URL(window.location.href);
+				url.searchParams.set('tab', this.activeTab);
+				window.history.replaceState({}, '', url.toString());
 			},
 
 			async loadTools() {
