@@ -631,14 +631,16 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                 <!-- Built-in Tools -->
                 <div class="mb-6">
                     <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('builtin_tools') || 'Built-in Tools'">Built-in Tools</h4>
-                    <div class="space-y-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <template x-for="bt in builtinTools" :key="bt.name">
-                            <div class="p-3 bg-wa-bg-deep border border-wa-border/50 rounded-lg opacity-80">
-                                <div class="flex items-center gap-2 mb-0.5">
-                                    <span class="font-bold font-mono text-sm text-white" x-text="bt.name"></span>
-                                    <span class="text-[10px] font-sans bg-wa-green/10 text-wa-green px-2 py-0.5 rounded-md">BUILTIN</span>
+                            <div class="flex flex-col justify-between p-3 bg-wa-bg-deep border border-wa-border/50 rounded-xl opacity-80 min-h-[80px]">
+                                <div>
+                                    <div class="flex items-start justify-between gap-2 mb-1">
+                                        <span class="font-bold font-mono text-xs text-white leading-tight" x-text="bt.name"></span>
+                                        <span class="text-[8px] font-sans bg-wa-green/10 text-wa-green px-1.5 py-0.5 rounded shrink-0">BUILTIN</span>
+                                    </div>
+                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="bt.description"></p>
                                 </div>
-                                <p class="text-xs text-wa-text-secondary" x-text="bt.description"></p>
                             </div>
                         </template>
                     </div>
