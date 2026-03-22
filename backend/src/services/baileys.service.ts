@@ -792,6 +792,7 @@ export class BaileysService {
 
             // Handle message deletion (individual or chat clear)
             sock.ev.on('messages.delete', async (deletion: any) => {
+                console.log(`[Baileys] messages.delete for Bot ${botId}:`, JSON.stringify(deletion).substring(0, 300));
                 try {
                     // Helper: resolve LID to phone identifier
                     const resolveJid = async (jid: string): Promise<string> => {
@@ -821,30 +822,43 @@ export class BaileysService {
                         eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
 
                     } else if (deletion.keys?.length) {
-                        // Delete messages by externalId
-                        const externalIds = deletion.keys.map((k: any) => k.id).filter(Boolean);
-                        if (externalIds.length === 0) return;
+                        // Group keys by resolved session for bulk operations
+                        const keysBySession = new Map<string, string[]>();
 
-                        const { count } = await prisma.message.deleteMany({
-                            where: { externalId: { in: externalIds } },
-                        });
+                        for (const key of deletion.keys) {
+                            if (!key.id || !key.remoteJid) continue;
+                            const identifier = await resolveJid(key.remoteJid);
+                            if (!keysBySession.has(identifier)) keysBySession.set(identifier, []);
+                            keysBySession.get(identifier)!.push(key.id);
+                        }
 
-                        if (count > 0) {
-                            const firstKey = deletion.keys[0];
-                            const jid = firstKey?.remoteJid;
-                            if (jid) {
-                                const identifier = await resolveJid(jid);
-                                const session = await prisma.session.findFirst({ where: { botId, identifier } });
-                                if (session) {
-                                    eventBus.emitBotEvent({
-                                        type: 'messages:deleted',
-                                        botId,
-                                        sessionId: session.id,
-                                        count,
-                                    });
-                                }
+                        for (const [identifier, externalIds] of keysBySession) {
+                            const session = await prisma.session.findFirst({ where: { botId, identifier } });
+                            if (!session) {
+                                console.log(`[Baileys] messages.delete: no session for ${identifier}, trying externalId match`);
                             }
-                            console.log(`[Baileys] ${count} message(s) deleted for Bot ${botId}`);
+
+                            // Try deleting by externalId first
+                            let { count } = await prisma.message.deleteMany({
+                                where: { externalId: { in: externalIds } },
+                            });
+
+                            // If nothing found by externalId and we have a session,
+                            // the keys might be for bot-sent messages stored without matching externalId.
+                            // Log it for diagnosis.
+                            if (count === 0) {
+                                console.log(`[Baileys] messages.delete: 0 matches for ${externalIds.length} externalIds in session ${identifier}. IDs: ${externalIds.slice(0, 3).join(', ')}`);
+                            }
+
+                            if (count > 0 && session) {
+                                eventBus.emitBotEvent({
+                                    type: 'messages:deleted',
+                                    botId,
+                                    sessionId: session.id,
+                                    count,
+                                });
+                                console.log(`[Baileys] ${count} message(s) deleted for ${identifier} (Bot ${botId})`);
+                            }
                         }
                     }
                 } catch (e: any) {
