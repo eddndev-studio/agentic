@@ -11,6 +11,7 @@ import { ConversationService } from "../../services/conversation.service";
 import { BotConfigService } from "../../services/bot-config.service";
 import { TranscriptionService, VisionService, PDFService } from "../../services/media";
 import { mainProcessClient } from "../../services/main-process-client";
+import { buildChatContext } from "../../services/chat-context.service";
 import { BUILTIN_TOOLS } from "../../core/ai/builtin-tools";
 import { sanitizeOutgoing } from "../../core/ai/sanitize";
 import * as fs from "fs";
@@ -181,30 +182,8 @@ export class AIProcessor {
 
             // 6. Fetch real chat history for context
             const contextCount = aiConfig.contextMessages || 20;
-            let chatContext = "";
-            if (contextCount > 0) {
-                const recentMessages = await prisma.message.findMany({
-                    where: { sessionId },
-                    orderBy: { createdAt: "desc" },
-                    take: contextCount,
-                    select: { content: true, type: true, fromMe: true, createdAt: true, metadata: true },
-                });
-                if (recentMessages.length > 0) {
-                    const lines = recentMessages.reverse().map(m => {
-                        const time = new Date(m.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
-                        const sender = m.fromMe ? "Bot" : "Cliente";
-                        const meta = m.metadata as any;
-                        let text = m.content || "";
-                        if (meta?.mediaDescription) {
-                            text = text ? `${text} [${meta.mediaDescription}]` : `[${meta.mediaDescription}]`;
-                        } else if (!text && m.type !== "TEXT") {
-                            text = `[${m.type.toLowerCase()} adjunto]`;
-                        }
-                        return `[${time} ${sender}] ${text}`;
-                    });
-                    chatContext = lines.join("\n");
-                }
-            }
+            const chatContextLines = await buildChatContext(sessionId, contextCount);
+            const chatContext = chatContextLines.join("\n");
 
             // 7. Build messages array
             const history = await ConversationService.getHistory(sessionId);

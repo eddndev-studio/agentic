@@ -143,28 +143,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         }
 
         // Chat context (real messages)
+        const { buildChatContext } = await import("../services/chat-context.service");
         const contextCount = aiConfig.contextMessages || 20;
-        let chatContext: string[] = [];
-        if (contextCount > 0) {
-            const recentMessages = await prisma.message.findMany({
-                where: { sessionId: id },
-                orderBy: { createdAt: "desc" },
-                take: contextCount,
-                select: { content: true, type: true, fromMe: true, createdAt: true, metadata: true },
-            });
-            chatContext = recentMessages.reverse().map(m => {
-                const time = new Date(m.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
-                const sender = m.fromMe ? "Bot" : "Cliente";
-                const meta = m.metadata as any;
-                let text = m.content || "";
-                if (meta?.mediaDescription) {
-                    text = text ? `${text} [${meta.mediaDescription}]` : `[${meta.mediaDescription}]`;
-                } else if (!text && m.type !== "TEXT") {
-                    text = `[${m.type.toLowerCase()} adjunto]`;
-                }
-                return `[${time} ${sender}] ${text}`;
-            });
-        }
+        const chatContext = await buildChatContext(id, contextCount);
 
         // Conversation history (AI memory)
         const history = await ConversationService.getHistory(id);
