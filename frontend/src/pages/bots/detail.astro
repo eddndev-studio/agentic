@@ -734,74 +734,35 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                             x-text="flows.length + ' total'"></span>
                     </div>
 
-                    <!-- Flow List -->
+                    <!-- Flow Grid -->
                     <template x-if="flows.length > 0">
-                        <div class="space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <template x-for="flow in flows" :key="flow.id">
-                                <div
-                                    class="p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-lg"
-                                >
-                                    <div
-                                        class="flex justify-between items-start"
-                                    >
-                                        <a :href="'/editor?id=' + flow.id" class="flex-1 min-w-0">
-                                            <h4
-                                                class="font-bold tracking-tight group-hover:text-wa-green transition-colors"
-                                                x-text="flow.name"
-                                            >
-                                            </h4>
-                                            <p
-                                                x-show="flow.description"
-                                                class="text-xs text-wa-text-secondary mt-1"
-                                                x-text="flow.description"
-                                            >
-                                            </p>
-                                            <div
-                                                class="flex gap-2 mt-3 flex-wrap"
-                                            >
-                                                <template
-                                                    x-for="trigger in flow.triggers.slice(0, 3)"
-                                                    :key="trigger.id"
-                                                >
-                                                    <span
-                                                        class="text-[10px] font-sans bg-wa-bg-hover px-2 py-0.5 text-wa-text-secondary rounded-md"
-                                                        x-text="trigger.matchType + ': ' + trigger.keyword"
-                                                    ></span>
-                                                </template>
-                                                <span
-                                                    x-show="flow.triggers.length > 3"
-                                                    class="text-[10px] font-sans text-wa-text-secondary"
-                                                    x-text="'+' + (flow.triggers.length - 3) + ' more'"
-                                                ></span>
-                                            </div>
-                                        </a>
-                                        <div class="flex items-center gap-2 flex-shrink-0 mt-1">
+                                <a :href="'/editor?id=' + flow.id"
+                                   class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[120px]">
+                                    <div>
+                                        <div class="flex items-start justify-between gap-2">
+                                            <h4 class="text-sm font-bold tracking-tight group-hover:text-wa-green transition-colors leading-tight" x-text="flow.name"></h4>
                                             <button
                                                 @click.prevent.stop="deleteFlow(flow.id, flow.name)"
-                                                class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors"
+                                                class="p-1 text-wa-text-secondary/40 hover:text-red-400 transition-colors flex-shrink-0 -mt-1 -mr-1"
                                                 :title="$t('delete_flow') || 'Delete Flow'"
                                             >
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                                 </svg>
                                             </button>
-                                            <a :href="'/editor?id=' + flow.id" class="p-1 text-wa-text-secondary group-hover:text-wa-green transition-colors">
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M9 5l7 7-7 7"></path>
-                                                </svg>
-                                            </a>
                                         </div>
+                                        <p x-show="flow.description" class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="flow.description"></p>
                                     </div>
-                                </div>
+                                    <div class="flex gap-2 mt-3 flex-wrap">
+                                        <template x-for="trigger in flow.triggers.slice(0, 3)" :key="trigger.id">
+                                            <span class="text-[10px] font-sans bg-wa-bg-hover px-2 py-0.5 text-wa-text-secondary rounded-md" x-text="trigger.matchType + ': ' + trigger.keyword"></span>
+                                        </template>
+                                        <span x-show="flow.triggers.length > 3" class="text-[10px] font-sans text-wa-text-secondary" x-text="'+' + (flow.triggers.length - 3) + ' more'"></span>
+                                        <span x-show="flow.triggers.length === 0" class="text-[10px] text-wa-text-secondary/50">No triggers</span>
+                                    </div>
+                                </a>
                             </template>
                         </div>
                     </template>
