@@ -644,25 +644,21 @@ import ExpandableCard from "../../components/ui/ExpandableCard.astro";
                 <!-- Custom Tools -->
                 <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('custom_tools') || 'Custom Tools'">Custom Tools</h4>
                 <template x-if="tools.length > 0">
-                    <div class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <template x-for="tool in tools" :key="tool.id">
                             <a :href="'/tool-editor?id=' + tool.id"
-                                class="block p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-lg">
-                                <div class="flex justify-between items-start">
-                                    <div class="flex-1">
-                                        <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                            <h4 class="font-bold font-sans group-hover:text-wa-green transition-colors" x-text="tool.name"></h4>
-                                            <span class="text-[10px] font-sans px-2 py-0.5 rounded-md"
-                                                :class="tool.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-wa-text-secondary'"
-                                                x-text="tool.status"></span>
-                                            <span class="text-[10px] font-sans bg-wa-green/10 text-wa-green px-2 py-0.5 rounded-md" x-text="tool.actionType"></span>
-                                        </div>
-                                        <p class="text-xs text-wa-text-secondary line-clamp-2" x-text="tool.description"></p>
+                                class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[100px]">
+                                <div>
+                                    <div class="flex items-start justify-between gap-2 mb-1">
+                                        <h4 class="text-sm font-bold font-mono group-hover:text-wa-green transition-colors leading-tight" x-text="tool.name"></h4>
+                                        <span class="text-[10px] font-sans px-1.5 py-0.5 rounded shrink-0"
+                                            :class="tool.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-wa-text-secondary'"
+                                            x-text="tool.status"></span>
                                     </div>
-                                    <svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green transition-colors flex-shrink-0 mt-1"
-                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                    </svg>
+                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="tool.description"></p>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="text-[10px] font-sans bg-wa-green/10 text-wa-green px-2 py-0.5 rounded" x-text="tool.actionType"></span>
                                 </div>
                             </a>
                         </template>

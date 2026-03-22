@@ -217,23 +217,26 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						+ <span x-text="$t('new_tool')">New Tool</span>
 					</a>
 				</div>
-				<div class="space-y-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
 					<template x-for="tool in tools" :key="tool.id">
-						<a :href="'/tool-editor?id=' + tool.id + '&templateId=' + templateId" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
+						<a :href="'/tool-editor?id=' + tool.id + '&templateId=' + templateId"
+						   class="flex flex-col justify-between p-4 bg-wa-bg-hover rounded-xl border border-transparent hover:border-wa-green/30 transition-all group min-h-[100px]">
 							<div>
-								<div class="flex items-center gap-2">
-									<h4 class="text-sm font-mono group-hover:text-wa-green transition-colors" x-text="tool.name"></h4>
-									<span class="text-[10px] px-1.5 py-0.5 rounded" :class="tool.status === 'ACTIVE' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10'" x-text="tool.status"></span>
+								<div class="flex items-start justify-between gap-2">
+									<h4 class="text-sm font-mono font-bold group-hover:text-wa-green transition-colors leading-tight" x-text="tool.name"></h4>
+									<span class="text-[10px] px-1.5 py-0.5 rounded shrink-0" :class="tool.status === 'ACTIVE' ? 'text-green-400 bg-green-500/10' : 'text-gray-400 bg-gray-500/10'" x-text="tool.status"></span>
 								</div>
-								<p class="text-[10px] text-wa-text-secondary mt-1" x-text="tool.description"></p>
+								<p class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="tool.description"></p>
 							</div>
-							<span class="text-[10px] text-wa-text-secondary" x-text="tool.actionType"></span>
+							<div class="mt-3">
+								<span class="text-[10px] text-wa-text-secondary bg-wa-bg-deep px-2 py-0.5 rounded" x-text="tool.actionType"></span>
+							</div>
 						</a>
 					</template>
-					<EmptyState x-show="tools.length === 0">
-						<span x-text="$t('no_tools')">No tools</span>
-					</EmptyState>
 				</div>
+				<EmptyState x-show="tools.length === 0">
+					<span x-text="$t('no_tools')">No tools</span>
+				</EmptyState>
 		</ExpandableCard>
 
 		<ExpandableCard cardKey="variables" title="Variables" titleExpr="$t('bot_variables')">
