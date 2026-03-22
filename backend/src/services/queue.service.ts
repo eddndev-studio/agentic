@@ -17,6 +17,14 @@ class QueueService {
         return this.queue.add("execute_step", { executionId, stepId }, { delay: delayMs });
     }
 
+    async enqueueAIProcessing(sessionId: string, messageIds: string[]) {
+        return this.queue.add("process_ai", { sessionId, messageIds }, {
+            attempts: 1,
+            removeOnComplete: 100,
+            removeOnFail: 200,
+        });
+    }
+
     /** Remove legacy BullMQ repeating jobs (automations moved to in-process setInterval) */
     async removeRepeatableJobs() {
         const repeatableJobs = await this.queue.getRepeatableJobs();

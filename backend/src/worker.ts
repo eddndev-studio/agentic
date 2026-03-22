@@ -6,6 +6,7 @@
 import { Worker, Job } from "bullmq";
 import { QUEUE_NAME } from "./services/queue.service";
 import { StepProcessor } from "./workers/processors/StepProcessor";
+import { AIProcessor } from "./workers/processors/AIProcessor";
 
 const REDIS_URL = process.env['REDIS_URL'] || "redis://localhost:6379";
 
@@ -17,6 +18,9 @@ const worker = new Worker(
         switch (job.name) {
             case "execute_step":
                 await StepProcessor.process(job);
+                break;
+            case "process_ai":
+                await AIProcessor.process(job);
                 break;
             default:
                 console.warn(`[Worker] Ignoring unknown job: ${job.name}`);

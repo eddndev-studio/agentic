@@ -23,7 +23,6 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // --- Graceful Shutdown ---
 import { MessageAccumulator } from "./services/accumulator.service";
-import { aiEngine } from "./core/ai";
 import { queueService } from "./services/queue.service";
 
 let isShuttingDown = false;
@@ -46,12 +45,12 @@ async function gracefulShutdown(signal: string) {
         console.error("[Shutdown] Error shutting down Baileys:", e);
     }
 
-    // 3. Flush pending message accumulator buffers (from Redis + active timers)
+    // 3. Flush pending message accumulator buffers → enqueue for worker
     try {
         console.log("[Shutdown] Flushing accumulator buffers...");
         await MessageAccumulator.flushAll((sid, msgs) => {
-            aiEngine.processMessages(sid, msgs).catch(err => {
-                console.error(`[Shutdown] Failed to process flushed messages for ${sid}:`, err);
+            queueService.enqueueAIProcessing(sid, msgs.map(m => m.id)).catch(err => {
+                console.error(`[Shutdown] Failed to enqueue flushed messages for ${sid}:`, err);
             });
         });
     } catch (e) {
@@ -101,8 +100,8 @@ import { Platform } from "@prisma/client";
 // Recover orphaned accumulator messages from a previous crash (Redis keys without in-memory timers)
 MessageAccumulator.flushAll((sid, msgs) => {
     console.log(`[Init] Recovering ${msgs.length} orphaned message(s) for session ${sid}`);
-    aiEngine.processMessages(sid, msgs).catch(err => {
-        console.error(`[Init] Failed to process recovered messages for ${sid}:`, err);
+    queueService.enqueueAIProcessing(sid, msgs.map(m => m.id)).catch(err => {
+        console.error(`[Init] Failed to enqueue recovered messages for ${sid}:`, err);
     });
 }).catch(err => {
     console.error("[Init] Accumulator recovery error:", err);
@@ -205,6 +204,28 @@ const app = new Elysia({ adapter: node() })
             if (!session) { set.status = 404; return { error: "Session not found" }; }
             const result = await ToolExecutor.execute(botId, session, { name: toolName, arguments: toolArgs });
             return result;
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+    // Internal endpoint for the worker to mark messages as read
+    .post("/internal/mark-read", async ({ body, set }) => {
+        const { botId, chatJid, messageIds } = body as { botId: string; chatJid: string; messageIds: string[] };
+        try {
+            await BaileysService.markRead(botId, chatJid, messageIds);
+            return { ok: true };
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+    // Internal endpoint for the worker to send presence (composing/paused)
+    .post("/internal/presence", async ({ body, set }) => {
+        const { botId, chatJid, presence } = body as { botId: string; chatJid: string; presence: string };
+        try {
+            await BaileysService.sendPresence(botId, chatJid, presence as any);
+            return { ok: true };
         } catch (e: any) {
             set.status = 500;
             return { error: e.message };

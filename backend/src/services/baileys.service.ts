@@ -15,10 +15,10 @@ import * as path from 'path';
 import * as https from 'node:https';
 import QRCode from 'qrcode';
 import { prisma } from './postgres.service';
-import { aiEngine } from '../core/ai';
 import { flowEngine } from '../core/flow';
 import { BotConfigService } from './bot-config.service';
 import { MessageAccumulator } from './accumulator.service';
+import { queueService } from './queue.service';
 import { eventBus } from './event-bus';
 import { SessionStatus, Platform } from '@prisma/client';
 import { StorageService } from './storage.service';
@@ -874,10 +874,9 @@ export class BaileysService {
                 return;
             }
 
-            // 5. Process with AI Engine (with optional message accumulation)
+            // 5. Enqueue AI processing (runs in the worker process)
             const handleAIError = async (err: any, sid: string) => {
-                console.error(`[${new Date().toISOString()}] [Baileys] AI Engine Error for session ${sid}:`, err);
-                // Tool-oriented mode: do NOT send error messages to the end user
+                console.error(`[${new Date().toISOString()}] [Baileys] AI enqueue error for session ${sid}:`, err);
             };
 
             const messageDelay = bot.template?.messageDelay ?? bot.messageDelay;
@@ -887,11 +886,11 @@ export class BaileysService {
                     message,
                     messageDelay,
                     (sid, msgs) => {
-                        aiEngine.processMessages(sid, msgs).catch(err => handleAIError(err, sid));
+                        queueService.enqueueAIProcessing(sid, msgs.map(m => m.id)).catch(err => handleAIError(err, sid));
                     }
                 ).catch(err => console.error(`[Baileys] Accumulator error:`, err));
             } else {
-                aiEngine.processMessage(session.id, message).catch(err => handleAIError(err, session.id));
+                queueService.enqueueAIProcessing(session.id, [message.id]).catch(err => handleAIError(err, session.id));
             }
 
         } catch (e) {

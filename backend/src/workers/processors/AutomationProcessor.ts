@@ -1,8 +1,7 @@
 import { prisma } from "../../services/postgres.service";
 import { redis } from "../../services/redis.service";
-import { aiEngine } from "../../core/ai";
+import { queueService } from "../../services/queue.service";
 import { BotConfigService } from "../../services/bot-config.service";
-import type { Message } from "@prisma/client";
 
 export class AutomationProcessor {
     static async processAll(): Promise<void> {
@@ -106,18 +105,22 @@ export class AutomationProcessor {
 
         await redis.set(redisKey, "1", "PX", automation.timeoutMs);
 
-        const syntheticMessage = {
-            id: `auto_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            content: `[Automatización: ${automation.name}] ${automation.prompt}`,
-            type: "TEXT",
-            fromMe: false,
-            externalId: null,
-            metadata: null,
-        } as unknown as Message;
-
         try {
             console.log(`[Automation] Triggering "${automation.name}" for session ${session.id}`);
-            await aiEngine.processMessages(session.id, [syntheticMessage]);
+
+            // Persist synthetic message to DB so the worker can fetch it by ID
+            const msg = await prisma.message.create({
+                data: {
+                    sessionId: session.id,
+                    content: `[Automatización: ${automation.name}] ${automation.prompt}`,
+                    type: "TEXT",
+                    fromMe: false,
+                    externalId: `auto_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                    sender: "system",
+                },
+            });
+
+            await queueService.enqueueAIProcessing(session.id, [msg.id]);
         } catch (err) {
             console.error(`[Automation] Error processing session ${session.id}:`, err);
         }
