@@ -66,6 +66,13 @@ export async function upsertSessionFromChat(botId: string, jid: string, name?: s
     }
 
     try {
+        // Inherit AI default from bot config
+        const bot = await prisma.bot.findUnique({
+            where: { id: botId },
+            select: { aiEnabled: true, template: { select: { aiEnabled: true } } },
+        });
+        const defaultAi = bot?.template?.aiEnabled ?? bot?.aiEnabled ?? false;
+
         session = await prisma.session.create({
             data: {
                 botId,
@@ -73,6 +80,7 @@ export async function upsertSessionFromChat(botId: string, jid: string, name?: s
                 identifier,
                 name: name || identifier.split('@')[0],
                 status: SessionStatus.CONNECTED,
+                aiEnabled: defaultAi,
             },
         });
         return { session, created: true };
