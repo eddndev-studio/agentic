@@ -1184,12 +1184,17 @@ export class BaileysService {
         }
 
         try {
-            // Enrich text messages with explicit link preview
-            if (content?.text && !content.linkPreview) {
+            // Enrich text messages with explicit link preview (unless explicitly skipped)
+            if (content?.text && !content.linkPreview && !content.skipLinkPreview) {
                 const preview = await generateLinkPreview(content.text);
                 if (preview) {
                     content = { ...content, linkPreview: preview };
                 }
+            }
+            // Clean internal flag before sending to WhatsApp
+            if (content?.skipLinkPreview) {
+                const { skipLinkPreview: _, ...clean } = content;
+                content = clean;
             }
 
             await sock.sendMessage(to, content);

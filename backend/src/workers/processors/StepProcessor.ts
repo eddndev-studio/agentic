@@ -77,9 +77,14 @@ export class StepProcessor {
 
         if (platform === Platform.WHATSAPP) {
             switch (step.type) {
-                case 'TEXT':
-                    await sendMessage(botId, target, { text: interpolate(step.content || "") });
+                case 'TEXT': {
+                    const textPayload: any = { text: interpolate(step.content || "") };
+                    if ((step.metadata as any)?.linkPreview === false) {
+                        textPayload.skipLinkPreview = true;
+                    }
+                    await sendMessage(botId, target, textPayload);
                     break;
+                }
                 case 'IMAGE':
                     if (step.mediaUrl) {
                         await sendMessage(botId, target, { image: { url: step.mediaUrl }, caption: interpolate(step.content || "") });
