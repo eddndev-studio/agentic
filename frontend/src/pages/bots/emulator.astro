@@ -727,22 +727,13 @@ import Layout from "../../layouts/Layout.astro";
                 if (!this.messageInput.trim() || !this.sessionId) return;
                 this.sending = true;
                 const content = this.messageInput;
+                this.messageInput = '';
+                this.isProcessing = true;
                 try {
-                    await ApiClient.post(`/emulator/sessions/${this.sessionId}/message`, {
-                        content,
-                    });
-                    // Optimistically add user message
-                    this.messages.push({
-                        id: 'temp_' + Date.now(),
-                        content,
-                        fromMe: false, // user message (incoming to bot)
-                        type: 'TEXT',
-                        createdAt: new Date().toISOString(),
-                    });
-                    this.messageInput = '';
-                    this.isProcessing = true;
-                    this.$nextTick(() => this.scrollChatToBottom());
+                    // Don't add optimistic message — SSE message:received will deliver it
+                    await ApiClient.post(`/emulator/sessions/${this.sessionId}/message`, { content });
                 } catch (e: any) {
+                    this.isProcessing = false;
                     (window as any).__toast?.error('Send failed: ' + (e.message || 'Unknown error'));
                 } finally {
                     this.sending = false;
