@@ -4,12 +4,7 @@
 ## P0 — Crítico
 
 ### [x] 1. God Object: `baileys.service.ts` (1,571 → 847 líneas)
-Partir en:
-- `ConnectionService` — socket lifecycle, watchdog, reconnect, QR
-- `MessageIngestService` — handleIncomingMessage, dedup, message persistence
-- `MediaService` — downloadAndAttachMedia, generateMediaDescription, storage
-- `LabelService` — syncLabels, reconcileLabels, addChatLabel, removeChatLabel, dedup
-- `BaileysService` — orquestador delgado que conecta todo + sendMessage
+Partido en 5 servicios: session-helpers, media.service, label.service, message-ingest.service, baileys.service
 
 ### [ ] 2. Zod schemas para campos JSON de Prisma
 Campos sin validación: `metadata` (Message, Step), `actionConfig` (Tool), `notificationChannels` (Bot), `credentials` (Bot), `botVariables` (Bot)
@@ -19,24 +14,24 @@ Peores: baileys.service (52), ToolExecutor (15), bot.controller (14), flow.contr
 
 ## P1 — Alto
 
-### [ ] 4. Error handling silencioso
-Reemplazar 30+ `.catch(() => {})` y `catch {}` con logging real
+### [x] 4. Error handling silencioso
+30+ `.catch(() => {})` y `catch {}` reemplazados con logging real o marcados como fire-and-forget
 
 ### [ ] 5. Queries innecesarias en loops
 - `BotConfigService.loadBot()` se llama 10+ veces por mensaje en tool loop
 - `resolveTools()` se re-fetcha cada iteración
 - Fix: pasar bot como parámetro, cachear tools
 
-### [ ] 6. Cache de recentLabelEvents sin límite de tamaño
-Agregar max size + evicción periódica
+### [x] 6. Cache de recentLabelEvents sin límite de tamaño
+Agregado max size (10K) + evicción periódica cada 60s
 
 ## P2 — Medio
 
-### [ ] 7. Centralizar constantes en `config.ts`
-CORS origins, timeouts, TTLs, grace periods → env vars con fallback
+### [x] 7. Centralizar constantes en `config.ts`
+Creado config.ts con env var overrides para todos los valores mágicos
 
-### [ ] 8. Unificar `message-sender.ts` + `main-process-client.ts`
-Código duplicado para comunicación worker→main
+### [x] 8. Unificar `message-sender.ts` + `main-process-client.ts`
+message-sender.ts ahora re-exporta desde main-process-client.ts
 
 ### [ ] 9. Eliminar duplicación de código
 - Detección de URLs (5 archivos)
@@ -54,5 +49,5 @@ Al menos ToolExecutor, AIEngine, FlowEngine
 ### [ ] 12. Logger centralizado
 Reemplazar console.log/warn/error con logger con niveles y prefijos consistentes
 
-### [ ] 13. Limpiar connectionTimestamps
-Nunca se limpia en disconnect
+### [x] 13. Limpiar connectionTimestamps
+Se limpia en disconnect y stopSession

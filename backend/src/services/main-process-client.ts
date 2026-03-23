@@ -5,13 +5,47 @@
 
 const API_BASE = `http://127.0.0.1:${process.env['PORT'] || 8080}`;
 const TIMEOUT = 30_000;
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 200;
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const res = await fetch(url, {
+                ...init,
+                signal: AbortSignal.timeout(TIMEOUT),
+            });
+            // Don't retry client errors (4xx), only server errors (5xx)
+            if (res.status >= 500) {
+                const err = new Error(`HTTP ${res.status}`);
+                if (attempt < MAX_RETRIES) {
+                    const delay = BASE_DELAY_MS * 2 ** attempt;
+                    console.error(`[MainProcessClient] Retry ${attempt + 1}/${MAX_RETRIES} for ${url}: ${err}`);
+                    await new Promise((r) => setTimeout(r, delay));
+                    continue;
+                }
+                // Last attempt — fall through so the caller gets the response as-is
+            }
+            return res;
+        } catch (err) {
+            lastError = err;
+            if (attempt < MAX_RETRIES) {
+                const delay = BASE_DELAY_MS * 2 ** attempt;
+                console.error(`[MainProcessClient] Retry ${attempt + 1}/${MAX_RETRIES} for ${url}: ${err}`);
+                await new Promise((r) => setTimeout(r, delay));
+            }
+        }
+    }
+    throw lastError;
+}
 
 async function post(path: string, body: Record<string, any>): Promise<any> {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const url = `${API_BASE}${path}`;
+    const res = await fetchWithRetry(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(TIMEOUT),
     });
 
     const data = await res.json();

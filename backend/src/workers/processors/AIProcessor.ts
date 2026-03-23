@@ -15,6 +15,7 @@ import { buildChatContext } from "../../services/chat-context.service";
 import { BUILTIN_TOOLS } from "../../core/ai/builtin-tools";
 import { sanitizeOutgoing } from "../../core/ai/sanitize";
 import * as fs from "fs";
+import { isRemoteUrl, updateMessageMetadata } from "../../utils/helpers";
 import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 
 interface AIJobData {
@@ -116,7 +117,7 @@ export class AIProcessor {
                 const mediaUrl = metadata.mediaUrl;
 
                 if (mediaUrl) {
-                    if (!mediaUrl.startsWith("http://") && !mediaUrl.startsWith("https://")) {
+                    if (!isRemoteUrl(mediaUrl)) {
                         localFilesToCleanup.push(mediaUrl);
                     }
 
@@ -135,10 +136,8 @@ export class AIProcessor {
                         }
                         // Cache the preprocessed result in message metadata for future chat context
                         if (partContent && partContent !== msg.content) {
-                            prisma.message.update({
-                                where: { id: msg.id },
-                                data: { metadata: { ...(metadata || {}), mediaDescription: partContent.substring(0, 500) } },
-                            }).catch(e => console.warn('[AIProcessor] media description cache update failed:', (e as Error).message));
+                            updateMessageMetadata(msg.id, { mediaDescription: partContent.substring(0, 500) })
+                                .catch(e => console.warn('[AIProcessor] media description cache update failed:', (e as Error).message));
                         }
                     } catch (mediaError: any) {
                         console.error(`[AIProcessor] Media preprocessing error:`, mediaError);

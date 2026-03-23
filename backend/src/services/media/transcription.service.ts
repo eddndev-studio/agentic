@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { isRemoteUrl } from "../../utils/helpers";
 
 export class TranscriptionService {
     /**
@@ -15,7 +16,7 @@ export class TranscriptionService {
         const formData = new FormData();
         formData.append("model", "whisper-1");
 
-        if (audioSource.startsWith("http://") || audioSource.startsWith("https://")) {
+        if (isRemoteUrl(audioSource)) {
             // Download the file first
             const res = await fetch(audioSource, { signal: AbortSignal.timeout(30_000) });
             if (!res.ok) throw new Error(`Failed to download audio: ${res.status}`);

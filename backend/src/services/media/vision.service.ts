@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import { isRemoteUrl } from "../../utils/helpers";
 
 export class VisionService {
     /**
@@ -24,7 +25,7 @@ export class VisionService {
 
         let imageContent: any;
 
-        if (imageSource.startsWith("http://") || imageSource.startsWith("https://")) {
+        if (isRemoteUrl(imageSource)) {
             imageContent = { type: "image_url", image_url: { url: imageSource } };
         } else {
             const buffer = fs.readFileSync(imageSource);
@@ -71,7 +72,7 @@ export class VisionService {
 
         let inlineData: { mimeType: string; data: string };
 
-        if (imageSource.startsWith("http://") || imageSource.startsWith("https://")) {
+        if (isRemoteUrl(imageSource)) {
             const res = await fetch(imageSource, { signal: AbortSignal.timeout(30_000) });
             if (!res.ok) throw new Error(`Failed to download image: ${res.status}`);
             const buffer = Buffer.from(await res.arrayBuffer());

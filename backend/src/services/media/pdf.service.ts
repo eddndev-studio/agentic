@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import { isRemoteUrl } from "../../utils/helpers";
 
 // @ts-ignore - pdf-parse lacks type declarations
 declare function pdfParse(buffer: Buffer): Promise<{ text: string }>;
@@ -11,7 +12,7 @@ export class PDFService {
     static async extractText(pdfSource: string): Promise<string> {
         let buffer: Buffer;
 
-        if (pdfSource.startsWith("http://") || pdfSource.startsWith("https://")) {
+        if (isRemoteUrl(pdfSource)) {
             const res = await fetch(pdfSource, { signal: AbortSignal.timeout(30_000) });
             if (!res.ok) throw new Error(`Failed to download PDF: ${res.status}`);
             buffer = Buffer.from(await res.arrayBuffer());

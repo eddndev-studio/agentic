@@ -8,6 +8,7 @@ import { flowEngine } from "../flow";
 import { ToolExecutor } from "./ToolExecutor";
 import { TranscriptionService, VisionService, PDFService } from "../../services/media";
 import * as fs from "fs";
+import { isRemoteUrl } from "../../utils/helpers";
 import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 import type { Message } from "@prisma/client";
 import { eventBus } from "../../services/event-bus";
@@ -107,7 +108,7 @@ export class AIEngine {
 
                 if (mediaUrl) {
                     // Track local files for cleanup after processing
-                    if (!mediaUrl.startsWith("http://") && !mediaUrl.startsWith("https://")) {
+                    if (!isRemoteUrl(mediaUrl)) {
                         localFilesToCleanup.push(mediaUrl);
                     }
 
@@ -262,7 +263,8 @@ export class AIEngine {
                         bot.id,
                         session,
                         interpolatedToolCall,
-                        messages[messages.length - 1]
+                        messages[messages.length - 1],
+                        bot
                     );
 
                     anyToolExecuted = true;

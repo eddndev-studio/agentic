@@ -19,12 +19,16 @@ export class ToolExecutor {
      * Execute a tool call by looking up the tool definition and dispatching by actionType.
      * Built-in tools skip the DB lookup entirely (fast-path).
      * Supports template-based tool resolution.
+     *
+     * @param bot - Optional pre-loaded bot. When provided, skips the DB lookup
+     *              (avoids redundant queries when called from a loop).
      */
     static async execute(
         botId: string,
         session: Session,
         toolCall: { name: string; arguments: Record<string, any> },
-        originalMessage?: { content?: string | null }
+        originalMessage?: { content?: string | null },
+        bot?: BotWithTemplate
     ): Promise<ToolResult> {
         try {
             // Fast-path: built-in tools don't need a DB record
@@ -32,19 +36,19 @@ export class ToolExecutor {
                 return await this.executeBuiltin(botId, session, { name: toolCall.name }, toolCall.arguments);
             }
 
-            // Load bot with template to resolve tools from the correct source
-            const bot = await BotConfigService.loadBot(botId);
-            if (!bot) {
+            // Use pre-loaded bot or fall back to DB lookup
+            const resolvedBot = bot ?? await BotConfigService.loadBot(botId);
+            if (!resolvedBot) {
                 return { success: false, data: `Bot '${botId}' not found.` };
             }
 
-            const tool = await BotConfigService.resolveTool(bot, toolCall.name);
+            const tool = await BotConfigService.resolveTool(resolvedBot, toolCall.name);
 
             if (!tool) {
                 return { success: false, data: `Tool '${toolCall.name}' not found or disabled.` };
             }
 
-            return await this.dispatchByActionType(botId, session, tool, toolCall.arguments);
+            return await this.dispatchByActionType(botId, session, tool, toolCall.arguments, resolvedBot);
         } catch (error: any) {
             console.error(`[ToolExecutor] Error executing tool '${toolCall.name}':`, error);
             return { success: false, data: error.message || "Tool execution failed" };
@@ -58,11 +62,12 @@ export class ToolExecutor {
         botId: string,
         session: Session,
         tool: any,
-        args: Record<string, any>
+        args: Record<string, any>,
+        bot: BotWithTemplate
     ): Promise<ToolResult> {
         switch (tool.actionType) {
             case "FLOW":
-                return await this.executeFlow(botId, session, tool, args);
+                return await this.executeFlow(botId, session, tool, args, bot);
             case "WEBHOOK":
                 return await this.executeWebhook(tool, args, session);
             case "BUILTIN":
@@ -80,7 +85,8 @@ export class ToolExecutor {
         botId: string,
         session: Session,
         tool: any,
-        args: Record<string, any>
+        args: Record<string, any>,
+        bot: BotWithTemplate
     ): Promise<ToolResult> {
         const flowId = tool.flowId || (tool.actionConfig as any)?.flowId;
         if (!flowId) {
@@ -116,9 +122,8 @@ export class ToolExecutor {
             sessionId: session.id,
         });
 
-        // Load bot variables for interpolation
-        const bot = await BotConfigService.loadBot(botId);
-        const botVars = bot ? BotConfigService.getVariables(bot) : {};
+        // Use pre-loaded bot for variable interpolation (no extra DB query)
+        const botVars = BotConfigService.getVariables(bot);
 
         const stepResults: string[] = [];
         let sentCount = 0;

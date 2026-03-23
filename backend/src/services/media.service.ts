@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { prisma } from './postgres.service';
 import { StorageService } from './storage.service';
+import { updateMessageMetadata } from '../utils/helpers';
 
 export class MediaService {
     /**
@@ -43,11 +44,7 @@ export class MediaService {
         }
 
         // Merge mediaUrl with any existing metadata (e.g. sticker animated flag)
-        const existing = await prisma.message.findUnique({ where: { id: messageId }, select: { metadata: true } });
-        await prisma.message.update({
-            where: { id: messageId },
-            data: { metadata: { ...(existing?.metadata as any || {}), mediaUrl } },
-        });
+        await updateMessageMetadata(messageId, { mediaUrl });
     }
 
     /**
@@ -71,13 +68,7 @@ export class MediaService {
             // Audio transcriptions are cached by AIProcessor after full processing
 
             if (description) {
-                const msg = await prisma.message.findUnique({ where: { id: messageId } });
-                if (msg) {
-                    await prisma.message.update({
-                        where: { id: messageId },
-                        data: { metadata: { ...(msg.metadata as any || {}), mediaDescription: description } },
-                    });
-                }
+                await updateMessageMetadata(messageId, { mediaDescription: description });
             }
         } catch (e) {
             console.warn(`[Media] Media description failed for ${messageId}:`, (e as Error).message);
