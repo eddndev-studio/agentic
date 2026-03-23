@@ -84,7 +84,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                 },
                 include: { steps: true, triggers: true }
             });
-            syncFlowTool(flow).catch(() => {});
+            syncFlowTool(flow).catch(e => console.warn('[FlowController] syncFlowTool on create failed:', (e as Error).message));
             return flow;
         } catch (e: any) {
             set.status = 500;
@@ -138,7 +138,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                     include: { steps: true, triggers: true }
                 });
             });
-            syncFlowTool(flow).catch(() => {});
+            syncFlowTool(flow).catch(e => console.warn('[FlowController] syncFlowTool on update failed:', (e as Error).message));
             return flow;
         } catch (e: any) {
             set.status = 500;
@@ -208,7 +208,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                 include: { steps: true, triggers: true }
             });
 
-            syncFlowTool(newFlow).catch(() => {});
+            syncFlowTool(newFlow).catch(e => console.warn('[FlowController] syncFlowTool on import failed:', (e as Error).message));
             return newFlow;
         } catch (e: any) {
             set.status = 500;

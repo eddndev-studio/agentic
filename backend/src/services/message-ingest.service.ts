@@ -7,22 +7,21 @@ import { MediaService } from './media.service';
 import { MessageAccumulator } from './accumulator.service';
 import { queueService } from './queue.service';
 import { upsertSessionFromChat } from './session-helpers';
+import { config } from '../config';
 
 // ─── In-memory message dedup cache (prevents reprocessing on reconnect/replay) ───
-const MESSAGE_DEDUP_TTL = 20 * 60 * 1000; // 20 minutes
-const MESSAGE_DEDUP_MAX = 5000;
 const messageDedup = new Map<string, number>(); // dedupKey -> timestamp
 
 function isMessageDuplicate(key: string): boolean {
     const now = Date.now();
     // Lazy cleanup when cache reaches max size
-    if (messageDedup.size >= MESSAGE_DEDUP_MAX) {
+    if (messageDedup.size >= config.messageIngest.dedupMax) {
         for (const [k, ts] of messageDedup) {
-            if (now - ts > MESSAGE_DEDUP_TTL) messageDedup.delete(k);
+            if (now - ts > config.messageIngest.dedupTtl) messageDedup.delete(k);
         }
     }
     const existing = messageDedup.get(key);
-    if (existing && now - existing < MESSAGE_DEDUP_TTL) return true;
+    if (existing && now - existing < config.messageIngest.dedupTtl) return true;
     messageDedup.set(key, now);
     return false;
 }
@@ -190,7 +189,7 @@ export class MessageIngestService {
                     await prisma.message.update({
                         where: { id: message.id },
                         data: { content: updatedContent },
-                    }).catch(() => {});
+                    }).catch(e => console.warn('[MessageIngest] media fallback content update failed:', (e as Error).message));
                     message = { ...message, content: updatedContent };
                 }
             }
@@ -199,7 +198,7 @@ export class MessageIngestService {
             prisma.session.update({
                 where: { id: session.id },
                 data: { updatedAt: new Date() },
-            }).catch(() => {}); // fire-and-forget
+            }).catch(() => {}); // fire-and-forget: non-critical
 
             eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
 

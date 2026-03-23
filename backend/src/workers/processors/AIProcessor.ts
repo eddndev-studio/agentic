@@ -89,7 +89,7 @@ export class AIProcessor {
         }
 
         const lockHeartbeat = setInterval(() => {
-            redis.expire(lockKey, LOCK_TTL).catch(() => {});
+            redis.expire(lockKey, LOCK_TTL).catch(() => {}); // fire-and-forget: non-critical
         }, (LOCK_TTL / 3) * 1000);
 
         try {
@@ -138,7 +138,7 @@ export class AIProcessor {
                             prisma.message.update({
                                 where: { id: msg.id },
                                 data: { metadata: { ...(metadata || {}), mediaDescription: partContent.substring(0, 500) } },
-                            }).catch(() => {});
+                            }).catch(e => console.warn('[AIProcessor] media description cache update failed:', (e as Error).message));
                         }
                     } catch (mediaError: any) {
                         console.error(`[AIProcessor] Media preprocessing error:`, mediaError);
@@ -339,7 +339,7 @@ export class AIProcessor {
             }
 
             // 9. Stop typing
-            await mainProcessClient.sendPresence(bot.id, session.identifier, "paused").catch(() => {});
+            await mainProcessClient.sendPresence(bot.id, session.identifier, "paused").catch(e => console.warn('[AIProcessor] sendPresence(paused) failed:', (e as Error).message));
 
             // Persist final AI response in conversation history (tool-oriented: never send text directly)
             const finalContent = response.content?.trim();
@@ -350,7 +350,7 @@ export class AIProcessor {
             }
 
             // Log metadata (fire-and-forget)
-            this.logMetadata(sessionId, activeModel, response.usage?.totalTokens).catch(() => {});
+            this.logMetadata(sessionId, activeModel, response.usage?.totalTokens).catch(e => console.warn('[AIProcessor] logMetadata failed:', (e as Error).message));
 
         } catch (error: any) {
             console.error(`[AIProcessor] Error processing messages for session ${sessionId}:`, error);

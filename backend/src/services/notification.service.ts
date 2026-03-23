@@ -1,6 +1,7 @@
 import { eventBus, type BotEvent } from "./event-bus";
 import { prisma } from "./postgres.service";
 import { BaileysService } from "./baileys.service";
+import { config } from "../config";
 
 const EVENT_LABELS: Record<string, string> = {
     "flow:started":       "Flujo iniciado",
@@ -32,7 +33,6 @@ interface CachedConfig {
 
 class NotificationService {
     private cache = new Map<string, CachedConfig>();
-    private CACHE_TTL = 30_000;
 
     init() {
         eventBus.subscribeAll((event) => {
@@ -59,22 +59,22 @@ class NotificationService {
         const raw = bot?.notificationChannels;
         const channels: ChannelConfig[] = Array.isArray(raw) ? raw as ChannelConfig[] : [];
 
-        const config: CachedConfig = {
+        const cachedConfig: CachedConfig = {
             channels,
             botName: bot?.name || 'Bot',
             botIdentifier: bot?.identifier || '',
-            expiresAt: Date.now() + this.CACHE_TTL,
+            expiresAt: Date.now() + config.notifications.cacheTtl,
         };
 
-        this.cache.set(botId, config);
-        return config;
+        this.cache.set(botId, cachedConfig);
+        return cachedConfig;
     }
 
     private async handleEvent(event: BotEvent) {
         if (IGNORED_EVENTS.has(event.type)) return;
 
-        const config = await this.getConfig(event.botId);
-        if (config.channels.length === 0) return;
+        const botConfig = await this.getConfig(event.botId);
+        if (botConfig.channels.length === 0) return;
 
         // Resolve session name for events that carry a sessionId
         let sessionName: string | undefined;
@@ -87,11 +87,11 @@ class NotificationService {
             sessionName = src?.name ? `${src.name} (${phone})` : phone || undefined;
         }
 
-        const message = this.formatMessage(event, config, sessionName);
+        const message = this.formatMessage(event, botConfig, sessionName);
         if (!message) return;
 
         // Send to each channel that is subscribed to this event
-        for (const channel of config.channels) {
+        for (const channel of botConfig.channels) {
             if (channel.events.length === 0) continue;
             if (!channel.events.includes(event.type)) continue;
 
@@ -122,10 +122,10 @@ class NotificationService {
         }
     }
 
-    private formatMessage(event: BotEvent, config: CachedConfig, sessionName?: string): string | null {
+    private formatMessage(event: BotEvent, botConfig: CachedConfig, sessionName?: string): string | null {
         const label = EVENT_LABELS[event.type] || event.type;
         const ts = new Date().toLocaleString("es-MX", { timeZone: "America/Mexico_City" });
-        const botLine = `\nBot: ${config.botName} (${config.botIdentifier})`;
+        const botLine = `\nBot: ${botConfig.botName} (${botConfig.botIdentifier})`;
         const chatLine = sessionName ? `\nChat: ${sessionName}` : '';
 
         switch (event.type) {

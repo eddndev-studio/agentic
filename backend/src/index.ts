@@ -2,13 +2,10 @@ import { Elysia, t } from "elysia";
 import { node } from "@elysiajs/node";
 import { initSystemLogger } from "./services/system-logger";
 import { redis } from "./services/redis.service";
+import { config } from "./config";
 
 // --- System Logger (intercept console before anything else) ---
 initSystemLogger();
-
-// --- Configuration ---
-const PORT = process.env.PORT || 8080;
-const AUTOMATION_INTERVAL = Number(process.env['AUTOMATION_CHECK_INTERVAL_MS']) || 30 * 60 * 1000;
 
 // --- Global Error Handlers (Prevent Crash) ---
 process.on('uncaughtException', (err) => {
@@ -125,7 +122,7 @@ notificationService.init();
 import { AutomationProcessor } from "./workers/processors/AutomationProcessor";
 
 // Clean up any old BullMQ repeating automation jobs
-queueService.removeRepeatableJobs().catch(() => {});
+queueService.removeRepeatableJobs().catch(e => console.warn('[Init] removeRepeatableJobs failed:', (e as Error).message));
 
 automationTimer = setInterval(() => {
     if (isShuttingDown) return;
@@ -133,9 +130,9 @@ automationTimer = setInterval(() => {
     AutomationProcessor.processAll().catch(err => {
         console.error("[Automation] Error in scheduled check:", err);
     });
-}, AUTOMATION_INTERVAL);
+}, config.server.automationInterval);
 
-console.log(`[Init] Automation check scheduled (every ${AUTOMATION_INTERVAL / 60000} min)`);
+console.log(`[Init] Automation check scheduled (every ${config.server.automationInterval / 60000} min)`);
 
 // --- API ---
 import { webhookController } from "./api/webhook.controller";
@@ -152,12 +149,7 @@ import { eventsController } from "./api/events.controller";
 import { automationController } from "./api/automation.controller";
 import { templateController } from "./api/template.controller";
 import { logsController } from "./api/logs.controller";
-const ALLOWED_ORIGINS = new Set([
-    'https://agentic.w-gateway.cc',
-    'https://agentic-api.w-gateway.cc',
-    'http://localhost:4321',
-    'http://localhost:5173',
-]);
+const ALLOWED_ORIGINS = new Set(config.server.corsOrigins);
 
 const app = new Elysia({ adapter: node() })
     .onRequest(({ request, set }) => {
@@ -253,10 +245,10 @@ const app = new Elysia({ adapter: node() })
         redis: redis.status
     }))
     .listen({
-        port: Number(PORT),
-        hostname: '0.0.0.0'
+        port: config.server.port,
+        hostname: config.server.host,
     });
 
 console.log(
-    `Agentic is running at 0.0.0.0:${PORT}`
+    `Agentic is running at ${config.server.host}:${config.server.port}`
 );

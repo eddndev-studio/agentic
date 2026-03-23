@@ -3,7 +3,7 @@
 
 ## P0 — Crítico
 
-### [ ] 1. God Object: `baileys.service.ts` (1,571 líneas)
+### [x] 1. God Object: `baileys.service.ts` (1,571 → 847 líneas)
 Partir en:
 - `ConnectionService` — socket lifecycle, watchdog, reconnect, QR
 - `MessageIngestService` — handleIncomingMessage, dedup, message persistence

@@ -21,6 +21,7 @@ import pino from 'pino';
 import { LabelService } from './label.service';
 import { MessageIngestService, isMessageDuplicate } from './message-ingest.service';
 import { upsertSessionFromChat, updateContactName } from './session-helpers';
+import { config } from '../config';
 
 const logger = pino({ level: 'silent' });
 
@@ -35,11 +36,8 @@ const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 // Signal Protocol auto-recovery: track decryption failures per bot
 const decryptFailures = new Map<string, { count: number; lastPurge: number }>();
-const DECRYPT_FAILURE_THRESHOLD = 5;
-const PURGE_COOLDOWN = 6 * 60 * 60 * 1000; // 6 hours
 
 // ─── Watchdog: detect silent socket hangs (no events for extended period) ───
-const WATCHDOG_TIMEOUT = 30 * 60 * 1000; // 30 minutes → force reconnect
 const watchdogTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const connectionTimestamps = new Map<string, number>(); // botId -> connectedAt ms
 
@@ -48,13 +46,13 @@ function resetWatchdog(botId: string): void {
     if (existing) clearTimeout(existing);
 
     const timer = setTimeout(() => {
-        console.warn(`[Baileys] Watchdog: No messages for ${WATCHDOG_TIMEOUT / 60000}min on Bot ${botId}, forcing reconnect`);
+        console.warn(`[Baileys] Watchdog: No messages for ${config.baileys.watchdogTimeout / 60000}min on Bot ${botId}, forcing reconnect`);
         watchdogTimers.delete(botId);
         const sock = sessions.get(botId);
         if (sock) {
-            try { sock.ws.close(); } catch {}
+            try { sock.ws.close(); } catch (e) { console.warn('[Baileys] watchdog ws.close error:', (e as Error).message); }
         }
-    }, WATCHDOG_TIMEOUT);
+    }, config.baileys.watchdogTimeout);
 
     watchdogTimers.set(botId, timer);
 }
@@ -66,9 +64,6 @@ function stopWatchdog(botId: string): void {
         watchdogTimers.delete(botId);
     }
 }
-
-// ─── Append grace period: offline catch-up messages arrive as "append" within this window ───
-const APPEND_GRACE_PERIOD = 60 * 1000; // 60 seconds after connection
 
 // Simple CacheStore implementation for Baileys msgRetryCounterCache
 class MapCacheStore {
@@ -135,7 +130,7 @@ export class BaileysService {
                     JSON.parse(content); // validate current creds before backing up
                     fs.copyFileSync(credsPath, backupPath);
                 }
-            } catch {} // skip backup if current creds are already invalid
+            } catch {} // fire-and-forget: non-critical — skip backup if current creds are already invalid
             await rawSaveCreds();
         };
 
@@ -156,7 +151,7 @@ export class BaileysService {
                     if (isAvailable) {
                         console.log(`[Baileys] Auto-bound IPv6 ${botConfig.ipv6Address} to eth0`);
                     }
-                } catch {}
+                } catch (e) { console.warn('[Baileys] IPv6 auto-bind failed:', (e as Error).message); }
             }
             if (isAvailable) {
                 console.log(`[Baileys] Bot ${botConfig.name} will bind to IPv6: ${botConfig.ipv6Address}`);
@@ -185,7 +180,7 @@ export class BaileysService {
                 generateHighQualityLinkPreview: true,
                 syncFullHistory: false,
                 markOnlineOnConnect: false,
-                qrTimeout: 60000,
+                qrTimeout: config.baileys.qrTimeout,
                 // Enable automatic retry for failed message decryption (Bad MAC recovery)
                 msgRetryCounterCache: new MapCacheStore(),
                 // Custom Agent for IPv6 Binding
@@ -285,7 +280,7 @@ export class BaileysService {
                 const isAppend = type === 'append';
                 if (isAppend) {
                     const connectedAt = connectionTimestamps.get(botId);
-                    if (!connectedAt || Date.now() - connectedAt > APPEND_GRACE_PERIOD) {
+                    if (!connectedAt || Date.now() - connectedAt > config.baileys.appendGracePeriod) {
                         // Outside grace period — these are historical sync messages, skip
                         return;
                     }
@@ -385,7 +380,7 @@ export class BaileysService {
                             const jid = jidNormalizedUser(chat.id);
                             if (bot && BotConfigService.resolveExcludeGroups(bot) && jid.endsWith('@g.us')) continue;
                             await upsertSessionFromChat(botId, jid, chat.name || chat.subject);
-                        } catch {}
+                        } catch (e) { console.warn('[Baileys] history chat upsert error:', (e as Error).message); }
                     }
                 }
 
@@ -394,7 +389,7 @@ export class BaileysService {
                     for (const contact of histContacts) {
                         try {
                             await updateContactName(botId, contact);
-                        } catch {}
+                        } catch (e) { console.warn('[Baileys] history contact update error:', (e as Error).message); }
                     }
                 }
 
@@ -447,7 +442,7 @@ export class BaileysService {
                                 },
                             });
                             imported++;
-                        } catch {}
+                        } catch (e) { console.warn('[Baileys] history message import error:', (e as Error).message); }
                     }
                     console.log(`[Baileys] History sync imported ${imported} messages for Bot ${botId}`);
                 }
@@ -473,7 +468,7 @@ export class BaileysService {
                                         try {
                                             const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(resolved);
                                             if (pn) resolved = jidNormalizedUser(pn);
-                                        } catch {}
+                                        } catch (e) { console.warn('[Baileys] LID resolution failed in messages.update:', (e as Error).message); }
                                     }
                                     const identifier = resolved;
                                     const session = await prisma.session.findUnique({ where: { botId_identifier: { botId, identifier } } });
@@ -516,7 +511,7 @@ export class BaileysService {
                             try {
                                 const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(identifier);
                                 if (pn) identifier = jidNormalizedUser(pn);
-                            } catch {}
+                            } catch (e) { console.warn('[Baileys] LID resolution failed in chats.delete:', (e as Error).message); }
                         }
                         const session = await prisma.session.findUnique({
                             where: { botId_identifier: { botId, identifier } },
@@ -555,7 +550,7 @@ export class BaileysService {
                             try {
                                 const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(resolved);
                                 if (pn) resolved = jidNormalizedUser(pn);
-                            } catch {}
+                            } catch (e) { console.warn('[Baileys] LID resolution failed in messages.delete:', (e as Error).message); }
                         }
                         return resolved;
                     };
@@ -618,7 +613,7 @@ export class BaileysService {
     }
 
     /**
-     * Track decryption failures per bot. After DECRYPT_FAILURE_THRESHOLD failures,
+     * Track decryption failures per bot. After config.baileys.decryptFailureThreshold failures,
      * purge Signal session files to force renegotiation (auto-recovery from Bad MAC).
      */
     private static trackDecryptionFailure(botId: string): void {
@@ -628,7 +623,7 @@ export class BaileysService {
         tracker.count++;
         decryptFailures.set(botId, tracker);
 
-        if (tracker.count >= DECRYPT_FAILURE_THRESHOLD && now - tracker.lastPurge > PURGE_COOLDOWN) {
+        if (tracker.count >= config.baileys.decryptFailureThreshold && now - tracker.lastPurge > config.baileys.purgeCooldown) {
             this.purgeSignalSessions(botId);
             tracker.count = 0;
             tracker.lastPurge = now;
@@ -652,7 +647,7 @@ export class BaileysService {
                 try {
                     fs.unlinkSync(path.join(sessionDir, file));
                     purged++;
-                } catch {}
+                } catch {} // fire-and-forget: non-critical
             }
         }
 
@@ -680,6 +675,9 @@ export class BaileysService {
             sessions.delete(botId);
         }
         qrCodes.delete(botId);
+        stopWatchdog(botId);
+        connectionTimestamps.delete(botId);
+        LabelService.stopLabelReconciliation(botId);
 
         // Optionally clear auth data to require new QR scan
         const sessionDir = path.join(AUTH_DIR, botId);

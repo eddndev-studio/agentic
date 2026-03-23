@@ -85,7 +85,7 @@ export class AIEngine {
 
         // Heartbeat: renew lock TTL periodically to survive long processing (transcription + tools)
         const lockHeartbeat = setInterval(() => {
-            redis.expire(lockKey, LOCK_TTL).catch(() => {});
+            redis.expire(lockKey, LOCK_TTL).catch(() => {}); // fire-and-forget: non-critical
         }, (LOCK_TTL / 3) * 1000);
 
         try {
@@ -336,7 +336,7 @@ export class AIEngine {
             }
 
             // 10. Update metadata on recent ConversationLog entries (async, fire-and-forget)
-            this.logMetadata(sessionId, activeModel, response.usage?.totalTokens).catch(() => {});
+            this.logMetadata(sessionId, activeModel, response.usage?.totalTokens).catch(e => console.warn('[AIEngine] logMetadata failed:', (e as Error).message));
 
         } catch (error: any) {
             console.error(`[AIEngine] Error processing message for session ${sessionId}:`, error);

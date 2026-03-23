@@ -55,7 +55,7 @@ async function shutdown(signal: string) {
     const { prisma } = await import("./services/postgres.service");
     try {
         await prisma.$disconnect();
-    } catch {}
+    } catch (e) { console.warn('[Worker] Prisma disconnect error:', (e as Error).message); }
 
     console.log("[Worker] Shutdown complete.");
     process.exit(0);

@@ -43,3 +43,11 @@ export const mainProcessClient = {
         return post("/internal/tool", { botId, sessionId, toolName, toolArgs });
     },
 };
+
+/**
+ * Standalone sendMessage function for backward compatibility.
+ * Delegates to mainProcessClient.sendMessage.
+ */
+export async function sendMessage(botId: string, target: string, payload: any): Promise<void> {
+    await mainProcessClient.sendMessage(botId, target, payload);
+}

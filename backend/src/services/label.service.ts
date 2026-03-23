@@ -5,15 +5,23 @@ import { flowEngine } from '../core/flow';
 import { upsertSessionFromChat } from './session-helpers';
 import * as fs from 'fs';
 import * as path from 'path';
+import { config } from '../config';
 
 // Label reconciliation timers: botId -> intervalId
 const labelReconcileTimers = new Map<string, ReturnType<typeof setInterval>>();
-const LABEL_RECONCILE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 // Dedup guard: prevents double-firing when local code emits AND Baileys re-emits
 // Key: "botId:sessionId:labelId:action", value: timestamp
 const recentLabelEvents = new Map<string, number>();
-const LABEL_DEDUP_TTL = 30_000; // 30 seconds
+
+// Periodic cleanup: evict expired entries every 60 seconds
+const labelDedupCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [k, ts] of recentLabelEvents) {
+        if (now - ts > config.labels.dedupTtl) recentLabelEvents.delete(k);
+    }
+}, 60_000);
+labelDedupCleanupTimer.unref(); // don't prevent process exit
 
 const AUTH_DIR = 'auth_info_baileys';
 
@@ -27,7 +35,7 @@ export class LabelService {
         // resyncAppState only fetches patches newer than the cached version,
         // so if labels were already synced before the DB table existed, no events fire.
         const versionFile = path.join(AUTH_DIR, botId, 'app-state-sync-version-regular_high.json');
-        try { fs.unlinkSync(versionFile); } catch {}
+        try { fs.unlinkSync(versionFile); } catch {} // fire-and-forget: non-critical — file may not exist
 
         // Also clear the in-memory cache
         await (sock as any).authState.keys.set({
@@ -48,7 +56,7 @@ export class LabelService {
                 console.log(`[Baileys] Resolved ${phoneJid} -> ${lid} for app state`);
                 return lid;
             }
-        } catch {}
+        } catch (e) { console.warn('[LabelService] JID-to-LID resolution failed:', (e as Error).message); }
         return phoneJid;
     }
 
@@ -71,9 +79,12 @@ export class LabelService {
     static markLabelEventHandled(botId: string, sessionId: string, labelId: string, action: 'add' | 'remove'): void {
         const key = `${botId}:${sessionId}:${labelId}:${action}`;
         recentLabelEvents.set(key, Date.now());
-        // Cleanup old entries
-        for (const [k, ts] of recentLabelEvents) {
-            if (Date.now() - ts > LABEL_DEDUP_TTL) recentLabelEvents.delete(k);
+        // Evict expired entries when cache exceeds size limit
+        if (recentLabelEvents.size > config.labels.dedupMax) {
+            const now = Date.now();
+            for (const [k, ts] of recentLabelEvents) {
+                if (now - ts > config.labels.dedupTtl) recentLabelEvents.delete(k);
+            }
         }
     }
 
@@ -150,10 +161,10 @@ export class LabelService {
             this.reconcileLabels(botId, getSocket).catch(err => {
                 console.error(`[Baileys] Label reconciliation error for Bot ${botId}:`, err.message);
             });
-        }, LABEL_RECONCILE_INTERVAL);
+        }, config.labels.reconcileInterval);
 
         labelReconcileTimers.set(botId, timer);
-        console.log(`[Baileys] Label reconciliation started for Bot ${botId} (every ${LABEL_RECONCILE_INTERVAL / 1000}s)`);
+        console.log(`[Baileys] Label reconciliation started for Bot ${botId} (every ${config.labels.reconcileInterval / 1000}s)`);
     }
 
     /**
@@ -257,12 +268,19 @@ export class LabelService {
             // Dedup: skip if already processed recently (by this handler, ToolExecutor, or SessionController)
             const dedupKey = `${botId}:${session.id}:${label.id}:${event.type}`;
             const dedupTs = recentLabelEvents.get(dedupKey);
-            if (dedupTs && Date.now() - dedupTs < LABEL_DEDUP_TTL) {
+            if (dedupTs && Date.now() - dedupTs < config.labels.dedupTtl) {
                 console.log(`[Baileys] labels.association: Skipping duplicate for ${label.name} (${event.type})`);
                 return;
             }
             // Mark as processed NOW to prevent repeated Baileys events
             recentLabelEvents.set(dedupKey, Date.now());
+            // Evict expired entries when cache exceeds size limit
+            if (recentLabelEvents.size > config.labels.dedupMax) {
+                const now = Date.now();
+                for (const [k, ts] of recentLabelEvents) {
+                    if (now - ts > config.labels.dedupTtl) recentLabelEvents.delete(k);
+                }
+            }
 
             if (event.type === 'add') {
                 try {

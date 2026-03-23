@@ -30,7 +30,7 @@ export const eventsController = new Elysia({ prefix: '/events' })
                     try {
                         const payload = typeof data === 'string' ? data : JSON.stringify(data);
                         controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
-                    } catch {}
+                    } catch {} // fire-and-forget: non-critical — stream may be closed by client
                 };
 
                 enqueue({ type: 'connected', botId });
@@ -45,7 +45,7 @@ export const eventsController = new Elysia({ prefix: '/events' })
                 request.signal.addEventListener('abort', () => {
                     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
                     if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
-                    try { controller.close(); } catch {}
+                    try { controller.close(); } catch {} // fire-and-forget: non-critical — stream already closed
                 }, { once: true });
             },
             cancel() {
@@ -80,7 +80,7 @@ export const eventsController = new Elysia({ prefix: '/events' })
                     try {
                         const payload = typeof data === 'string' ? data : JSON.stringify(data);
                         controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
-                    } catch {}
+                    } catch {} // fire-and-forget: non-critical — stream may be closed by client
                 };
 
                 enqueue({ type: 'connected' });
@@ -95,7 +95,7 @@ export const eventsController = new Elysia({ prefix: '/events' })
                 request.signal.addEventListener('abort', () => {
                     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
                     if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
-                    try { controller.close(); } catch {}
+                    try { controller.close(); } catch {} // fire-and-forget: non-critical — stream already closed
                 }, { once: true });
             },
             cancel() {
