@@ -875,34 +875,98 @@ export class BaileysService {
         // Keep the original LID as alt identifier for session dedup
         const altFrom = from !== normalizedRaw ? normalizedRaw : undefined;
 
-        // Extract content
-        const content = msg.message.conversation ||
-            msg.message.extendedTextMessage?.text ||
-            msg.message.imageMessage?.caption ||
-            msg.message.videoMessage?.caption ||
-            "";
+        // Unwrap view-once, ephemeral, and document-with-caption wrappers
+        let m = msg.message;
+        if (m.viewOnceMessage) m = m.viewOnceMessage.message;
+        else if (m.viewOnceMessageV2) m = m.viewOnceMessageV2.message;
+        else if (m.ephemeralMessage) m = m.ephemeralMessage.message;
+        if (m.documentWithCaptionMessage) m = m.documentWithCaptionMessage.message;
 
-        const msgType = msg.message.imageMessage ? 'IMAGE' :
-            msg.message.videoMessage ? 'VIDEO' :
-            msg.message.audioMessage ? 'AUDIO' :
-            msg.message.documentMessage ? 'DOCUMENT' : 'TEXT';
+        // Skip protocol messages (edits/deletes handled elsewhere)
+        if (m.protocolMessage || m.senderKeyDistributionMessage) return;
 
-        const hasMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'].includes(msgType);
+        // Detect message type
+        const msgType =
+            m.stickerMessage   ? 'STICKER' :
+            m.reactionMessage  ? 'REACTION' :
+            m.imageMessage     ? 'IMAGE' :
+            m.videoMessage     ? 'VIDEO' :
+            m.audioMessage     ? (m.audioMessage.ptt ? 'PTT' : 'AUDIO') :
+            m.documentMessage  ? 'DOCUMENT' :
+            m.contactMessage   ? 'CONTACT' :
+            m.contactsArrayMessage ? 'CONTACT' :
+            m.locationMessage  ? 'LOCATION' :
+            m.liveLocationMessage ? 'LOCATION' :
+            m.pollCreationMessage ? 'POLL' :
+            'TEXT';
 
-        console.log(`[${new Date().toISOString()}] [Baileys] Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${content.substring(0, 50)}...`);
+        // Extract content based on type
+        let content = '';
+        let extraMetadata: Record<string, any> = {};
+
+        switch (msgType) {
+            case 'TEXT':
+                content = m.conversation || m.extendedTextMessage?.text || '';
+                break;
+            case 'IMAGE':
+                content = m.imageMessage?.caption || '';
+                break;
+            case 'VIDEO':
+                content = m.videoMessage?.caption || '';
+                break;
+            case 'DOCUMENT':
+                content = m.documentMessage?.caption || m.documentMessage?.fileName || '';
+                break;
+            case 'STICKER':
+                content = '';
+                extraMetadata.animated = !!m.stickerMessage?.isAnimated;
+                break;
+            case 'REACTION':
+                content = m.reactionMessage?.text || '';  // emoji or empty = removed
+                extraMetadata.reactedTo = {
+                    id: m.reactionMessage?.key?.id,
+                    fromMe: m.reactionMessage?.key?.fromMe,
+                };
+                break;
+            case 'CONTACT': {
+                const single = m.contactMessage;
+                const arr = m.contactsArrayMessage?.contacts;
+                if (single) {
+                    content = single.displayName || '';
+                    extraMetadata.vcard = single.vcard;
+                } else if (arr) {
+                    content = arr.map((c: any) => c.displayName).join(', ');
+                    extraMetadata.contacts = arr.map((c: any) => ({ name: c.displayName, vcard: c.vcard }));
+                }
+                break;
+            }
+            case 'LOCATION': {
+                const loc = m.locationMessage || m.liveLocationMessage;
+                content = loc?.name || loc?.address || '';
+                extraMetadata.latitude = loc?.degreesLatitude;
+                extraMetadata.longitude = loc?.degreesLongitude;
+                extraMetadata.live = !!m.liveLocationMessage;
+                break;
+            }
+            case 'POLL':
+                content = m.pollCreationMessage?.name || '';
+                extraMetadata.options = m.pollCreationMessage?.options?.map((o: any) => o.optionName) || [];
+                break;
+            default: // AUDIO, PTT
+                content = '';
+                break;
+        }
+
+        const hasMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'STICKER', 'PTT'].includes(msgType);
+
+        console.log(`[${new Date().toISOString()}] [Baileys] Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${(content || '').substring(0, 50)}...`);
 
         try {
             // 1. Resolve Bot (include template for messageDelay resolution)
             const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
             if (!bot) return;
 
-            // Filter: exclude group messages (resolved from template or bot)
-            if (BotConfigService.resolveExcludeGroups(bot) && from.endsWith("@g.us")) {
-                console.log(`[Filter] Group message from ${from} excluded for Bot ${bot.name}`);
-                return;
-            }
-
-            // 2. Resolve Session (with LID↔phone dedup)
+            // 2. Resolve Session (with LID↔phone dedup) — ALWAYS, even for filtered messages
             const { session, created: sessionCreated } = await BaileysService.upsertSessionFromChat(
                 bot.id, from, msg.pushName || undefined, altFrom
             );
@@ -911,7 +975,7 @@ export class BaileysService {
                 eventBus.emitBotEvent({ type: 'session:created', botId, session });
             }
 
-            // 3. Persist Message FIRST, then download media in background
+            // 3. ALWAYS persist message to DB (every type, every group, every direction)
             const messageExternalId = msg.key.id || `msg_${Date.now()}`;
             const messageData = {
                 sessionId: session.id,
@@ -920,37 +984,36 @@ export class BaileysService {
                 content,
                 type: msgType,
                 isProcessed: false,
+                ...(Object.keys(extraMetadata).length > 0 ? { metadata: extraMetadata } : {}),
             };
 
             let message: any;
-            let created: boolean;
             try {
                 message = await prisma.message.create({
                     data: { externalId: messageExternalId, ...messageData },
                 });
-                created = true;
             } catch (e: any) {
                 if (e.code === 'P2002') {
-                    // Duplicate — already persisted by a previous event
                     console.log(`[Baileys] Duplicate message ${messageExternalId}, skipping processing.`);
                     return;
                 }
                 throw e;
             }
 
-            // Download media BEFORE AI processing so the engine has full context
+            // 4. Download media (stickers, images, audio, video, documents, PTT)
             if (hasMedia) {
                 try {
                     await BaileysService.downloadAndAttachMedia(msg, msgType, message.id, botId);
-                    // Refresh message object to include updated metadata
                     const updated = await prisma.message.findUnique({ where: { id: message.id } });
                     if (updated) message = updated;
 
-                    // Fire-and-forget: generate brief media description for chat context
-                    BaileysService.generateMediaDescription(message.id, msgType, (message.metadata as any)?.mediaUrl, bot.aiProvider).catch(() => {});
+                    // Generate AI descriptions only for IMAGE and DOCUMENT (skip stickers, audio, etc.)
+                    if (msgType === 'IMAGE' || msgType === 'DOCUMENT') {
+                        BaileysService.generateMediaDescription(message.id, msgType, (message.metadata as any)?.mediaUrl, bot.aiProvider)
+                            .catch(err => console.warn(`[Baileys] Media description failed for ${messageExternalId}:`, err.message));
+                    }
                 } catch (mediaErr) {
                     console.error(`[Baileys] Media download failed for ${messageExternalId}:`, mediaErr);
-                    // Persist placeholder so AI knows media was present but couldn't be downloaded
                     const placeholder = `[${msgType.toLowerCase()} adjunto no pudo ser descargado]`;
                     const updatedContent = content ? `${content}\n${placeholder}` : placeholder;
                     await prisma.message.update({
@@ -969,13 +1032,24 @@ export class BaileysService {
 
             eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
 
-            // Skip all processing when bot is paused
+            // ── From here on: filters only affect PROCESSING (flows, AI), NOT storage ──
+
+            // Skip processing for non-conversational types (reactions, stickers, polls, etc.)
+            if (['REACTION', 'STICKER', 'CONTACT', 'LOCATION', 'POLL'].includes(msgType)) return;
+
+            // Skip processing when bot is paused
             if (bot.paused) {
-                console.log(`[Filter] Bot ${bot.name} is paused, skipping message from ${from}`);
+                console.log(`[Filter] Bot ${bot.name} is paused, skipping processing for ${from}`);
                 return;
             }
 
-            // Filter: skip AI for sessions with ignored labels (resolved from template or bot)
+            // Skip processing for excluded group messages
+            if (BotConfigService.resolveExcludeGroups(bot) && from.endsWith("@g.us")) {
+                console.log(`[Filter] Group message from ${from} excluded for Bot ${bot.name}`);
+                return;
+            }
+
+            // Skip AI for sessions with ignored labels
             const ignoredLabelIds = await BotConfigService.resolveIgnoredLabels(bot);
             if (ignoredLabelIds.length > 0) {
                 const sessionLabels = await prisma.sessionLabel.findMany({
@@ -989,7 +1063,7 @@ export class BaileysService {
                 }
             }
 
-            // 4. Evaluate triggers (flows + tools) for ALL messages
+            // 5. Evaluate triggers (flows + tools) for conversational messages
             flowEngine.processIncomingMessage(session.id, message).catch(err => {
                 console.error(`[Baileys] FlowEngine error:`, err);
             });
@@ -997,13 +1071,13 @@ export class BaileysService {
             // Outgoing messages: only triggers, no AI
             if (message.fromMe) return;
 
-            // 4b. Per-session AI gate (only affects incoming → AI path)
+            // Per-session AI gate
             if (session.aiEnabled === false) {
                 console.log(`[Filter] AI disabled for session ${from}, skipping AI processing`);
                 return;
             }
 
-            // 5. Enqueue AI processing (runs in the worker process)
+            // 6. Enqueue AI processing
             const handleAIError = async (err: any, sid: string) => {
                 console.error(`[${new Date().toISOString()}] [Baileys] AI enqueue error for session ${sid}:`, err);
             };
@@ -1056,7 +1130,9 @@ export class BaileysService {
         const MIME_MAP: Record<string, { ext: string; mime: string }> = {
             IMAGE:    { ext: 'jpg',  mime: 'image/jpeg' },
             AUDIO:    { ext: 'ogg',  mime: 'audio/ogg' },
+            PTT:      { ext: 'ogg',  mime: 'audio/ogg' },
             VIDEO:    { ext: 'mp4',  mime: 'video/mp4' },
+            STICKER:  { ext: 'webp', mime: 'image/webp' },
             DOCUMENT: { ext: msg.message.documentMessage?.fileName?.split('.').pop() || 'pdf',
                         mime: msg.message.documentMessage?.mimetype || 'application/octet-stream' },
         };
@@ -1080,9 +1156,11 @@ export class BaileysService {
             console.log(`[Baileys] Media saved locally: ${filePath}`);
         }
 
+        // Merge mediaUrl with any existing metadata (e.g. sticker animated flag)
+        const existing = await prisma.message.findUnique({ where: { id: messageId }, select: { metadata: true } });
         await prisma.message.update({
             where: { id: messageId },
-            data: { metadata: { mediaUrl } },
+            data: { metadata: { ...(existing?.metadata as any || {}), mediaUrl } },
         });
     }
 

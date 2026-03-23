@@ -196,15 +196,23 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         >
                             Flows
                         </h3>
-                        <span
-                            class="text-xs font-sans text-wa-text-secondary"
-                            x-text="flows.length + ' total'"></span>
+                        <div class="flex items-center gap-3">
+                            <input
+                                type="text"
+                                x-model="flowSearch"
+                                placeholder="Buscar flujo..."
+                                class="px-3 py-1.5 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-wa-text outline-none focus:border-wa-green/50 w-48"
+                            />
+                            <span
+                                class="text-xs font-sans text-wa-text-secondary"
+                                x-text="filteredFlows.length + ' / ' + flows.length"></span>
+                        </div>
                     </div>
 
                     <!-- Flow Grid -->
-                    <template x-if="flows.length > 0">
+                    <template x-if="filteredFlows.length > 0">
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            <template x-for="flow in flows" :key="flow.id">
+                            <template x-for="flow in filteredFlows" :key="flow.id">
                                 <a :href="'/editor?id=' + flow.id"
                                    class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[120px]">
                                     <div>
@@ -235,6 +243,11 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </template>
 
                     <!-- Empty State -->
+                    <template x-if="filteredFlows.length === 0 && flows.length > 0">
+                        <div class="text-center py-8 border border-dashed border-wa-border rounded-xl">
+                            <p class="text-xs text-wa-text-secondary">Sin resultados para "<span x-text="flowSearch"></span>"</p>
+                        </div>
+                    </template>
                     <template x-if="flows.length === 0">
                         <div
                             class="text-center py-12 border border-dashed border-wa-border rounded-xl"
@@ -1566,6 +1579,18 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             botId: null as string | null,
             bot: {} as Bot,
             flows: [] as Flow[],
+            flowSearch: "",
+            get filteredFlows(): Flow[] {
+                const q = this.flowSearch.toLowerCase().trim();
+                const list = q
+                    ? this.flows.filter((f: Flow) =>
+                        f.name.toLowerCase().includes(q) ||
+                        (f.description || "").toLowerCase().includes(q) ||
+                        f.triggers?.some((t: any) => t.keyword?.toLowerCase().includes(q))
+                    )
+                    : [...this.flows];
+                return list.sort((a: Flow, b: Flow) => a.name.localeCompare(b.name));
+            },
             ready: false,
             error: null as string | null,
             connectionHtml: "",

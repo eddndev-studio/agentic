@@ -46,30 +46,39 @@ export class FlowEngine {
      */
     async processLabelEvent(sessionId: string, botId: string, labelName: string, action: 'add' | 'remove', sourceFlowId?: string) {
         const bot = await BotConfigService.loadBot(botId);
-        if (!bot || bot.paused) return;
+        if (!bot) { console.warn(`[FlowEngine] processLabelEvent: bot ${botId} not found`); return; }
+        if (bot.paused) { console.log(`[FlowEngine] processLabelEvent: bot ${bot.name} is paused, skipping`); return; }
 
         const session = await prisma.session.findUnique({
             where: { id: sessionId },
             select: { identifier: true }
         });
-        if (!session) return;
+        if (!session) { console.warn(`[FlowEngine] processLabelEvent: session ${sessionId} not found`); return; }
 
         // Resolve all triggers (label triggers use scope BOTH by convention)
         const activeTriggers = await BotConfigService.resolveTriggers(bot, sessionId, [TriggerScope.INCOMING, TriggerScope.OUTGOING, TriggerScope.BOTH]);
         const botVars = BotConfigService.getVariables(bot);
 
         const labelAction = action.toUpperCase(); // 'ADD' | 'REMOVE'
+        const labelTriggers = activeTriggers.filter((t: any) => t.triggerType === 'LABEL');
+        console.log(`[FlowEngine] processLabelEvent: label="${labelName}" action=${labelAction} triggers=${activeTriggers.length} labelTriggers=${labelTriggers.length}`);
 
-        for (const trigger of activeTriggers) {
+        for (const trigger of labelTriggers) {
             const t = trigger as any;
-            if (t.triggerType !== 'LABEL') continue;
-            if (t.labelAction !== labelAction) continue;
+            if (t.labelAction !== labelAction) {
+                console.log(`[FlowEngine] Trigger "${t.labelName}" skipped: action mismatch (trigger=${t.labelAction} event=${labelAction})`);
+                continue;
+            }
             if (sourceFlowId && t.flowId === sourceFlowId) continue;
 
             // Interpolate template variables in labelName
             const resolvedLabelName = BotConfigService.interpolate(t.labelName || '', botVars);
-            if (resolvedLabelName !== labelName) continue;
+            if (resolvedLabelName !== labelName) {
+                console.log(`[FlowEngine] Trigger skipped: name mismatch (trigger="${resolvedLabelName}" event="${labelName}")`);
+                continue;
+            }
 
+            console.log(`[FlowEngine] Label trigger matched! Starting flow ${t.flowId} for session ${session.identifier}`);
             await this.startFlow(sessionId, botId, trigger as Trigger & { flow: any }, session.identifier);
         }
     }

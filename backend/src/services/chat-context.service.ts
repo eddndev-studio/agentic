@@ -41,14 +41,23 @@ export function formatContextMessage(m: ContextMessage): string {
             else if (caption) text = `[Documento] ${caption}`;
             else text = "[Documento adjunto]";
             break;
+        case "PTT":
+            text = desc ? `[Nota de voz: ${desc}]` : "[Nota de voz]";
+            break;
         case "STICKER":
             text = "[Sticker]";
+            break;
+        case "REACTION":
+            text = caption ? `[Reacción: ${caption}]` : "[Quitó reacción]";
             break;
         case "CONTACT":
             text = caption ? `[Contacto: ${caption}]` : "[Contacto compartido]";
             break;
         case "LOCATION":
             text = "[Ubicación compartida]";
+            break;
+        case "POLL":
+            text = caption ? `[Encuesta: ${caption}]` : "[Encuesta]";
             break;
         default:
             text = caption || `[${m.type.toLowerCase()}]`;
