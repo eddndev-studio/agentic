@@ -348,9 +348,17 @@ import Layout from "../../layouts/Layout.astro";
                                             <span class="text-[10px] text-wa-text-secondary" x-text="shortTimeMs(ev.timestamp)"></span>
                                         </div>
                                         <div class="mt-1 text-[11px] text-wa-text-secondary space-y-0.5">
+                                            <!-- Thinking/reasoning (collapsible) -->
+                                            <div x-show="ev.data?.thinking" x-data="{ open: false }">
+                                                <button @click="open = !open" class="flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300">
+                                                    <svg class="w-3 h-3 transition-transform" :class="open && 'rotate-90'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                                    <span x-text="'Pensamiento (' + (ev.data?.usage?.thinkingTokens || '?') + ' tokens)'"></span>
+                                                </button>
+                                                <pre x-show="open" x-text="ev.data?.thinking" class="mt-1 text-[10px] text-orange-300/70 bg-orange-500/5 border border-orange-500/10 rounded p-2 max-h-48 overflow-auto whitespace-pre-wrap font-mono"></pre>
+                                            </div>
                                             <div x-show="ev.data?.content" x-text="((ev.data?.content || '').substring(0, 100)) + (ev.data?.content?.length > 100 ? '...' : '')"></div>
                                             <div x-show="ev.data?.toolCalls?.length" x-text="ev.data?.toolCalls?.length + ' tool calls'" class="text-green-400/70"></div>
-                                            <div x-show="ev.data?.usage" class="text-[9px]" x-text="(ev.data?.usage?.promptTokens || 0) + ' \u2192 ' + (ev.data?.usage?.completionTokens || 0) + ' tokens'"></div>
+                                            <div x-show="ev.data?.usage" class="text-[9px]" x-text="(ev.data?.usage?.promptTokens || 0) + ' \u2192 ' + (ev.data?.usage?.completionTokens || 0) + (ev.data?.usage?.thinkingTokens ? ' + ' + ev.data.usage.thinkingTokens + ' thinking' : '') + ' tokens'"></div>
                                         </div>
                                     </div>
                                 </template>
@@ -438,7 +446,8 @@ import Layout from "../../layouts/Layout.astro";
                                 <div x-show="cumulativeTokens.prompt > 0" class="flex flex-wrap gap-1.5">
                                     <span class="text-[10px] px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400" x-text="'Prompt: ' + cumulativeTokens.prompt.toLocaleString()"></span>
                                     <span class="text-[10px] px-2 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-400" x-text="'Completion: ' + cumulativeTokens.completion.toLocaleString()"></span>
-                                    <span class="text-[10px] px-2 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400" x-text="'Total: ' + (cumulativeTokens.prompt + cumulativeTokens.completion).toLocaleString()"></span>
+                                    <span x-show="cumulativeTokens.thinking > 0" class="text-[10px] px-2 py-1 rounded bg-orange-500/10 border border-orange-500/20 text-orange-400" x-text="'Thinking: ' + cumulativeTokens.thinking.toLocaleString()"></span>
+                                    <span class="text-[10px] px-2 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400" x-text="'Total: ' + (cumulativeTokens.prompt + cumulativeTokens.completion + cumulativeTokens.thinking).toLocaleString()"></span>
                                 </div>
 
                                 <!-- System prompt -->
@@ -512,7 +521,7 @@ import Layout from "../../layouts/Layout.astro";
                 <div class="flex items-center justify-between px-3 py-2 border-t border-wa-border bg-wa-bg-panel flex-shrink-0">
                     <span class="text-[10px] text-wa-text-secondary" x-text="debugEvents.length + ' events'"></span>
                     <button
-                        @click="debugEvents = []; currentAIContext = null; lastTriggerEval = null; cumulativeTokens = { prompt: 0, completion: 0 }"
+                        @click="debugEvents = []; currentAIContext = null; lastTriggerEval = null; cumulativeTokens = { prompt: 0, completion: 0, thinking: 0 }"
                         class="text-[10px] text-wa-text-secondary hover:text-red-400 transition-colors"
                     >Clear</button>
                 </div>
@@ -542,7 +551,7 @@ import Layout from "../../layouts/Layout.astro";
             currentAIContext: null as any,
             lastTriggerEval: null as any,
             currentLabels: [] as any[],
-            cumulativeTokens: { prompt: 0, completion: 0 },
+            cumulativeTokens: { prompt: 0, completion: 0, thinking: 0 },
 
             // Mobile
             showDebugMobile: false,
@@ -677,6 +686,7 @@ import Layout from "../../layouts/Layout.astro";
                                         const usage = data.data?.usage || data.usage;
                                         this.cumulativeTokens.prompt += usage.promptTokens || 0;
                                         this.cumulativeTokens.completion += usage.completionTokens || 0;
+                                        this.cumulativeTokens.thinking += usage.thinkingTokens || 0;
                                     }
                                     this.pushDebugEvent(data.type, data.data || data);
                                     break;
@@ -749,7 +759,7 @@ import Layout from "../../layouts/Layout.astro";
                     this.lastTriggerEval = null;
                     this.currentLabels = [];
                     this.isProcessing = false;
-                    this.cumulativeTokens = { prompt: 0, completion: 0 };
+                    this.cumulativeTokens = { prompt: 0, completion: 0, thinking: 0 };
                     (window as any).__toast?.info('Session reset');
                 } catch (e: any) {
                     (window as any).__toast?.error('Reset failed: ' + (e.message || 'Unknown error'));

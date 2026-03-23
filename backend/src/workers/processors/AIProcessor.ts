@@ -243,8 +243,9 @@ export class AIProcessor {
                     botId: bot.id,
                     sessionId,
                     content: response.content,
+                    thinking: response.thinking ?? null,
                     toolCalls: response.toolCalls.map(tc => ({ name: tc.name, args: tc.arguments })),
-                    usage: response.usage ? { promptTokens: response.usage.promptTokens, completionTokens: response.usage.completionTokens } : null,
+                    usage: response.usage ? { promptTokens: response.usage.promptTokens, completionTokens: response.usage.completionTokens, thinkingTokens: response.usage.thinkingTokens } : null,
                     model: usedFallback ? activeModel : aiConfig.aiModel,
                 });
             }

@@ -29,10 +29,12 @@ export interface AICompletionRequest {
 
 export interface AICompletionResponse {
     content: string | null;
+    thinking?: string | null;
     toolCalls: AIToolCall[];
     usage?: {
         promptTokens: number;
         completionTokens: number;
+        thinkingTokens?: number;
         totalTokens: number;
     };
 }

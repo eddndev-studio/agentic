@@ -68,15 +68,19 @@ export class GeminiProvider implements AIProvider {
             throw new Error(`Gemini API error (${res.status}): ${err}`);
         }
 
-        const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string; functionCall?: { name: string; args?: Record<string, unknown>; thought_signature?: string } }> } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } };
+        const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean; functionCall?: { name: string; args?: Record<string, unknown>; thought_signature?: string } }> } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } };
         const candidate = data.candidates?.[0];
         const parts = candidate?.content?.parts ?? [];
 
         let content: string | null = null;
+        let thinking: string | null = null;
         const toolCalls: AICompletionResponse["toolCalls"] = [];
 
         for (const part of parts) {
-            if (part.text) {
+            if (part.text && part.thought) {
+                // Thinking/reasoning content (internal model deliberation)
+                thinking = (thinking ?? "") + part.text;
+            } else if (part.text) {
                 content = (content ?? "") + part.text;
             }
             if (part.functionCall) {
@@ -92,10 +96,12 @@ export class GeminiProvider implements AIProvider {
         const usage = data.usageMetadata;
         return {
             content,
+            thinking,
             toolCalls,
             usage: usage ? {
                 promptTokens: usage.promptTokenCount ?? 0,
                 completionTokens: usage.candidatesTokenCount ?? 0,
+                thinkingTokens: usage.thoughtsTokenCount ?? 0,
                 totalTokens: usage.totalTokenCount ?? 0,
             } : undefined,
         };
