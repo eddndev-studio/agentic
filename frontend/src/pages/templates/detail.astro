@@ -189,7 +189,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 				<!-- AI Enabled Toggle -->
 				<div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
 					<div class="min-w-0">
-						<label class="text-sm font-medium text-white" x-text="$t('ai_enabled')">AI Enabled</label>
+						<label class="text-sm font-medium text-white" x-text="$t('ai_enabled')">IA Habilitada</label>
 						<p class="text-xs text-wa-text-secondary mt-1" x-text="$t('ai_enabled_desc')"></p>
 					</div>
 					<button type="button" @click="aiConfig.aiEnabled = !aiConfig.aiEnabled"
@@ -197,6 +197,20 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						:class="aiConfig.aiEnabled ? 'bg-wa-green' : 'bg-wa-bg-hover'">
 						<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
 							:class="aiConfig.aiEnabled ? 'translate-x-6' : 'translate-x-1'"></span>
+					</button>
+				</div>
+
+				<!-- Default Session AI Toggle -->
+				<div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+					<div class="min-w-0">
+						<label class="text-sm font-medium text-white">IA encendida por defecto</label>
+						<p class="text-xs text-wa-text-secondary mt-1">Las sesiones nuevas inician con IA activa. Los flujos pueden cambiarla por sesión.</p>
+					</div>
+					<button type="button" @click="aiConfig.defaultSessionAi = !aiConfig.defaultSessionAi"
+						class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0"
+						:class="aiConfig.defaultSessionAi ? 'bg-wa-green' : 'bg-wa-bg-hover'">
+						<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+							:class="aiConfig.defaultSessionAi ? 'translate-x-6' : 'translate-x-1'"></span>
 					</button>
 				</div>
 
@@ -441,6 +455,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 				name: "",
 				description: "",
 				aiEnabled: true,
+				defaultSessionAi: false,
 				aiProvider: "GEMINI",
 				aiModel: "gemini-2.5-flash",
 				systemPrompt: "",
@@ -468,6 +483,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						name: this.template.name || "",
 						description: this.template.description || "",
 						aiEnabled: this.template.aiEnabled ?? true,
+						defaultSessionAi: this.template.defaultSessionAi ?? false,
 						aiProvider: this.template.aiProvider || "GEMINI",
 						aiModel: this.template.aiModel || "gemini-2.5-flash",
 						systemPrompt: this.template.systemPrompt || "",

@@ -146,6 +146,7 @@ export const botController = new Elysia({ prefix: "/bots" })
             if (b.credentials !== undefined) data.credentials = b.credentials;
             if (b.ipv6Address !== undefined) data.ipv6Address = b.ipv6Address;
             if (b.aiEnabled !== undefined) data.aiEnabled = b.aiEnabled;
+            if (b.defaultSessionAi !== undefined) data.defaultSessionAi = b.defaultSessionAi;
             if (b.aiProvider !== undefined) data.aiProvider = b.aiProvider as AIProvider;
             if (b.aiModel !== undefined) data.aiModel = b.aiModel;
             if (b.systemPrompt !== undefined) data.systemPrompt = b.systemPrompt;

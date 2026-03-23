@@ -28,6 +28,7 @@ model Bot {
   updatedAt             DateTime     @updatedAt
   ipv6Address           String?
   aiEnabled             Boolean      @default(false)
+  defaultSessionAi      Boolean      @default(false)
   aiModel               String       @default("gemini-2.5-flash")
   aiProvider            AIProvider   @default(GEMINI)
   systemPrompt          String?
@@ -57,6 +58,7 @@ model Template {
   name          String
   description   String?
   aiEnabled     Boolean      @default(true)
+  defaultSessionAi Boolean   @default(false)
   aiModel       String       @default("gemini-2.5-flash")
   aiProvider    AIProvider   @default(GEMINI)
   systemPrompt  String?

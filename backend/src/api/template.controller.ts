@@ -70,7 +70,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
     // Update template
     .put("/:id", async ({ params: { id }, body, set }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
-        const { name, description, aiEnabled, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, contextMessages, autoReadReceipts, excludeGroups, ignoredLabels, variables } = body as any;
+        const { name, description, aiEnabled, defaultSessionAi, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, contextMessages, autoReadReceipts, excludeGroups, ignoredLabels, variables } = body as any;
 
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
@@ -78,6 +78,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
             if (name !== undefined) data.name = name;
             if (description !== undefined) data.description = description;
             if (aiEnabled !== undefined) data.aiEnabled = aiEnabled;
+            if (defaultSessionAi !== undefined) data.defaultSessionAi = defaultSessionAi;
             if (aiModel !== undefined) data.aiModel = aiModel;
             if (aiProvider !== undefined) data.aiProvider = aiProvider as AIProvider;
             if (systemPrompt !== undefined) data.systemPrompt = systemPrompt;

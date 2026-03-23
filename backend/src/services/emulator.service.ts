@@ -19,11 +19,11 @@ export class EmulatorService {
     static async createSession(botId: string): Promise<any> {
         const bot = await prisma.bot.findUnique({
             where: { id: botId },
-            include: { template: { select: { aiEnabled: true } } },
+            include: { template: { select: { defaultSessionAi: true } } },
         });
         if (!bot) throw new Error('Bot not found');
 
-        const defaultAi = bot.template?.aiEnabled ?? bot.aiEnabled ?? false;
+        const defaultAi = bot.template?.defaultSessionAi ?? bot.defaultSessionAi ?? false;
         const identifier = `${EMU_PREFIX}${botId}/${Date.now()}`;
         const session = await prisma.session.create({
             data: {

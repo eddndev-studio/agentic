@@ -602,6 +602,20 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </button>
                     </div>
 
+                    <!-- Default Session AI Toggle -->
+                    <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+                        <div class="min-w-0">
+                            <label class="text-sm font-medium text-white">IA encendida por defecto</label>
+                            <p class="text-xs text-wa-text-secondary mt-1">Las sesiones nuevas inician con IA activa. Los flujos pueden cambiarla por sesión.</p>
+                        </div>
+                        <button type="button" @click="aiConfig.defaultSessionAi = !aiConfig.defaultSessionAi"
+                            class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
+                            :class="aiConfig.defaultSessionAi ? 'bg-wa-green' : 'bg-gray-700'">
+                            <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
+                                :class="aiConfig.defaultSessionAi ? 'left-6' : 'left-0.5'"></span>
+                        </button>
+                    </div>
+
                     <!-- Provider -->
                     <div>
                         <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('ai_provider')">Provider</label>
@@ -1643,6 +1657,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             // AI Config State
             aiConfig: {
                 aiEnabled: false,
+                defaultSessionAi: false,
                 aiProvider: "GEMINI",
                 aiModel: "gemini-2.5-flash",
                 systemPrompt: "",
@@ -1741,6 +1756,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     // Initialize AI config from bot data
                     this.aiConfig = {
                         aiEnabled: this.bot.aiEnabled || false,
+                        defaultSessionAi: this.bot.defaultSessionAi || false,
                         aiProvider: this.bot.aiProvider || "GEMINI",
                         aiModel: this.bot.aiModel || "gemini-2.5-flash",
                         systemPrompt: this.bot.systemPrompt || "",
