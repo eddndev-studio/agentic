@@ -4,9 +4,7 @@ import makeWASocket, {
     DisconnectReason,
     makeCacheableSignalKeyStore,
     fetchLatestBaileysVersion,
-    downloadMediaMessage,
     type WASocket,
-    type WAMessage,
     jidNormalizedUser
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
@@ -16,15 +14,13 @@ import * as https from 'node:https';
 import { execSync } from 'node:child_process';
 import QRCode from 'qrcode';
 import { prisma } from './postgres.service';
-import { flowEngine } from '../core/flow';
 import { BotConfigService } from './bot-config.service';
-import { MessageAccumulator } from './accumulator.service';
-import { queueService } from './queue.service';
 import { eventBus } from './event-bus';
-import { SessionStatus, Platform } from '@prisma/client';
-import { StorageService } from './storage.service';
 import { generateLinkPreview } from './link-preview.service';
 import pino from 'pino';
+import { LabelService } from './label.service';
+import { MessageIngestService, isMessageDuplicate } from './message-ingest.service';
+import { upsertSessionFromChat, updateContactName } from './session-helpers';
 
 const logger = pino({ level: 'silent' });
 
@@ -41,34 +37,6 @@ const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const decryptFailures = new Map<string, { count: number; lastPurge: number }>();
 const DECRYPT_FAILURE_THRESHOLD = 5;
 const PURGE_COOLDOWN = 6 * 60 * 60 * 1000; // 6 hours
-
-// Label reconciliation timers: botId -> intervalId
-const labelReconcileTimers = new Map<string, ReturnType<typeof setInterval>>();
-const LABEL_RECONCILE_INTERVAL = 5 * 60 * 1000; // 5 minutes
-
-// Dedup guard: prevents double-firing when local code emits AND Baileys re-emits
-// Key: "botId:sessionId:labelId:action", value: timestamp
-const recentLabelEvents = new Map<string, number>();
-const LABEL_DEDUP_TTL = 30_000; // 30 seconds
-
-// ─── In-memory message dedup cache (prevents reprocessing on reconnect/replay) ───
-const MESSAGE_DEDUP_TTL = 20 * 60 * 1000; // 20 minutes
-const MESSAGE_DEDUP_MAX = 5000;
-const messageDedup = new Map<string, number>(); // dedupKey -> timestamp
-
-function isMessageDuplicate(key: string): boolean {
-    const now = Date.now();
-    // Lazy cleanup when cache reaches max size
-    if (messageDedup.size >= MESSAGE_DEDUP_MAX) {
-        for (const [k, ts] of messageDedup) {
-            if (now - ts > MESSAGE_DEDUP_TTL) messageDedup.delete(k);
-        }
-    }
-    const existing = messageDedup.get(key);
-    if (existing && now - existing < MESSAGE_DEDUP_TTL) return true;
-    messageDedup.set(key, now);
-    return false;
-}
 
 // ─── Watchdog: detect silent socket hangs (no events for extended period) ───
 const WATCHDOG_TIMEOUT = 30 * 60 * 1000; // 30 minutes → force reconnect
@@ -125,90 +93,6 @@ let shuttingDown = false;
 const AUTH_DIR = 'auth_info_baileys';
 
 export class BaileysService {
-
-    /**
-     * Update a session's name from a contact object (used by contacts.update, contacts.upsert, messaging-history.set).
-     * Returns true if the name was changed.
-     */
-    private static async updateContactName(botId: string, contact: { id?: string; notify?: string; verifiedName?: string; name?: string }): Promise<boolean> {
-        if (!contact.id) return false;
-        const name = contact.notify || contact.verifiedName || contact.name;
-        if (!name) return false;
-        const jid = jidNormalizedUser(contact.id);
-        const session = await prisma.session.findUnique({
-            where: { botId_identifier: { botId, identifier: jid } },
-        });
-        if (session && session.name !== name) {
-            await prisma.session.update({ where: { id: session.id }, data: { name } });
-            eventBus.emitBotEvent({ type: 'session:updated', botId, sessionId: session.id, name });
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Find-or-create a session from a chat JID (used by chats.upsert, messaging-history.set, labels, messages).
-     * Handles LID↔phone normalization and P2002 race conditions.
-     * @param altIdentifier Optional fallback identifier to search (e.g. raw LID when primary is resolved phone)
-     */
-    private static async upsertSessionFromChat(botId: string, jid: string, name?: string, altIdentifier?: string): Promise<{ session: any; created: boolean }> {
-        const identifier = jidNormalizedUser(jid);
-        let session = await prisma.session.findUnique({
-            where: { botId_identifier: { botId, identifier } },
-        });
-        if (session) return { session, created: false };
-
-        // Fallback: check if session exists under an alternate identifier (e.g. LID vs phone)
-        if (altIdentifier && altIdentifier !== identifier) {
-            session = await prisma.session.findUnique({
-                where: { botId_identifier: { botId, identifier: altIdentifier } },
-            });
-            if (session) {
-                // Migrate session to the canonical identifier (phone > LID)
-                if (!identifier.endsWith('@lid')) {
-                    try {
-                        session = await prisma.session.update({
-                            where: { id: session.id },
-                            data: { identifier },
-                        });
-                        console.log(`[Baileys] Migrated session identifier from ${altIdentifier} to ${identifier}`);
-                    } catch (e: any) {
-                        if (e.code === 'P2002') {
-                            // Another session already has this identifier — merge by deleting the old one
-                            const canonical = await prisma.session.findUnique({
-                                where: { botId_identifier: { botId, identifier } },
-                            });
-                            if (canonical) {
-                                session = canonical;
-                            }
-                        }
-                    }
-                }
-                return { session, created: false };
-            }
-        }
-
-        try {
-            session = await prisma.session.create({
-                data: {
-                    botId,
-                    platform: Platform.WHATSAPP,
-                    identifier,
-                    name: name || identifier.split('@')[0],
-                    status: SessionStatus.CONNECTED,
-                },
-            });
-            return { session, created: true };
-        } catch (e: any) {
-            if (e.code === 'P2002') {
-                session = await prisma.session.findUnique({
-                    where: { botId_identifier: { botId, identifier } },
-                });
-                return { session, created: false };
-            }
-            throw e;
-        }
-    }
 
     static async startSession(botId: string) {
         if (sessions.has(botId)) {
@@ -346,7 +230,7 @@ export class BaileysService {
                     qrCodes.delete(botId);
                     stopWatchdog(botId);
                     connectionTimestamps.delete(botId);
-                    BaileysService.stopLabelReconciliation(botId);
+                    LabelService.stopLabelReconciliation(botId);
                     eventBus.emitBotEvent({ type: 'bot:disconnected', botId, statusCode });
 
                     if (shouldReconnect && !shuttingDown) {
@@ -380,14 +264,15 @@ export class BaileysService {
                     // Force full label sync — reuse syncLabels() which clears cache + version file
                     setTimeout(async () => {
                         try {
-                            await BaileysService.syncLabels(botId);
+                            const s = sessions.get(botId);
+                            if (s) await LabelService.syncLabels(s, botId);
                             console.log(`[Baileys] Full label sync completed for Bot ${botId}`);
                         } catch (e: any) {
                             console.warn(`[Baileys] Label sync failed for Bot ${botId}:`, e.message);
                         }
 
                         // Start periodic label reconciliation after initial sync
-                        BaileysService.startLabelReconciliation(botId);
+                        LabelService.startLabelReconciliation(botId, () => sessions.get(botId));
                     }, 5000);
                 }
             });
@@ -430,7 +315,7 @@ export class BaileysService {
                         }
 
                         // @ts-ignore
-                        await this.handleIncomingMessage(botId, msg);
+                        await MessageIngestService.handleIncomingMessage(botId, msg);
                     } catch (e) {
                         console.error(`[Baileys] Error in messages.upsert handler for msg ${msg.key.id}:`, e);
                     }
@@ -438,149 +323,18 @@ export class BaileysService {
             });
 
             sock.ev.on('labels.edit', async (label: any) => {
-                try {
-                    await prisma.label.upsert({
-                        where: { botId_waLabelId: { botId, waLabelId: String(label.id) } },
-                        update: {
-                            name: label.name,
-                            color: label.color ?? 0,
-                            deleted: label.deleted ?? false,
-                            predefinedId: label.predefinedId ?? null,
-                        },
-                        create: {
-                            botId,
-                            waLabelId: String(label.id),
-                            name: label.name,
-                            color: label.color ?? 0,
-                            deleted: label.deleted ?? false,
-                            predefinedId: label.predefinedId ?? null,
-                        },
-                    });
-                    console.log(`[Baileys] Label synced: "${label.name}" (${label.id}) for Bot ${botId}`);
-                } catch (e) {
-                    console.error(`[Baileys] labels.edit error:`, e);
-                }
+                await LabelService.handleLabelEdit(botId, label);
             });
 
             sock.ev.on('labels.association', async (event: any) => {
-                try {
-                    const association = event.association;
-                    console.log(`[Baileys] labels.association event:`, JSON.stringify(event));
-
-                    if (event.type !== 'add' && event.type !== 'remove') return;
-                    if (association.type !== 'label_jid') return;
-
-                    const rawChatId = association.chatId;
-                    const waLabelId = String(association.labelId);
-
-                    // Resolve chatId: if LID, convert to phone JID via Baileys mapping
-                    let resolvedJid = jidNormalizedUser(rawChatId);
-                    if (resolvedJid.endsWith('@lid')) {
-                        try {
-                            const pn = await (sock as any).signalRepository.lidMapping.getPNForLID(resolvedJid);
-                            if (pn) {
-                                resolvedJid = jidNormalizedUser(pn);
-                                console.log(`[Baileys] LID ${rawChatId} resolved to ${resolvedJid}`);
-                            }
-                        } catch (e: any) {
-                            console.warn(`[Baileys] LID resolution failed for ${rawChatId}:`, e.message);
-                        }
-                    }
-
-                    // Find-or-create session, passing rawChatId as alt so LID↔phone dedup works
-                    const altId = resolvedJid !== rawChatId ? rawChatId : undefined;
-                    const { session, created: sessionCreated } = await BaileysService.upsertSessionFromChat(
-                        botId, resolvedJid, undefined, altId
-                    );
-                    if (!session) {
-                        console.warn(`[Baileys] labels.association: Could not resolve session for ${rawChatId}`);
-                        return;
-                    }
-                    if (sessionCreated) {
-                        eventBus.emitBotEvent({ type: 'session:created', botId, session });
-                    }
-
-                    const label = await prisma.label.findUnique({
-                        where: { botId_waLabelId: { botId, waLabelId } },
-                    });
-                    if (!label) {
-                        console.warn(`[Baileys] labels.association: No label for waLabelId=${waLabelId}, skipping`);
-                        return;
-                    }
-
-                    // Dedup: skip if already processed recently (by this handler, ToolExecutor, or SessionController)
-                    const dedupKey = `${botId}:${session.id}:${label.id}:${event.type}`;
-                    const dedupTs = recentLabelEvents.get(dedupKey);
-                    if (dedupTs && Date.now() - dedupTs < LABEL_DEDUP_TTL) {
-                        console.log(`[Baileys] labels.association: Skipping duplicate for ${label.name} (${event.type})`);
-                        return;
-                    }
-                    // Mark as processed NOW to prevent repeated Baileys events
-                    recentLabelEvents.set(dedupKey, Date.now());
-
-                    if (event.type === 'add') {
-                        try {
-                            await prisma.sessionLabel.upsert({
-                                where: { sessionId_labelId: { sessionId: session.id, labelId: label.id } },
-                                update: {},
-                                create: { sessionId: session.id, labelId: label.id },
-                            });
-                        } catch (e: any) {
-                            if (e.code !== 'P2002') throw e; // Ignore duplicate race condition
-                        }
-                        console.log(`[Baileys] Label "${label.name}" added to session ${resolvedJid}`);
-                    } else {
-                        await prisma.sessionLabel.deleteMany({
-                            where: { sessionId: session.id, labelId: label.id },
-                        });
-                        console.log(`[Baileys] Label "${label.name}" removed from session ${resolvedJid}`);
-                    }
-
-                    // Emit SSE so the frontend updates in real-time
-                    const updatedLabels = await prisma.sessionLabel.findMany({
-                        where: { sessionId: session.id },
-                        include: { label: true },
-                    });
-                    const labelPayload = updatedLabels.map(sl => ({
-                        id: sl.label.id,
-                        name: sl.label.name,
-                        color: sl.label.color,
-                        waLabelId: sl.label.waLabelId,
-                    }));
-                    // Specific event for notification filtering
-                    eventBus.emitBotEvent({
-                        type: event.type === 'add' ? 'session:labels:add' : 'session:labels:remove',
-                        botId,
-                        sessionId: session.id,
-                        labels: labelPayload,
-                        changedLabelId: label.id,
-                        changedLabelName: label.name,
-                    });
-                    // Generic event for SSE / monitor UI
-                    eventBus.emitBotEvent({
-                        type: 'session:labels',
-                        botId,
-                        sessionId: session.id,
-                        labels: labelPayload,
-                        changedLabelId: label.id,
-                        changedLabelName: label.name,
-                        action: event.type as 'add' | 'remove',
-                    });
-
-                    // Evaluate label-based flow triggers
-                    flowEngine.processLabelEvent(session.id, botId, label.name, event.type as 'add' | 'remove').catch(err => {
-                        console.error(`[Baileys] FlowEngine label trigger error:`, err);
-                    });
-                } catch (e) {
-                    console.error(`[Baileys] labels.association error:`, e);
-                }
+                await LabelService.handleLabelAssociation(botId, event, sock);
             });
 
             // --- contacts.update: update session names when contacts change ---
             sock.ev.on('contacts.update', async (updates: any[]) => {
                 for (const contact of updates) {
                     try {
-                        await BaileysService.updateContactName(botId, contact);
+                        await updateContactName(botId, contact);
                     } catch (e: any) {
                         console.warn(`[Baileys] contacts.update error:`, e.message);
                     }
@@ -591,7 +345,7 @@ export class BaileysService {
             sock.ev.on('contacts.upsert', async (contacts: any[]) => {
                 for (const contact of contacts) {
                     try {
-                        await BaileysService.updateContactName(botId, contact);
+                        await updateContactName(botId, contact);
                     } catch (e: any) {
                         console.warn(`[Baileys] contacts.upsert error:`, e.message);
                     }
@@ -607,7 +361,7 @@ export class BaileysService {
                         const jid = jidNormalizedUser(chat.id);
                         if (bot && BotConfigService.resolveExcludeGroups(bot) && jid.endsWith('@g.us')) continue;
                         const name = chat.name || chat.subject || undefined;
-                        const { session, created } = await BaileysService.upsertSessionFromChat(botId, jid, name);
+                        const { session, created } = await upsertSessionFromChat(botId, jid, name);
                         if (created && session) {
                             eventBus.emitBotEvent({ type: 'session:created', botId, session });
                         }
@@ -630,7 +384,7 @@ export class BaileysService {
                             if (!chat.id || chat.id === 'status@broadcast') continue;
                             const jid = jidNormalizedUser(chat.id);
                             if (bot && BotConfigService.resolveExcludeGroups(bot) && jid.endsWith('@g.us')) continue;
-                            await BaileysService.upsertSessionFromChat(botId, jid, chat.name || chat.subject);
+                            await upsertSessionFromChat(botId, jid, chat.name || chat.subject);
                         } catch {}
                     }
                 }
@@ -639,7 +393,7 @@ export class BaileysService {
                 if (histContacts?.length) {
                     for (const contact of histContacts) {
                         try {
-                            await BaileysService.updateContactName(botId, contact);
+                            await updateContactName(botId, contact);
                         } catch {}
                     }
                 }
@@ -863,245 +617,6 @@ export class BaileysService {
         }
     }
 
-    private static async handleIncomingMessage(botId: string, msg: WAMessage & { message: any }) { // Type intersection specific to local context
-        const rawFrom = msg.key.remoteJid;
-        if (!rawFrom) return;
-
-        // CRITICAL: Normalize JID and resolve LID → phone when possible
-        const normalizedRaw = jidNormalizedUser(rawFrom);
-        let from = normalizedRaw;
-        if (from.includes('@lid') && (msg.key as any).remoteJidAlt) {
-            from = jidNormalizedUser((msg.key as any).remoteJidAlt);
-        }
-        // Keep the original LID as alt identifier for session dedup
-        const altFrom = from !== normalizedRaw ? normalizedRaw : undefined;
-
-        // Unwrap view-once, ephemeral, and document-with-caption wrappers
-        let m = msg.message;
-        if (m.viewOnceMessage) m = m.viewOnceMessage.message;
-        else if (m.viewOnceMessageV2) m = m.viewOnceMessageV2.message;
-        else if (m.ephemeralMessage) m = m.ephemeralMessage.message;
-        if (m.documentWithCaptionMessage) m = m.documentWithCaptionMessage.message;
-
-        // Skip protocol messages (edits/deletes handled elsewhere)
-        if (m.protocolMessage || m.senderKeyDistributionMessage) return;
-
-        // Detect message type
-        const msgType =
-            m.stickerMessage   ? 'STICKER' :
-            m.reactionMessage  ? 'REACTION' :
-            m.imageMessage     ? 'IMAGE' :
-            m.videoMessage     ? 'VIDEO' :
-            m.audioMessage     ? (m.audioMessage.ptt ? 'PTT' : 'AUDIO') :
-            m.documentMessage  ? 'DOCUMENT' :
-            m.contactMessage   ? 'CONTACT' :
-            m.contactsArrayMessage ? 'CONTACT' :
-            m.locationMessage  ? 'LOCATION' :
-            m.liveLocationMessage ? 'LOCATION' :
-            m.pollCreationMessage ? 'POLL' :
-            'TEXT';
-
-        // Extract content based on type
-        let content = '';
-        let extraMetadata: Record<string, any> = {};
-
-        switch (msgType) {
-            case 'TEXT':
-                content = m.conversation || m.extendedTextMessage?.text || '';
-                break;
-            case 'IMAGE':
-                content = m.imageMessage?.caption || '';
-                break;
-            case 'VIDEO':
-                content = m.videoMessage?.caption || '';
-                break;
-            case 'DOCUMENT':
-                content = m.documentMessage?.caption || m.documentMessage?.fileName || '';
-                break;
-            case 'STICKER':
-                content = '';
-                extraMetadata.animated = !!m.stickerMessage?.isAnimated;
-                break;
-            case 'REACTION':
-                content = m.reactionMessage?.text || '';  // emoji or empty = removed
-                extraMetadata.reactedTo = {
-                    id: m.reactionMessage?.key?.id,
-                    fromMe: m.reactionMessage?.key?.fromMe,
-                };
-                break;
-            case 'CONTACT': {
-                const single = m.contactMessage;
-                const arr = m.contactsArrayMessage?.contacts;
-                if (single) {
-                    content = single.displayName || '';
-                    extraMetadata.vcard = single.vcard;
-                } else if (arr) {
-                    content = arr.map((c: any) => c.displayName).join(', ');
-                    extraMetadata.contacts = arr.map((c: any) => ({ name: c.displayName, vcard: c.vcard }));
-                }
-                break;
-            }
-            case 'LOCATION': {
-                const loc = m.locationMessage || m.liveLocationMessage;
-                content = loc?.name || loc?.address || '';
-                extraMetadata.latitude = loc?.degreesLatitude;
-                extraMetadata.longitude = loc?.degreesLongitude;
-                extraMetadata.live = !!m.liveLocationMessage;
-                break;
-            }
-            case 'POLL':
-                content = m.pollCreationMessage?.name || '';
-                extraMetadata.options = m.pollCreationMessage?.options?.map((o: any) => o.optionName) || [];
-                break;
-            default: // AUDIO, PTT
-                content = '';
-                break;
-        }
-
-        const hasMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'STICKER', 'PTT'].includes(msgType);
-
-        console.log(`[${new Date().toISOString()}] [Baileys] Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${(content || '').substring(0, 50)}...`);
-
-        try {
-            // 1. Resolve Bot (include template for messageDelay resolution)
-            const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
-            if (!bot) return;
-
-            // 2. Resolve Session (with LID↔phone dedup) — ALWAYS, even for filtered messages
-            const { session, created: sessionCreated } = await BaileysService.upsertSessionFromChat(
-                bot.id, from, msg.pushName || undefined, altFrom
-            );
-            if (!session) throw new Error(`Could not resolve session for ${from}`);
-            if (sessionCreated) {
-                eventBus.emitBotEvent({ type: 'session:created', botId, session });
-            }
-
-            // 3. ALWAYS persist message to DB (every type, every group, every direction)
-            const messageExternalId = msg.key.id || `msg_${Date.now()}`;
-            const messageData = {
-                sessionId: session.id,
-                sender: from,
-                fromMe: msg.key.fromMe || false,
-                content,
-                type: msgType,
-                isProcessed: false,
-                ...(Object.keys(extraMetadata).length > 0 ? { metadata: extraMetadata } : {}),
-            };
-
-            let message: any;
-            try {
-                message = await prisma.message.create({
-                    data: { externalId: messageExternalId, ...messageData },
-                });
-            } catch (e: any) {
-                if (e.code === 'P2002') {
-                    console.log(`[Baileys] Duplicate message ${messageExternalId}, skipping processing.`);
-                    return;
-                }
-                throw e;
-            }
-
-            // 4. Download media (stickers, images, audio, video, documents, PTT)
-            if (hasMedia) {
-                try {
-                    await BaileysService.downloadAndAttachMedia(msg, msgType, message.id, botId);
-                    const updated = await prisma.message.findUnique({ where: { id: message.id } });
-                    if (updated) message = updated;
-
-                    // Generate AI descriptions only for IMAGE and DOCUMENT (skip stickers, audio, etc.)
-                    if (msgType === 'IMAGE' || msgType === 'DOCUMENT') {
-                        BaileysService.generateMediaDescription(message.id, msgType, (message.metadata as any)?.mediaUrl, bot.aiProvider)
-                            .catch(err => console.warn(`[Baileys] Media description failed for ${messageExternalId}:`, err.message));
-                    }
-                } catch (mediaErr) {
-                    console.error(`[Baileys] Media download failed for ${messageExternalId}:`, mediaErr);
-                    const placeholder = `[${msgType.toLowerCase()} adjunto no pudo ser descargado]`;
-                    const updatedContent = content ? `${content}\n${placeholder}` : placeholder;
-                    await prisma.message.update({
-                        where: { id: message.id },
-                        data: { content: updatedContent },
-                    }).catch(() => {});
-                    message = { ...message, content: updatedContent };
-                }
-            }
-
-            // Touch session so it sorts to top of the list
-            prisma.session.update({
-                where: { id: session.id },
-                data: { updatedAt: new Date() },
-            }).catch(() => {}); // fire-and-forget
-
-            eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
-
-            // ── From here on: filters only affect PROCESSING (flows, AI), NOT storage ──
-
-            // Skip processing for non-conversational types (reactions, stickers, polls, etc.)
-            if (['REACTION', 'STICKER', 'CONTACT', 'LOCATION', 'POLL'].includes(msgType)) return;
-
-            // Skip processing when bot is paused
-            if (bot.paused) {
-                console.log(`[Filter] Bot ${bot.name} is paused, skipping processing for ${from}`);
-                return;
-            }
-
-            // Skip processing for excluded group messages
-            if (BotConfigService.resolveExcludeGroups(bot) && from.endsWith("@g.us")) {
-                console.log(`[Filter] Group message from ${from} excluded for Bot ${bot.name}`);
-                return;
-            }
-
-            // Skip AI for sessions with ignored labels
-            const ignoredLabelIds = await BotConfigService.resolveIgnoredLabels(bot);
-            if (ignoredLabelIds.length > 0) {
-                const sessionLabels = await prisma.sessionLabel.findMany({
-                    where: { sessionId: session.id },
-                    select: { labelId: true },
-                });
-                const labelIds = sessionLabels.map(sl => sl.labelId);
-                if (labelIds.some(id => ignoredLabelIds.includes(id))) {
-                    console.log(`[Filter] Session ${from} has ignored label, skipping AI for Bot ${bot.name}`);
-                    return;
-                }
-            }
-
-            // 5. Evaluate triggers (flows + tools) for conversational messages
-            flowEngine.processIncomingMessage(session.id, message).catch(err => {
-                console.error(`[Baileys] FlowEngine error:`, err);
-            });
-
-            // Outgoing messages: only triggers, no AI
-            if (message.fromMe) return;
-
-            // Per-session AI gate
-            if (session.aiEnabled === false) {
-                console.log(`[Filter] AI disabled for session ${from}, skipping AI processing`);
-                return;
-            }
-
-            // 6. Enqueue AI processing
-            const handleAIError = async (err: any, sid: string) => {
-                console.error(`[${new Date().toISOString()}] [Baileys] AI enqueue error for session ${sid}:`, err);
-            };
-
-            const messageDelay = bot.template?.messageDelay ?? bot.messageDelay;
-            if (messageDelay > 0) {
-                MessageAccumulator.accumulate(
-                    session.id,
-                    message,
-                    messageDelay,
-                    (sid, msgs) => {
-                        queueService.enqueueAIProcessing(sid, msgs.map(m => m.id)).catch(err => handleAIError(err, sid));
-                    }
-                ).catch(err => console.error(`[Baileys] Accumulator error:`, err));
-            } else {
-                queueService.enqueueAIProcessing(session.id, [message.id]).catch(err => handleAIError(err, session.id));
-            }
-
-        } catch (e) {
-            console.error(`[${new Date().toISOString()}] [Baileys] Error processing message:`, e);
-        }
-    }
-
     /**
      * Track decryption failures per bot. After DECRYPT_FAILURE_THRESHOLD failures,
      * purge Signal session files to force renegotiation (auto-recovery from Bad MAC).
@@ -1117,85 +632,6 @@ export class BaileysService {
             this.purgeSignalSessions(botId);
             tracker.count = 0;
             tracker.lastPurge = now;
-        }
-    }
-
-    /**
-     * Download media from a WhatsApp message, store in R2 (or local fallback),
-     * and attach the URL to the persisted message.
-     */
-    static async downloadAndAttachMedia(msg: WAMessage & { message: any }, msgType: string, messageId: string, botId?: string): Promise<void> {
-        const buffer = await downloadMediaMessage(msg, 'buffer', {});
-        if (!buffer) return;
-
-        const MIME_MAP: Record<string, { ext: string; mime: string }> = {
-            IMAGE:    { ext: 'jpg',  mime: 'image/jpeg' },
-            AUDIO:    { ext: 'ogg',  mime: 'audio/ogg' },
-            PTT:      { ext: 'ogg',  mime: 'audio/ogg' },
-            VIDEO:    { ext: 'mp4',  mime: 'video/mp4' },
-            STICKER:  { ext: 'webp', mime: 'image/webp' },
-            DOCUMENT: { ext: msg.message.documentMessage?.fileName?.split('.').pop() || 'pdf',
-                        mime: msg.message.documentMessage?.mimetype || 'application/octet-stream' },
-        };
-        const { ext, mime } = MIME_MAP[msgType] || { ext: 'bin', mime: 'application/octet-stream' };
-        const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-        let mediaUrl: string;
-
-        if (StorageService.isConfigured()) {
-            // Upload to R2
-            const key = `media/${botId || 'unknown'}/${filename}`;
-            mediaUrl = await StorageService.upload(key, buffer as Buffer, mime);
-            console.log(`[Baileys] Media uploaded to R2: ${key}`);
-        } else {
-            // Fallback: save locally
-            const uploadDir = path.resolve('uploads');
-            if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-            const filePath = path.join(uploadDir, filename);
-            fs.writeFileSync(filePath, buffer as Buffer);
-            mediaUrl = filePath;
-            console.log(`[Baileys] Media saved locally: ${filePath}`);
-        }
-
-        // Merge mediaUrl with any existing metadata (e.g. sticker animated flag)
-        const existing = await prisma.message.findUnique({ where: { id: messageId }, select: { metadata: true } });
-        await prisma.message.update({
-            where: { id: messageId },
-            data: { metadata: { ...(existing?.metadata as any || {}), mediaUrl } },
-        });
-    }
-
-    /**
-     * Fire-and-forget: generate a brief media description for chat context.
-     * Uses a cheap vision/transcription call and caches in message metadata.
-     */
-    static async generateMediaDescription(messageId: string, msgType: string, mediaUrl: string | undefined, aiProvider: string): Promise<void> {
-        if (!mediaUrl) return;
-
-        try {
-            let description: string | null = null;
-
-            if (msgType === 'IMAGE') {
-                const { VisionService } = await import('./media/vision.service');
-                description = await VisionService.analyze(mediaUrl, "Describe this image briefly in 1 sentence in Spanish.", aiProvider);
-            } else if (msgType === 'DOCUMENT' && mediaUrl.toLowerCase().endsWith('.pdf')) {
-                const { PDFService } = await import('./media/pdf.service');
-                const text = await PDFService.extractText(mediaUrl);
-                description = text.substring(0, 200);
-            }
-            // Audio transcriptions are cached by AIProcessor after full processing
-
-            if (description) {
-                const msg = await prisma.message.findUnique({ where: { id: messageId } });
-                if (msg) {
-                    await prisma.message.update({
-                        where: { id: messageId },
-                        data: { metadata: { ...(msg.metadata as any || {}), mediaDescription: description } },
-                    });
-                }
-            }
-        } catch (e) {
-            console.warn(`[Baileys] Media description failed for ${messageId}:`, (e as Error).message);
         }
     }
 
@@ -1280,39 +716,9 @@ export class BaileysService {
 
             // Persist outgoing message to DB so it shows in the monitor
             if (sent?.key?.id) {
-                try {
-                    const { session } = await BaileysService.upsertSessionFromChat(botId, jidNormalizedUser(to));
-                    if (session) {
-                        const msgType =
-                            content.image ? 'IMAGE' :
-                            content.video ? 'VIDEO' :
-                            content.audio ? (content.ptt ? 'PTT' : 'AUDIO') :
-                            content.document ? 'DOCUMENT' :
-                            content.sticker ? 'STICKER' : 'TEXT';
-                        const textContent =
-                            content.text || content.caption || '';
-
-                        await prisma.message.create({
-                            data: {
-                                externalId: sent.key.id,
-                                sessionId: session.id,
-                                sender: jidNormalizedUser(to),
-                                fromMe: true,
-                                content: textContent,
-                                type: msgType,
-                                isProcessed: true,
-                            },
-                        }).catch((e: any) => {
-                            // P2002 = duplicate, already captured by messages.upsert
-                            if (e.code !== 'P2002') console.warn(`[Baileys] Failed to persist outgoing message:`, e.message);
-                        });
-
-                        eventBus.emitBotEvent({ type: 'message:sent', botId, sessionId: session.id, content: textContent });
-                    }
-                } catch (e) {
-                    // Non-critical: don't fail the send if persistence fails
+                MessageIngestService.persistOutgoingMessage(botId, to, sent.key.id, content).catch(e => {
                     console.warn(`[Baileys] Outgoing message persistence error:`, (e as Error).message);
-                }
+                });
             }
 
             return true;
@@ -1363,156 +769,28 @@ export class BaileysService {
         }
     }
 
+    // ─── Thin wrappers for backward compatibility (delegate to LabelService) ───
+
     static async syncLabels(botId: string): Promise<void> {
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
-
-        // Delete the local app state version file to force a full snapshot re-download.
-        // resyncAppState only fetches patches newer than the cached version,
-        // so if labels were already synced before the DB table existed, no events fire.
-        const versionFile = path.join(AUTH_DIR, botId, 'app-state-sync-version-regular_high.json');
-        try { fs.unlinkSync(versionFile); } catch {}
-
-        // Also clear the in-memory cache
-        await (sock as any).authState.keys.set({
-            'app-state-sync-version': { 'regular_high': null }
-        });
-
-        await (sock as any).resyncAppState(['regular_high'], true);
-    }
-
-    /**
-     * Resolve a phone JID to the LID that WhatsApp uses internally for app state patches.
-     * Falls back to the original JID if no mapping exists.
-     */
-    private static async resolveJidForAppState(sock: WASocket, phoneJid: string): Promise<string> {
-        try {
-            const lid = await (sock as any).signalRepository.lidMapping.getLIDForPN(phoneJid);
-            if (lid) {
-                console.log(`[Baileys] Resolved ${phoneJid} -> ${lid} for app state`);
-                return lid;
-            }
-        } catch {}
-        return phoneJid;
+        return LabelService.syncLabels(sock, botId);
     }
 
     static async addChatLabel(botId: string, chatJid: string, waLabelId: string): Promise<void> {
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
-        const jid = await this.resolveJidForAppState(sock, chatJid);
-        console.log(`[Baileys] addChatLabel: jid=${jid}, waLabelId=${waLabelId}`);
-        await (sock as any).addChatLabel(jid, waLabelId);
+        return LabelService.addChatLabel(sock, botId, chatJid, waLabelId);
     }
 
     static async removeChatLabel(botId: string, chatJid: string, waLabelId: string): Promise<void> {
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
-        const jid = await this.resolveJidForAppState(sock, chatJid);
-        console.log(`[Baileys] removeChatLabel: jid=${jid}, waLabelId=${waLabelId}`);
-        await (sock as any).removeChatLabel(jid, waLabelId);
+        return LabelService.removeChatLabel(sock, botId, chatJid, waLabelId);
     }
 
-    /**
-     * Mark a label event as already handled, so the Baileys labels.association
-     * handler skips it if it arrives within the dedup window.
-     */
     static markLabelEventHandled(botId: string, sessionId: string, labelId: string, action: 'add' | 'remove'): void {
-        const key = `${botId}:${sessionId}:${labelId}:${action}`;
-        recentLabelEvents.set(key, Date.now());
-        // Cleanup old entries
-        for (const [k, ts] of recentLabelEvents) {
-            if (Date.now() - ts > LABEL_DEDUP_TTL) recentLabelEvents.delete(k);
-        }
-    }
-
-    /**
-     * Periodic label reconciliation: detects label changes that Baileys missed.
-     * Forces a full app state re-sync, then compares DB state before/after to find
-     * removed labels that the re-sync didn't re-emit.
-     */
-    static async reconcileLabels(botId: string): Promise<void> {
-        const sock = sessions.get(botId);
-        if (!sock) return;
-
-        console.log(`[Baileys] Label reconciliation starting for Bot ${botId}`);
-
-        // Snapshot DB state BEFORE sync
-        const beforeLabels = await prisma.sessionLabel.findMany({
-            where: { session: { botId } },
-            select: { sessionId: true, labelId: true },
-        });
-        const beforeSet = new Set(beforeLabels.map(sl => `${sl.sessionId}:${sl.labelId}`));
-
-        // Force full re-sync — re-emits labels.association for all current WA associations
-        try {
-            await this.syncLabels(botId);
-        } catch (e: any) {
-            console.warn(`[Baileys] Label reconciliation sync failed for Bot ${botId}:`, e.message);
-            return;
-        }
-
-        // Wait for async labels.association handlers to process
-        await new Promise(r => setTimeout(r, 3000));
-
-        // Snapshot DB state AFTER sync (adds were processed by labels.association handler)
-        const afterLabels = await prisma.sessionLabel.findMany({
-            where: { session: { botId } },
-            select: { sessionId: true, labelId: true },
-        });
-        const afterSet = new Set(afterLabels.map(sl => `${sl.sessionId}:${sl.labelId}`));
-
-        // Detect removes: keys in before but not refreshed by the full sync
-        // The full sync only re-adds current associations, so stale ones remain.
-        // We can only detect removes if the sync actually re-created the entry (touching it).
-        // Since upsert with update:{} is a no-op, we need a different approach:
-        // Mark all before-labels, then check which ones the sync DIDN'T touch by
-        // comparing timestamps. Instead, simpler: any key in beforeSet that is also
-        // in afterSet was either refreshed or untouched — we can't distinguish.
-        // So we only detect NEW adds (afterSet - beforeSet) here.
-        // For removes, we rely on the periodic sync keeping the event-driven path warm.
-
-        // Detect new labels added by reconciliation that weren't in DB before
-        let reconciledAdds = 0;
-        for (const key of afterSet) {
-            if (!beforeSet.has(key)) {
-                reconciledAdds++;
-                // The labels.association handler already emitted events for these
-            }
-        }
-
-        if (reconciledAdds > 0) {
-            console.log(`[Baileys] Label reconciliation found ${reconciledAdds} missed add(s) for Bot ${botId}`);
-        } else {
-            console.log(`[Baileys] Label reconciliation complete for Bot ${botId} — no drift detected`);
-        }
-    }
-
-    /**
-     * Start periodic label reconciliation for a bot.
-     */
-    static startLabelReconciliation(botId: string): void {
-        // Clear any existing timer
-        this.stopLabelReconciliation(botId);
-
-        const timer = setInterval(() => {
-            this.reconcileLabels(botId).catch(err => {
-                console.error(`[Baileys] Label reconciliation error for Bot ${botId}:`, err.message);
-            });
-        }, LABEL_RECONCILE_INTERVAL);
-
-        labelReconcileTimers.set(botId, timer);
-        console.log(`[Baileys] Label reconciliation started for Bot ${botId} (every ${LABEL_RECONCILE_INTERVAL / 1000}s)`);
-    }
-
-    /**
-     * Stop periodic label reconciliation for a bot.
-     */
-    static stopLabelReconciliation(botId: string): void {
-        const existing = labelReconcileTimers.get(botId);
-        if (existing) {
-            clearInterval(existing);
-            labelReconcileTimers.delete(botId);
-        }
+        LabelService.markLabelEventHandled(botId, sessionId, labelId, action);
     }
 
     /**
@@ -1522,9 +800,7 @@ export class BaileysService {
         shuttingDown = true;
 
         // Cancel all label reconciliation timers
-        for (const [botId] of labelReconcileTimers) {
-            this.stopLabelReconciliation(botId);
-        }
+        LabelService.stopAllReconciliation();
 
         // Cancel all watchdog timers
         for (const [botId] of watchdogTimers) {
