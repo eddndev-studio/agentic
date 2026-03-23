@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
-import { MatchType } from "@prisma/client";
+import { MatchType, TriggerScope } from "@prisma/client";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const triggerController = new Elysia({ prefix: "/triggers" })
@@ -29,9 +29,9 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
         return trigger;
     })
     .post("/", async ({ body, set }) => {
-        const { botId, flowId, keyword, matchType, isActive, scope } = body as any;
+        // body is typed by Elysia's t.Object() below
 
-        if (!flowId) {
+        if (!body.flowId) {
             set.status = 400;
             return "flowId is required";
         }
@@ -39,18 +39,18 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
         try {
             const trigger = await prisma.trigger.create({
                 data: {
-                    botId,
-                    keyword,
-                    matchType: (matchType as MatchType) || MatchType.CONTAINS,
-                    scope: (scope as any) || "INCOMING",
-                    isActive: isActive ?? true,
-                    flowId,
+                    botId: body.botId,
+                    keyword: body.keyword,
+                    matchType: (body.matchType as MatchType) || MatchType.CONTAINS,
+                    scope: (body.scope as TriggerScope) || "INCOMING",
+                    isActive: body.isActive ?? true,
+                    flowId: body.flowId,
                 }
             });
             return trigger;
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return `Failed to create trigger: ${e.message}`;
+            return `Failed to create trigger: ${e instanceof Error ? e.message : e}`;
         }
     }, {
         body: t.Object({
@@ -63,6 +63,7 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
         })
     })
     .put("/:id", async ({ params: { id }, body, set }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { keyword, matchType, isActive, flowId, scope } = body as any;
 
         try {
@@ -71,13 +72,13 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
                 data: {
                     keyword,
                     matchType: matchType as MatchType,
-                    scope: scope as any,
+                    scope: scope as TriggerScope,
                     isActive,
                     flowId: flowId ?? undefined,
                 }
             });
             return trigger;
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 500;
             return "Failed to update trigger";
         }

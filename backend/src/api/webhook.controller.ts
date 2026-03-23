@@ -8,7 +8,9 @@ import { safeParseBotCredentials } from "../schemas";
 export const webhookController = new Elysia({ prefix: "/webhook" })
     .post("/:platform", async ({ params, body, headers, set }) => {
         const { platform } = params;
-        const { from, content, type = "text", fromMe = false } = body as any;
+        // body is typed by Elysia's t.Object() below
+
+        const { from, content, type = "text", fromMe = false } = body;
 
         if (!['whatsapp', 'telegram'].includes(platform.toLowerCase())) {
             set.status = 400;
@@ -21,7 +23,7 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
 
         try {
             // 1. Resolve Bot (Target System)
-            const botIdentifier = (body as any).botId || "AGENTIC_DEMO_BOT";
+            const botIdentifier = body.botId || "AGENTIC_DEMO_BOT";
 
             const bot = await prisma.bot.findUnique({
                 where: { identifier: botIdentifier }
@@ -67,8 +69,8 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
                             status: SessionStatus.CONNECTED
                         }
                     });
-                } catch (e: any) {
-                    if (e.code === 'P2002') {
+                } catch (e: unknown) {
+                    if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === 'P2002') {
                         session = await prisma.session.findUnique({
                             where: { botId_identifier: { botId: bot.id, identifier: from } },
                         });
@@ -117,10 +119,10 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
 
             return { status: "received", messageId: message.id, bot: bot.name };
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("[Webhook] Error:", err);
             set.status = 500;
-            return err.message;
+            return err instanceof Error ? err.message : String(err);
         }
     }, {
         body: t.Object({

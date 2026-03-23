@@ -6,7 +6,8 @@
         "build": "esbuild src/index.ts src/worker.ts --bundle --platform=node --format=esm --outdir=dist --packages=external",
         "start": "node dist/index.js",
         "start:worker": "node dist/worker.js",
-        "test": "vitest run"
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.1012.0",

@@ -51,7 +51,7 @@ export class AIProcessor {
         await this.processMessages(sessionId, messages);
     }
 
-    private static async processMessages(sessionId: string, messages: { id: string; content: string | null; type: string; externalId: string | null; metadata: any }[]): Promise<void> {
+    private static async processMessages(sessionId: string, messages: { id: string; content: string | null; type: string; externalId: string | null; metadata: unknown }[]): Promise<void> {
         // 1. Load session + bot (with template)
         const session = await prisma.session.findUnique({
             where: { id: sessionId },
@@ -140,7 +140,7 @@ export class AIProcessor {
                             updateMessageMetadata(msg.id, { mediaDescription: partContent.substring(0, 500) })
                                 .catch(e => console.warn('[AIProcessor] media description cache update failed:', (e as Error).message));
                         }
-                    } catch (mediaError: any) {
+                    } catch (mediaError: unknown) {
                         console.error(`[AIProcessor] Media preprocessing error:`, mediaError);
                         partContent = partContent || "[Media file received but could not be processed]";
                     }
@@ -173,7 +173,7 @@ export class AIProcessor {
             const dbToolDefs: AIToolDefinition[] = tools.map((t) => ({
                 name: t.name,
                 description: BotConfigService.interpolate(t.description, botVars),
-                parameters: (t.parameters as Record<string, any>) || { type: "object", properties: {} },
+                parameters: (t.parameters as Record<string, unknown>) || { type: "object", properties: {} },
             }));
 
             const dbToolNames = new Set(dbToolDefs.map((t) => t.name));
@@ -200,7 +200,7 @@ export class AIProcessor {
             aiMessages.push(...history);
 
             // 7. AI provider call with fallback
-            let activeProvider = getAIProvider(aiConfig.aiProvider as any);
+            let activeProvider = getAIProvider(aiConfig.aiProvider as "GEMINI" | "OPENAI");
             let activeModel = aiConfig.aiModel;
             let usedFallback = false;
 
@@ -269,7 +269,7 @@ export class AIProcessor {
                     }
 
                     // Interpolate bot variables in tool arguments
-                    const interpolatedArgs: Record<string, any> = {};
+                    const interpolatedArgs: Record<string, unknown> = {};
                     for (const [k, v] of Object.entries(toolCall.arguments)) {
                         interpolatedArgs[k] = typeof v === "string" ? BotConfigService.interpolate(v, botVars) : v;
                     }
@@ -352,7 +352,7 @@ export class AIProcessor {
             // Log metadata (fire-and-forget)
             this.logMetadata(sessionId, activeModel, response.usage?.totalTokens).catch(e => console.warn('[AIProcessor] logMetadata failed:', (e as Error).message));
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(`[AIProcessor] Error processing messages for session ${sessionId}:`, error);
         } finally {
             // Release lock
@@ -371,20 +371,20 @@ export class AIProcessor {
     ): Promise<AICompletionResponse & { _fallback?: boolean }> {
         try {
             return await primary.chat(request);
-        } catch (primaryError: any) {
+        } catch (primaryError: unknown) {
             const fb = FALLBACK_MAP[primaryName];
             if (!fb) throw primaryError;
 
             console.warn(
-                `[AIProcessor] ${primaryName} failed (${primaryError.message}), falling back to ${fb.provider}/${fb.model}`
+                `[AIProcessor] ${primaryName} failed (${primaryError instanceof Error ? primaryError.message : primaryError}), falling back to ${fb.provider}/${fb.model}`
             );
 
             try {
                 const fallbackProvider = getAIProvider(fb.provider);
                 const fallbackResponse = await fallbackProvider.chat({ ...request, model: fb.model });
                 return { ...fallbackResponse, _fallback: true };
-            } catch (fallbackError: any) {
-                console.error(`[AIProcessor] Fallback ${fb.provider} also failed:`, fallbackError.message);
+            } catch (fallbackError: unknown) {
+                console.error(`[AIProcessor] Fallback ${fb.provider} also failed:`, fallbackError instanceof Error ? fallbackError.message : fallbackError);
                 throw primaryError;
             }
         }

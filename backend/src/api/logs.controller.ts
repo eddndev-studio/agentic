@@ -8,7 +8,7 @@ export const logsController = new Elysia({ prefix: '/logs' })
     .get('/system', ({ query }) => {
         const limit = Math.min(Number(query.limit) || 100, 500);
         const offset = Number(query.offset) || 0;
-        const level = (['info', 'warn', 'error'] as const).includes(query.level as any)
+        const level = (['info', 'warn', 'error'] as const).includes(query.level as 'info' | 'warn' | 'error')
             ? (query.level as 'info' | 'warn' | 'error')
             : undefined;
         const search = query.search || undefined;

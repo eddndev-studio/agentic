@@ -159,7 +159,7 @@ const app = new Elysia({ adapter: node() })
             origin = headers.get('origin') || '';
         }
         if (!origin && typeof headers === 'object') {
-            origin = (headers as any).origin || '';
+            origin = (headers as unknown as Record<string, string>).origin || '';
         }
 
         if (ALLOWED_ORIGINS.has(origin)) {
@@ -177,28 +177,28 @@ const app = new Elysia({ adapter: node() })
     })
     // Internal endpoint for the standalone worker to send messages via Baileys
     .post("/internal/send", async ({ body, set }) => {
-        const { botId, target, payload } = body as { botId: string; target: string; payload: any };
+        const { botId, target, payload } = body as { botId: string; target: string; payload: Record<string, unknown> };
         try {
             await BaileysService.sendMessage(botId, target, payload);
             return { ok: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : String(e) };
         }
     })
     // Internal endpoint for the standalone worker to execute tools via the main process
     .post("/internal/tool", async ({ body, set }) => {
         const { botId, sessionId, toolName, toolArgs } = body as {
-            botId: string; sessionId: string; toolName: string; toolArgs: Record<string, any>;
+            botId: string; sessionId: string; toolName: string; toolArgs: Record<string, unknown>;
         };
         try {
             const session = await prisma.session.findUnique({ where: { id: sessionId } });
             if (!session) { set.status = 404; return { error: "Session not found" }; }
             const result = await ToolExecutor.execute(botId, session, { name: toolName, arguments: toolArgs });
             return result;
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : String(e) };
         }
     })
     // Internal endpoint for the worker to mark messages as read
@@ -207,20 +207,20 @@ const app = new Elysia({ adapter: node() })
         try {
             await BaileysService.markRead(botId, chatJid, messageIds);
             return { ok: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : String(e) };
         }
     })
     // Internal endpoint for the worker to send presence (composing/paused)
     .post("/internal/presence", async ({ body, set }) => {
         const { botId, chatJid, presence } = body as { botId: string; chatJid: string; presence: string };
         try {
-            await BaileysService.sendPresence(botId, chatJid, presence as any);
+            await BaileysService.sendPresence(botId, chatJid, presence as "composing" | "paused");
             return { ok: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : String(e) };
         }
     })
     .use(webhookController)

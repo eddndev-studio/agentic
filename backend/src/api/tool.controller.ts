@@ -10,7 +10,7 @@ export const toolController = new Elysia({ prefix: "/tools" })
 
     // List tools by bot or template
     .get("/", async ({ query }) => {
-        const { botId, templateId } = query as any;
+        const { botId, templateId } = query as { botId?: string; templateId?: string };
         if (templateId) {
             return prisma.tool.findMany({
                 where: { templateId },
@@ -36,6 +36,7 @@ export const toolController = new Elysia({ prefix: "/tools" })
 
     // Create tool (for bot or template)
     .post("/", async ({ body, set }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { botId, templateId, name, description, parameters, actionType, actionConfig, flowId } = body as any;
 
         if ((!botId && !templateId) || !name || !description || !actionType) {
@@ -64,8 +65,8 @@ export const toolController = new Elysia({ prefix: "/tools" })
                 },
             });
             return tool;
-        } catch (e: any) {
-            if (e.code === "P2002") {
+        } catch (e: unknown) {
+            if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === "P2002") {
                 set.status = 409;
                 return { error: `Tool name '${sanitizedName}' already exists` };
             }
@@ -75,9 +76,11 @@ export const toolController = new Elysia({ prefix: "/tools" })
 
     // Update tool
     .put("/:id", async ({ params: { id }, body, set }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { name, description, parameters, actionType, actionConfig, status, flowId } = body as any;
 
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
             const data: any = {};
             if (name !== undefined) {
                 const sanitized = sanitizeToolName(name);
@@ -96,7 +99,7 @@ export const toolController = new Elysia({ prefix: "/tools" })
 
             const tool = await prisma.tool.update({ where: { id }, data });
             return tool;
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 500;
             return { error: "Failed to update tool" };
         }
@@ -107,7 +110,7 @@ export const toolController = new Elysia({ prefix: "/tools" })
         try {
             await prisma.tool.delete({ where: { id } });
             return { success: true };
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 500;
             return { error: "Failed to delete tool" };
         }
@@ -146,8 +149,8 @@ export const toolController = new Elysia({ prefix: "/tools" })
                 },
             });
             return tool;
-        } catch (e: any) {
-            if (e.code === "P2002") {
+        } catch (e: unknown) {
+            if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === "P2002") {
                 set.status = 409;
                 return { error: `Tool '${sanitizedName}' already exists for this bot` };
             }

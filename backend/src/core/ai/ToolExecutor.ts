@@ -5,11 +5,11 @@ import { isBuiltinTool } from "./builtin-tools";
 import { eventBus } from "../../services/event-bus";
 import { flowEngine } from "../flow";
 import { safeParseStepMetadata, safeParseToolActionConfig, safeParseNotificationChannels } from "../../schemas";
-import type { Session } from "@prisma/client";
+import type { Session, Tool } from "@prisma/client";
 
 export interface ToolResult {
     success: boolean;
-    data: any;
+    data: unknown;
     /** True when this tool already sent messages to the user (flows, reply_to_message) */
     sentMessages?: boolean;
 }
@@ -27,7 +27,7 @@ export class ToolExecutor {
     static async execute(
         botId: string,
         session: Session,
-        toolCall: { name: string; arguments: Record<string, any> },
+        toolCall: { name: string; arguments: Record<string, any> }, // eslint-disable-line @typescript-eslint/no-explicit-any
         originalMessage?: { content?: string | null },
         bot?: BotWithTemplate
     ): Promise<ToolResult> {
@@ -50,9 +50,9 @@ export class ToolExecutor {
             }
 
             return await this.dispatchByActionType(botId, session, tool, toolCall.arguments, resolvedBot);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(`[ToolExecutor] Error executing tool '${toolCall.name}':`, error);
-            return { success: false, data: error.message || "Tool execution failed" };
+            return { success: false, data: (error instanceof Error ? error.message : undefined) || "Tool execution failed" };
         }
     }
 
@@ -62,7 +62,7 @@ export class ToolExecutor {
     private static async dispatchByActionType(
         botId: string,
         session: Session,
-        tool: any,
+        tool: Tool,
         args: Record<string, any>,
         bot: BotWithTemplate
     ): Promise<ToolResult> {
@@ -85,7 +85,7 @@ export class ToolExecutor {
     private static async executeFlow(
         botId: string,
         session: Session,
-        tool: any,
+        tool: Tool,
         args: Record<string, any>,
         bot: BotWithTemplate
     ): Promise<ToolResult> {
@@ -183,9 +183,9 @@ export class ToolExecutor {
                     data: { currentStep: step.order },
                 });
                 console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (${step.type}) ok`);
-            } catch (e: any) {
+            } catch (e: unknown) {
                 failCount++;
-                const reason = e.message || "unknown error";
+                const reason = (e instanceof Error ? e.message : undefined) || "unknown error";
                 stepResults.push(`paso ${step.order} (${step.type}): falló — ${reason}`);
                 console.error(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (${step.type}) failed:`, reason);
             }
@@ -208,13 +208,22 @@ export class ToolExecutor {
             },
         });
 
-        eventBus.emitBotEvent({
-            type: failCount === 0 ? 'flow:completed' : 'flow:failed',
-            botId,
-            flowName: flow.name,
-            sessionId: session.id,
-            ...(errorMsg && { error: errorMsg }),
-        });
+        if (failCount === 0) {
+            eventBus.emitBotEvent({
+                type: 'flow:completed',
+                botId,
+                flowName: flow.name,
+                sessionId: session.id,
+            });
+        } else {
+            eventBus.emitBotEvent({
+                type: 'flow:failed',
+                botId,
+                flowName: flow.name,
+                sessionId: session.id,
+                error: errorMsg || 'Unknown error',
+            });
+        }
 
         const summary = failCount === 0
             ? `Flujo "${flow.name}" ejecutado (${sentCount} pasos enviados). El cliente ya recibió la respuesta.`
@@ -231,7 +240,7 @@ export class ToolExecutor {
      * WEBHOOK action: POST to a URL with the tool arguments as body.
      */
     private static async executeWebhook(
-        tool: any,
+        tool: Tool,
         args: Record<string, any>,
         session: Session
     ): Promise<ToolResult> {
@@ -254,7 +263,7 @@ export class ToolExecutor {
         });
 
         const text = await res.text();
-        let data: any;
+        let data: unknown;
         try { data = JSON.parse(text); } catch { data = text; }
 
         return { success: res.ok, data };
@@ -266,7 +275,7 @@ export class ToolExecutor {
     private static async executeBuiltin(
         botId: string,
         session: Session,
-        tool: any,
+        tool: { name: string; actionConfig?: unknown },
         args: Record<string, any>,
         sourceFlowId?: string
     ): Promise<ToolResult> {

@@ -60,11 +60,11 @@ export const uploadController = new Elysia({ prefix: "/upload" })
                 filename,
                 url
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("[Upload] ERROR:", error);
-            console.error("[Upload] Stack:", error.stack);
+            console.error("[Upload] Stack:", error instanceof Error ? error.stack : undefined);
             set.status = 500;
-            return { status: "error", message: error.message || "Upload failed" };
+            return { status: "error", message: (error instanceof Error ? error.message : undefined) || "Upload failed" };
         }
     }, {
         body: t.Object({
@@ -102,7 +102,7 @@ export const uploadController = new Elysia({ prefix: "/upload" })
             return {
                 files: fileList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
             };
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error("List files error", e);
             return { files: [] };
         }

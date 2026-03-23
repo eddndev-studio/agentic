@@ -51,7 +51,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
                     thinkingLevel: thinkingLevel ?? "LOW",
                 },
             });
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 500;
             return { error: "Failed to create template" };
         }
@@ -69,9 +69,11 @@ export const templateController = new Elysia({ prefix: "/templates" })
 
     // Update template
     .put("/:id", async ({ params: { id }, body, set }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { name, description, aiEnabled, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, contextMessages, autoReadReceipts, excludeGroups, ignoredLabels, variables } = body as any;
 
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
             const data: any = {};
             if (name !== undefined) data.name = name;
             if (description !== undefined) data.description = description;
@@ -89,7 +91,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
             if (variables !== undefined) data.variables = variables;
 
             return await prisma.template.update({ where: { id }, data });
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 500;
             return { error: "Failed to update template" };
         }
@@ -100,7 +102,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
         try {
             await prisma.template.delete({ where: { id } });
             return { success: true };
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 500;
             return { error: "Failed to delete template" };
         }

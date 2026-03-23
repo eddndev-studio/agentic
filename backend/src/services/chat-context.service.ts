@@ -6,7 +6,7 @@ interface ContextMessage {
     type: string;
     fromMe: boolean;
     createdAt: Date;
-    metadata: any;
+    metadata: unknown;
 }
 
 /**

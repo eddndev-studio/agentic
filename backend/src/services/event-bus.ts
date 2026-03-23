@@ -1,17 +1,26 @@
 import { EventEmitter } from 'node:events';
 import type { LogEntry } from './system-logger';
+import type { Message, Session } from '@prisma/client';
+
+/** Lightweight label summary used in SSE payloads. */
+export interface LabelPayload {
+    id: string;
+    name: string;
+    color: number;
+    waLabelId: string;
+}
 
 export type BotEvent =
     | { type: 'bot:qr';           botId: string; qr: string }
-    | { type: 'bot:connected';    botId: string; user: any }
+    | { type: 'bot:connected';    botId: string; user: { id: string; name?: string } | undefined }
     | { type: 'bot:disconnected'; botId: string; statusCode: number | undefined }
-    | { type: 'message:received'; botId: string; sessionId: string; message: any }
+    | { type: 'message:received'; botId: string; sessionId: string; message: Message }
     | { type: 'message:sent';     botId: string; sessionId: string; content: string }
-    | { type: 'session:created';  botId: string; session: any }
+    | { type: 'session:created';  botId: string; session: Session }
     | { type: 'session:updated';  botId: string; sessionId: string; name: string }
-    | { type: 'session:labels';       botId: string; sessionId: string; labels: any[]; changedLabelId?: string; changedLabelName?: string; action?: 'add' | 'remove' }
-    | { type: 'session:labels:add';   botId: string; sessionId: string; labels: any[]; changedLabelId?: string; changedLabelName?: string }
-    | { type: 'session:labels:remove';botId: string; sessionId: string; labels: any[]; changedLabelId?: string; changedLabelName?: string }
+    | { type: 'session:labels';       botId: string; sessionId: string; labels: LabelPayload[]; changedLabelId?: string; changedLabelName?: string; action?: 'add' | 'remove' }
+    | { type: 'session:labels:add';   botId: string; sessionId: string; labels: LabelPayload[]; changedLabelId?: string; changedLabelName?: string }
+    | { type: 'session:labels:remove';botId: string; sessionId: string; labels: LabelPayload[]; changedLabelId?: string; changedLabelName?: string }
     | { type: 'flow:started';     botId: string; flowName: string; sessionId: string }
     | { type: 'flow:completed';   botId: string; flowName: string; sessionId: string }
     | { type: 'flow:failed';      botId: string; flowName: string; sessionId: string; error: string }

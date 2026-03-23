@@ -25,6 +25,7 @@ export const executionController = new Elysia({ prefix: "/executions" })
         };
 
         // Filter executions via the flow relationship (Execution -> Flow -> Bot)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma dynamic where clause
         const where: any = {};
 
         if (botId) {
@@ -79,8 +80,8 @@ export const executionController = new Elysia({ prefix: "/executions" })
                     offset: skip
                 }
             };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: `Failed to fetch executions: ${e.message}` };
+            return { error: `Failed to fetch executions: ${e instanceof Error ? e.message : e}` };
         }
     });

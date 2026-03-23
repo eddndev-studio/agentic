@@ -10,7 +10,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
     .get("/", async ({ query }) => {
         const { botId, templateId } = query as { botId?: string; templateId?: string };
 
-        const where: any = {};
+        const where: { botId?: string; templateId?: string } = {};
         if (templateId) where.templateId = templateId;
         else if (botId) where.botId = botId;
 
@@ -40,7 +40,9 @@ export const flowController = new Elysia({ prefix: "/flows" })
         return flow;
     })
     .post("/", async ({ body, set }) => {
-        const { botId, templateId, name, description, steps, triggers } = body as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body with nested arrays
+        const b = body as any;
+        const { botId, templateId, name, description, steps, triggers } = b;
 
         try {
             const owner = templateId
@@ -55,9 +57,9 @@ export const flowController = new Elysia({ prefix: "/flows" })
                     ...owner,
                     name,
                     description,
-                    usageLimit: parseInt(body.usageLimit || 0),
-                    cooldownMs: parseInt(body.cooldownMs || 0),
-                    excludesFlows: body.excludesFlows || [],
+                    usageLimit: parseInt(b.usageLimit || 0),
+                    cooldownMs: parseInt(b.cooldownMs || 0),
+                    excludesFlows: b.excludesFlows || [],
                     steps: {
                         create: (steps || []).map((s: any, index: number) => ({
                             type: (s.type as StepType),
@@ -86,13 +88,15 @@ export const flowController = new Elysia({ prefix: "/flows" })
             });
             syncFlowTool(flow).catch(e => console.warn('[FlowController] syncFlowTool on create failed:', (e as Error).message));
             return flow;
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: `Failed to create flow: ${e.message}` };
+            return { error: `Failed to create flow: ${e instanceof Error ? e.message : e}` };
         }
     })
     .put("/:id", async ({ params: { id }, body, set }) => {
-        const { botId, templateId, name, description, steps, triggers } = body as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body with nested arrays
+        const b = body as any;
+        const { botId, templateId, name, description, steps, triggers } = b;
 
         try {
             const triggerOwner = templateId
@@ -109,20 +113,21 @@ export const flowController = new Elysia({ prefix: "/flows" })
                     data: {
                         name,
                         description,
-                        usageLimit: parseInt(body.usageLimit || 0),
-                        cooldownMs: parseInt(body.cooldownMs || 0),
-                        excludesFlows: body.excludesFlows || [],
+                        usageLimit: parseInt(b.usageLimit || 0),
+                        cooldownMs: parseInt(b.cooldownMs || 0),
+                        excludesFlows: b.excludesFlows || [],
                         steps: {
                             create: (steps || []).map((s: any, index: number) => ({
                                 type: (s.type as StepType),
                                 content: s.content,
                                 mediaUrl: s.mediaUrl,
-                                                            delayMs: s.delayMs || 1000,
-                                                            jitterPct: s.jitterPct ?? 10,
-                                                            order: index,
-                                                            aiOnly: s.aiOnly ?? false,
-                                                            metadata: s.metadata ?? undefined
-                                                        }))                        },
+                                delayMs: s.delayMs || 1000,
+                                jitterPct: s.jitterPct ?? 10,
+                                order: index,
+                                aiOnly: s.aiOnly ?? false,
+                                metadata: s.metadata ?? undefined
+                            }))
+                        },
                         triggers: {
                             create: (triggers || []).map((t: any) => ({
                                 keyword: t.keyword || t.labelName || '',
@@ -140,9 +145,9 @@ export const flowController = new Elysia({ prefix: "/flows" })
             });
             syncFlowTool(flow).catch(e => console.warn('[FlowController] syncFlowTool on update failed:', (e as Error).message));
             return flow;
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: `Failed to update flow: ${e.message}` };
+            return { error: `Failed to update flow: ${e instanceof Error ? e.message : e}` };
         }
     })
     .delete("/:id", async ({ params: { id }, set }) => {
@@ -210,9 +215,9 @@ export const flowController = new Elysia({ prefix: "/flows" })
 
             syncFlowTool(newFlow).catch(e => console.warn('[FlowController] syncFlowTool on import failed:', (e as Error).message));
             return newFlow;
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: `Import failed: ${e.message}` };
+            return { error: `Import failed: ${e instanceof Error ? e.message : e}` };
         }
     });
 

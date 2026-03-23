@@ -5,6 +5,9 @@ import { BotConfigService } from "../../services/bot-config.service";
 import { Step, Execution, Session, Platform } from "@prisma/client";
 import { sendMessage } from "../../services/message-sender";
 import { safeParseStepMetadata } from "../../schemas";
+import { createLogger } from "../../logger";
+
+const log = createLogger('StepProcessor');
 
 interface StepJobData {
     executionId: string;
@@ -18,12 +21,12 @@ export class StepProcessor {
     static async process(job: Job<StepJobData>) {
         const { executionId, stepId } = job.data;
 
-        console.log(`[StepProcessor] Processing Step ${stepId} for Execution ${executionId}`);
+        log.info(`Processing Step ${stepId} for Execution ${executionId}`);
 
         // 1. Fetch Step Data
         const step = await prisma.step.findUnique({ where: { id: stepId } });
         if (!step) {
-            console.error(`[StepProcessor] Step ${stepId} not found, skipping`);
+            log.error(`Step ${stepId} not found, skipping`);
             return; // Don't throw - just skip this step
         }
 
@@ -34,7 +37,7 @@ export class StepProcessor {
 
         if (!execution) {
             // Execution might have been cancelled/deleted
-            console.warn(`[StepProcessor] Execution ${executionId} not found, skipping step`);
+            log.warn(`Execution ${executionId} not found, skipping step`);
             return;
         }
 
@@ -45,9 +48,9 @@ export class StepProcessor {
             } else {
                 await this.executeSending(step, execution);
             }
-        } catch (error: any) {
-            const errorMsg = error?.message || String(error);
-            console.error(`[StepProcessor] Step ${stepId} failed:`, errorMsg);
+        } catch (error: unknown) {
+            const errorMsg = (error instanceof Error ? error.message : undefined) || String(error);
+            log.error(`Step ${stepId} failed:`, errorMsg);
 
             // Log error to execution record for visibility
             await prisma.execution.update({
@@ -55,7 +58,7 @@ export class StepProcessor {
                 data: {
                     error: `Step ${step.order} (${step.type}) failed: ${errorMsg}`.substring(0, 500)
                 }
-            }).catch(e => console.error('[StepProcessor] Failed to update execution error:', e));
+            }).catch(e => log.error('Failed to update execution error:', e));
 
             // Continue to next step instead of retrying/crashing
         }
@@ -74,12 +77,12 @@ export class StepProcessor {
         const botVars = bot ? BotConfigService.getVariables(bot) : {};
         const interpolate = (text: string) => BotConfigService.interpolate(text, botVars);
 
-        console.log(`[StepProcessor] Executing step type ${step.type} for ${target} on ${platform}`);
+        log.info(`Executing step type ${step.type} for ${target} on ${platform}`);
 
         if (platform === Platform.WHATSAPP) {
             switch (step.type) {
                 case 'TEXT': {
-                    const textPayload: any = { text: interpolate(step.content || "") };
+                    const textPayload: Record<string, unknown> = { text: interpolate(step.content || "") };
                     if (safeParseStepMetadata(step.metadata).linkPreview === false) {
                         textPayload.skipLinkPreview = true;
                     }
@@ -90,14 +93,14 @@ export class StepProcessor {
                     if (step.mediaUrl) {
                         await sendMessage(botId, target, { image: { url: step.mediaUrl }, caption: interpolate(step.content || "") });
                     } else {
-                        console.warn(`[StepProcessor] IMAGE step ${step.id} has no mediaUrl, skipping`);
+                        log.warn(`IMAGE step ${step.id} has no mediaUrl, skipping`);
                     }
                     break;
                 case 'VIDEO':
                     if (step.mediaUrl) {
                         await sendMessage(botId, target, { video: { url: step.mediaUrl }, caption: interpolate(step.content || "") });
                     } else {
-                        console.warn(`[StepProcessor] VIDEO step ${step.id} has no mediaUrl, skipping`);
+                        log.warn(`VIDEO step ${step.id} has no mediaUrl, skipping`);
                     }
                     break;
                 case 'AUDIO':
@@ -105,7 +108,7 @@ export class StepProcessor {
                     if (step.mediaUrl) {
                         await sendMessage(botId, target, { audio: { url: step.mediaUrl }, ptt: step.type === 'PTT' });
                     } else {
-                        console.warn(`[StepProcessor] ${step.type} step ${step.id} has no mediaUrl, skipping`);
+                        log.warn(`${step.type} step ${step.id} has no mediaUrl, skipping`);
                     }
                     break;
                 
@@ -114,11 +117,11 @@ export class StepProcessor {
                     break;
 
                 default:
-                    console.warn(`[StepProcessor] Unsupported step type ${step.type} for WhatsApp`);
+                    log.warn(`Unsupported step type ${step.type} for WhatsApp`);
             }
         } else {
             // Fallback for other platforms (Telegram, etc.)
-            console.log(`📡 [${platform}] Sending to ${target}: ${step.type}`);
+            log.info(`[${platform}] Sending to ${target}: ${step.type}`);
         }
     }
 
@@ -127,11 +130,11 @@ export class StepProcessor {
         const toolName = metadata.toolName;
 
         if (!toolName) {
-            console.warn(`[StepProcessor] TOOL step ${step.id} missing toolName in metadata`);
+            log.warn(`TOOL step ${step.id} missing toolName in metadata`);
             return;
         }
 
-        console.log(`[StepProcessor] Executing TOOL step: ${toolName}`);
+        log.info(`Executing TOOL step: ${toolName}`);
 
         // Execute via HTTP to the main process (which owns Baileys sessions)
         const API_BASE = `http://127.0.0.1:${process.env['PORT'] || 8080}`;
@@ -147,18 +150,18 @@ export class StepProcessor {
             signal: AbortSignal.timeout(30_000),
         });
 
-        const result = await res.json();
+        const result = await res.json() as { error?: string };
         if (!res.ok) {
             throw new Error(`[StepProcessor] Tool '${toolName}' HTTP ${res.status}: ${result.error || 'Unknown error'}`);
         }
 
-        console.log(`[StepProcessor] Tool '${toolName}' result:`, result);
+        log.info(`Tool '${toolName}' result:`, result);
     }
 
     private static async executeConditionalTime(botId: string, target: string, step: Step) {
         const metadata = safeParseStepMetadata(step.metadata);
         if (!Array.isArray(metadata.branches)) {
-            console.warn(`[StepProcessor] CONDITIONAL_TIME step ${step.id} missing branches in metadata`);
+            log.warn(`CONDITIONAL_TIME step ${step.id} missing branches in metadata`);
             return;
         }
 
@@ -180,7 +183,7 @@ export class StepProcessor {
         const currentMinutes = toMinutes(timeString);
         let matchFound = false;
 
-        console.log(`[StepProcessor] Conditional Time Check: Current ${timeString} (${currentMinutes}m)`);
+        log.info(`Conditional Time Check: Current ${timeString} (${currentMinutes}m)`);
 
         for (const branch of metadata.branches) {
             const start = toMinutes(branch.startTime);
@@ -201,11 +204,11 @@ export class StepProcessor {
             }
 
             if (isMatch) {
-                console.log(`[StepProcessor] Matched Branch: ${branch.startTime} - ${branch.endTime}`);
+                log.info(`Matched Branch: ${branch.startTime} - ${branch.endTime}`);
                 matchFound = true;
                 
                 // Execute the content of the branch
-                const payload: any = {};
+                const payload: Record<string, unknown> = {};
                 if (branch.type === 'TEXT') {
                     payload.text = branch.content || "";
                 } else if (branch.type === 'IMAGE' && branch.mediaUrl) {
@@ -227,10 +230,10 @@ export class StepProcessor {
         }
 
         if (!matchFound && metadata.fallback) {
-            console.log(`[StepProcessor] No time match found, executing fallback`);
+            log.info('No time match found, executing fallback');
             const fb = metadata.fallback;
-            const payload: any = {};
-            
+            const payload: Record<string, unknown> = {};
+
             if (fb.type === 'TEXT') {
                 payload.text = fb.content || "";
             } else if (fb.type === 'IMAGE' && fb.mediaUrl) {

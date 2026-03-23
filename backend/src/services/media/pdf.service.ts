@@ -25,7 +25,7 @@ export class PDFService {
             const pdfParse = (await import("pdf-parse")).default;
             const data = await pdfParse(buffer);
             return data.text || "Unable to extract text from PDF.";
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("[PDFService] Error parsing PDF:", error);
             return "Failed to parse PDF document.";
         }

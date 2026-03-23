@@ -40,7 +40,8 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
     throw lastError;
 }
 
-async function post(path: string, body: Record<string, any>): Promise<any> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- HTTP response can be any JSON
+async function post(path: string, body: Record<string, unknown>): Promise<any> {
     const url = `${API_BASE}${path}`;
     const res = await fetchWithRetry(url, {
         method: "POST",
@@ -48,7 +49,7 @@ async function post(path: string, body: Record<string, any>): Promise<any> {
         body: JSON.stringify(body),
     });
 
-    const data = await res.json();
+    const data = await res.json() as Record<string, unknown>;
     if (!res.ok) {
         throw new Error(`[MainProcessClient] ${path} HTTP ${res.status}: ${data.error || "Unknown error"}`);
     }
@@ -56,6 +57,7 @@ async function post(path: string, body: Record<string, any>): Promise<any> {
 }
 
 export const mainProcessClient = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys content structure
     async sendMessage(botId: string, target: string, payload: any): Promise<void> {
         await post("/internal/send", { botId, target, payload });
     },
@@ -72,8 +74,8 @@ export const mainProcessClient = {
         botId: string,
         sessionId: string,
         toolName: string,
-        toolArgs: Record<string, any>
-    ): Promise<{ success: boolean; data: any; sentMessages?: boolean }> {
+        toolArgs: Record<string, unknown>
+    ): Promise<{ success: boolean; data: unknown; sentMessages?: boolean }> {
         return post("/internal/tool", { botId, sessionId, toolName, toolArgs });
     },
 };
@@ -82,6 +84,7 @@ export const mainProcessClient = {
  * Standalone sendMessage function for backward compatibility.
  * Delegates to mainProcessClient.sendMessage.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys content structure
 export async function sendMessage(botId: string, target: string, payload: any): Promise<void> {
     await mainProcessClient.sendMessage(botId, target, payload);
 }

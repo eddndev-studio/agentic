@@ -17,6 +17,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         const take = Math.min(Number(limit) || 50, 200);
         const skip = Number(offset) || 0;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma dynamic where clause
         const where: any = {};
         if (botId) where.botId = botId;
         if (search) {
@@ -110,9 +111,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         try {
             await BaileysService.syncLabels(botId);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : String(e) };
         }
     }, {
         body: t.Object({ botId: t.String() }),
@@ -132,7 +133,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         const { BotConfigService } = await import("../services/bot-config.service");
         const { ConversationService } = await import("../services/conversation.service");
 
-        const bot = session.bot as any;
+        const bot = session.bot;
         const aiConfig = BotConfigService.resolveAIConfig(bot);
         const botVars = BotConfigService.getVariables(bot);
 
@@ -185,8 +186,8 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         // Call Baileys to sync with WhatsApp
         try {
             await BaileysService.addChatLabel(session.botId, session.identifier, label.waLabelId);
-        } catch (e: any) {
-            console.warn(`[SessionController] addChatLabel WA sync failed:`, e.message);
+        } catch (e: unknown) {
+            console.warn(`[SessionController] addChatLabel WA sync failed:`, (e instanceof Error ? e.message : e));
         }
 
         // Persist in DB
@@ -256,8 +257,8 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         // Call Baileys to sync with WhatsApp
         try {
             await BaileysService.removeChatLabel(session.botId, session.identifier, label.waLabelId);
-        } catch (e: any) {
-            console.warn(`[SessionController] removeChatLabel WA sync failed:`, e.message);
+        } catch (e: unknown) {
+            console.warn(`[SessionController] removeChatLabel WA sync failed:`, (e instanceof Error ? e.message : e));
         }
 
         // Remove from DB
@@ -468,9 +469,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
                 { name: body.toolName, arguments: body.args || {} }
             );
             return { success: true, result };
-        } catch (err: any) {
+        } catch (err: unknown) {
             set.status = 500;
-            return { error: err.message || "Tool execution failed" };
+            return { error: (err instanceof Error ? err.message : undefined) || "Tool execution failed" };
         }
     }, {
         params: t.Object({ id: t.String() }),

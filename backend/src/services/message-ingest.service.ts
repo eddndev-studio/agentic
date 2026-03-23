@@ -9,6 +9,10 @@ import { queueService } from './queue.service';
 import { upsertSessionFromChat } from './session-helpers';
 import { config } from '../config';
 import { safeParseMessageMetadata } from '../schemas';
+import type { Message } from '@prisma/client';
+import { createLogger } from '../logger';
+
+const log = createLogger('MessageIngest');
 
 // ─── In-memory message dedup cache (prevents reprocessing on reconnect/replay) ───
 const messageDedup = new Map<string, number>(); // dedupKey -> timestamp
@@ -33,6 +37,7 @@ export class MessageIngestService {
      * Handle an incoming WhatsApp message: normalize JID, detect type, persist to DB,
      * download media, evaluate flow triggers, and enqueue AI processing.
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys message wrappers need broad type after unwrapping
     static async handleIncomingMessage(botId: string, msg: WAMessage & { message: any }): Promise<void> {
         const rawFrom = msg.key.remoteJid;
         if (!rawFrom) return;
@@ -40,8 +45,9 @@ export class MessageIngestService {
         // CRITICAL: Normalize JID and resolve LID -> phone when possible
         const normalizedRaw = jidNormalizedUser(rawFrom);
         let from = normalizedRaw;
-        if (from.includes('@lid') && (msg.key as any).remoteJidAlt) {
-            from = jidNormalizedUser((msg.key as any).remoteJidAlt);
+        const keyWithAlt = msg.key as typeof msg.key & { remoteJidAlt?: string };
+        if (from.includes('@lid') && keyWithAlt.remoteJidAlt) {
+            from = jidNormalizedUser(keyWithAlt.remoteJidAlt);
         }
         // Keep the original LID as alt identifier for session dedup
         const altFrom = from !== normalizedRaw ? normalizedRaw : undefined;
@@ -73,6 +79,7 @@ export class MessageIngestService {
 
         // Extract content based on type
         let content = '';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma JSON field
         let extraMetadata: Record<string, any> = {};
 
         switch (msgType) {
@@ -106,8 +113,8 @@ export class MessageIngestService {
                     content = single.displayName || '';
                     extraMetadata.vcard = single.vcard;
                 } else if (arr) {
-                    content = arr.map((c: any) => c.displayName).join(', ');
-                    extraMetadata.contacts = arr.map((c: any) => ({ name: c.displayName, vcard: c.vcard }));
+                    content = arr.map((c: { displayName?: string }) => c.displayName).join(', ');
+                    extraMetadata.contacts = arr.map((c: { displayName?: string; vcard?: string }) => ({ name: c.displayName, vcard: c.vcard }));
                 }
                 break;
             }
@@ -121,7 +128,7 @@ export class MessageIngestService {
             }
             case 'POLL':
                 content = m.pollCreationMessage?.name || '';
-                extraMetadata.options = m.pollCreationMessage?.options?.map((o: any) => o.optionName) || [];
+                extraMetadata.options = m.pollCreationMessage?.options?.map((o: { optionName?: string }) => o.optionName) || [];
                 break;
             default: // AUDIO, PTT
                 content = '';
@@ -130,7 +137,7 @@ export class MessageIngestService {
 
         const hasMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'STICKER', 'PTT'].includes(msgType);
 
-        console.log(`[${new Date().toISOString()}] [Baileys] Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${(content || '').substring(0, 50)}...`);
+        log.info(`Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${(content || '').substring(0, 50)}...`);
 
         try {
             // 1. Resolve Bot (include template for messageDelay resolution)
@@ -158,14 +165,14 @@ export class MessageIngestService {
                 ...(Object.keys(extraMetadata).length > 0 ? { metadata: extraMetadata } : {}),
             };
 
-            let message: any;
+            let message: Message;
             try {
                 message = await prisma.message.create({
                     data: { externalId: messageExternalId, ...messageData },
                 });
-            } catch (e: any) {
-                if (e.code === 'P2002') {
-                    console.log(`[Baileys] Duplicate message ${messageExternalId}, skipping processing.`);
+            } catch (e: unknown) {
+                if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === 'P2002') {
+                    log.info(`Duplicate message ${messageExternalId}, skipping processing.`);
                     return;
                 }
                 throw e;
@@ -181,16 +188,16 @@ export class MessageIngestService {
                     // Generate AI descriptions only for IMAGE and DOCUMENT (skip stickers, audio, etc.)
                     if (msgType === 'IMAGE' || msgType === 'DOCUMENT') {
                         MediaService.generateMediaDescription(message.id, msgType, safeParseMessageMetadata(message.metadata).mediaUrl, bot.aiProvider)
-                            .catch(err => console.warn(`[Baileys] Media description failed for ${messageExternalId}:`, err.message));
+                            .catch(err => log.warn(`Media description failed for ${messageExternalId}:`, err.message));
                     }
                 } catch (mediaErr) {
-                    console.error(`[Baileys] Media download failed for ${messageExternalId}:`, mediaErr);
+                    log.error(`Media download failed for ${messageExternalId}:`, mediaErr);
                     const placeholder = `[${msgType.toLowerCase()} adjunto no pudo ser descargado]`;
                     const updatedContent = content ? `${content}\n${placeholder}` : placeholder;
                     await prisma.message.update({
                         where: { id: message.id },
                         data: { content: updatedContent },
-                    }).catch(e => console.warn('[MessageIngest] media fallback content update failed:', (e as Error).message));
+                    }).catch(e => log.warn('media fallback content update failed:', (e as Error).message));
                     message = { ...message, content: updatedContent };
                 }
             }
@@ -210,13 +217,13 @@ export class MessageIngestService {
 
             // Skip processing when bot is paused
             if (bot.paused) {
-                console.log(`[Filter] Bot ${bot.name} is paused, skipping processing for ${from}`);
+                log.info(`Bot ${bot.name} is paused, skipping processing for ${from}`);
                 return;
             }
 
             // Skip processing for excluded group messages
             if (BotConfigService.resolveExcludeGroups(bot) && from.endsWith("@g.us")) {
-                console.log(`[Filter] Group message from ${from} excluded for Bot ${bot.name}`);
+                log.info(`Group message from ${from} excluded for Bot ${bot.name}`);
                 return;
             }
 
@@ -229,14 +236,14 @@ export class MessageIngestService {
                 });
                 const labelIds = sessionLabels.map(sl => sl.labelId);
                 if (labelIds.some(id => ignoredLabelIds.includes(id))) {
-                    console.log(`[Filter] Session ${from} has ignored label, skipping AI for Bot ${bot.name}`);
+                    log.info(`Session ${from} has ignored label, skipping AI for Bot ${bot.name}`);
                     return;
                 }
             }
 
             // 5. Evaluate triggers (flows + tools) for conversational messages
             flowEngine.processIncomingMessage(session.id, message).catch(err => {
-                console.error(`[Baileys] FlowEngine error:`, err);
+                log.error('FlowEngine error:', err);
             });
 
             // Outgoing messages: only triggers, no AI
@@ -244,13 +251,13 @@ export class MessageIngestService {
 
             // Per-session AI gate
             if (session.aiEnabled === false) {
-                console.log(`[Filter] AI disabled for session ${from}, skipping AI processing`);
+                log.info(`AI disabled for session ${from}, skipping AI processing`);
                 return;
             }
 
             // 6. Enqueue AI processing
-            const handleAIError = async (err: any, sid: string) => {
-                console.error(`[${new Date().toISOString()}] [Baileys] AI enqueue error for session ${sid}:`, err);
+            const handleAIError = async (err: unknown, sid: string) => {
+                log.error(`AI enqueue error for session ${sid}:`, err);
             };
 
             const messageDelay = bot.template?.messageDelay ?? bot.messageDelay;
@@ -262,13 +269,13 @@ export class MessageIngestService {
                     (sid, msgs) => {
                         queueService.enqueueAIProcessing(sid, msgs.map(m => m.id)).catch(err => handleAIError(err, sid));
                     }
-                ).catch(err => console.error(`[Baileys] Accumulator error:`, err));
+                ).catch(err => log.error('Accumulator error:', err));
             } else {
                 queueService.enqueueAIProcessing(session.id, [message.id]).catch(err => handleAIError(err, session.id));
             }
 
         } catch (e) {
-            console.error(`[${new Date().toISOString()}] [Baileys] Error processing message:`, e);
+            log.error('Error processing message:', e);
         }
     }
 
@@ -276,6 +283,7 @@ export class MessageIngestService {
      * Persist an outgoing message to the database and emit message:sent event.
      * Called after a message is successfully sent via the WhatsApp socket.
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys message content structure varies
     static async persistOutgoingMessage(botId: string, to: string, sentKeyId: string, content: any): Promise<void> {
         try {
             const { session } = await upsertSessionFromChat(botId, jidNormalizedUser(to));
@@ -299,16 +307,16 @@ export class MessageIngestService {
                         type: msgType,
                         isProcessed: true,
                     },
-                }).catch((e: any) => {
+                }).catch((e: unknown) => {
                     // P2002 = duplicate, already captured by messages.upsert
-                    if (e.code !== 'P2002') console.warn(`[Baileys] Failed to persist outgoing message:`, e.message);
+                    if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code !== 'P2002') log.warn('Failed to persist outgoing message:', e instanceof Error ? e.message : e);
                 });
 
                 eventBus.emitBotEvent({ type: 'message:sent', botId, sessionId: session.id, content: textContent });
             }
         } catch (e) {
             // Non-critical: don't fail the send if persistence fails
-            console.warn(`[Baileys] Outgoing message persistence error:`, (e as Error).message);
+            log.warn('Outgoing message persistence error:', (e as Error).message);
         }
     }
 }

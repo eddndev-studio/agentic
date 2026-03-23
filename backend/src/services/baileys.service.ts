@@ -22,8 +22,10 @@ import { LabelService } from './label.service';
 import { MessageIngestService, isMessageDuplicate } from './message-ingest.service';
 import { upsertSessionFromChat, updateContactName } from './session-helpers';
 import { config } from '../config';
+import { createLogger } from '../logger';
 
-const logger = pino({ level: 'silent' });
+const pinoLogger = pino({ level: 'silent' });
+const log = createLogger('Baileys');
 
 // Map to store active sockets: botId -> socket
 const sessions = new Map<string, WASocket>();
@@ -46,11 +48,11 @@ function resetWatchdog(botId: string): void {
     if (existing) clearTimeout(existing);
 
     const timer = setTimeout(() => {
-        console.warn(`[Baileys] Watchdog: No messages for ${config.baileys.watchdogTimeout / 60000}min on Bot ${botId}, forcing reconnect`);
+        log.warn(`Watchdog: No messages for ${config.baileys.watchdogTimeout / 60000}min on Bot ${botId}, forcing reconnect`);
         watchdogTimers.delete(botId);
         const sock = sessions.get(botId);
         if (sock) {
-            try { sock.ws.close(); } catch (e) { console.warn('[Baileys] watchdog ws.close error:', (e as Error).message); }
+            try { sock.ws.close(); } catch (e) { log.warn('watchdog ws.close error:', (e as Error).message); }
         }
     }, config.baileys.watchdogTimeout);
 
@@ -67,7 +69,7 @@ function stopWatchdog(botId: string): void {
 
 // Simple CacheStore implementation for Baileys msgRetryCounterCache
 class MapCacheStore {
-    private cache = new Map<string, { value: any; expires: number }>();
+    private cache = new Map<string, { value: unknown; expires: number }>();
     private ttl: number;
     constructor(ttlMs = 5 * 60 * 1000) { this.ttl = ttlMs; }
     get<T>(key: string): T | undefined {
@@ -94,7 +96,7 @@ export class BaileysService {
             return sessions.get(botId);
         }
 
-        console.log(`[${new Date().toISOString()}] [Baileys] Starting session for Bot ${botId}`);
+        log.info(`Starting session for Bot ${botId}`);
 
         const sessionDir = path.join(AUTH_DIR, botId);
         if (!fs.existsSync(sessionDir)) {
@@ -112,9 +114,9 @@ export class BaileysService {
                     try {
                         JSON.parse(fs.readFileSync(backupPath, 'utf-8'));
                         fs.copyFileSync(backupPath, credsPath);
-                        console.warn(`[Baileys] Recovered corrupted creds.json from backup for Bot ${botId}`);
+                        log.warn(`Recovered corrupted creds.json from backup for Bot ${botId}`);
                     } catch {
-                        console.error(`[Baileys] Both creds.json and backup are corrupted for Bot ${botId}`);
+                        log.error(`Both creds.json and backup are corrupted for Bot ${botId}`);
                     }
                 }
             }
@@ -149,33 +151,33 @@ export class BaileysService {
                     execSync(`ip -6 addr add ${botConfig.ipv6Address}/64 dev eth0 2>/dev/null || true`);
                     isAvailable = await this.isAddressAvailable(botConfig.ipv6Address);
                     if (isAvailable) {
-                        console.log(`[Baileys] Auto-bound IPv6 ${botConfig.ipv6Address} to eth0`);
+                        log.info(`Auto-bound IPv6 ${botConfig.ipv6Address} to eth0`);
                     }
-                } catch (e) { console.warn('[Baileys] IPv6 auto-bind failed:', (e as Error).message); }
+                } catch (e) { log.warn('IPv6 auto-bind failed:', (e as Error).message); }
             }
             if (isAvailable) {
-                console.log(`[Baileys] Bot ${botConfig.name} will bind to IPv6: ${botConfig.ipv6Address}`);
+                log.info(`Bot ${botConfig.name} will bind to IPv6: ${botConfig.ipv6Address}`);
                 socketAgent = new https.Agent({
                     localAddress: botConfig.ipv6Address,
                     family: 6,
                     keepAlive: true
                 });
             } else {
-                console.log(`[Baileys] IPv6 ${botConfig.ipv6Address} not available locally, using default network interface`);
+                log.info(`IPv6 ${botConfig.ipv6Address} not available locally, using default network interface`);
             }
         }
 
-        console.log(`[${new Date().toISOString()}] [Baileys] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
+        log.info(`Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
         try {
             // @ts-ignore
             const sock = makeWASocket({
                 version,
-                logger,
+                logger: pinoLogger,
                 printQRInTerminal: false,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, logger),
+                    keys: makeCacheableSignalKeyStore(state.keys, pinoLogger),
                 },
                 generateHighQualityLinkPreview: true,
                 syncFullHistory: false,
@@ -198,13 +200,13 @@ export class BaileysService {
                 const { connection, lastDisconnect, qr } = update;
 
                 if (qr) {
-                    console.log(`[${new Date().toISOString()}] [Baileys] QR Received for Bot ${botId}`);
+                    log.info(`QR Received for Bot ${botId}`);
                     try {
                         const url = await QRCode.toDataURL(qr);
                         qrCodes.set(botId, url);
                         eventBus.emitBotEvent({ type: 'bot:qr', botId, qr: url });
                     } catch (err) {
-                        console.error(`[${new Date().toISOString()}] QR Generation Error`, err);
+                        log.error('QR Generation Error', err);
                     }
                 }
 
@@ -219,7 +221,7 @@ export class BaileysService {
                     ];
                     const shouldReconnect = !terminalCodes.includes(statusCode!);
 
-                    console.log(`[Baileys] Connection closed for Bot ${botId}. Code: ${statusCode}, Reconnecting: ${shouldReconnect}`);
+                    log.info(`Connection closed for Bot ${botId}. Code: ${statusCode}, Reconnecting: ${shouldReconnect}`);
 
                     sessions.delete(botId);
                     qrCodes.delete(botId);
@@ -238,7 +240,7 @@ export class BaileysService {
                         const jitter = exponential * (0.75 + Math.random() * 0.5);
                         const delay = Math.round(jitter);
                         reconnectAttempts.set(botId, attempt + 1);
-                        console.log(`[Baileys] Reconnecting Bot ${botId} in ${delay / 1000}s (attempt ${attempt + 1})`);
+                        log.info(`Reconnecting Bot ${botId} in ${delay / 1000}s (attempt ${attempt + 1})`);
                         const timer = setTimeout(() => {
                             reconnectTimers.delete(botId);
                             if (!shuttingDown) this.startSession(botId);
@@ -246,10 +248,10 @@ export class BaileysService {
                         reconnectTimers.set(botId, timer);
                     } else {
                         reconnectAttempts.delete(botId);
-                        console.log(`[Baileys] Bot ${botId} stopped (code ${statusCode}). No reconnect.`);
+                        log.info(`Bot ${botId} stopped (code ${statusCode}). No reconnect.`);
                     }
                 } else if (connection === 'open') {
-                    console.log(`[Baileys] Connection opened for Bot ${botId}`);
+                    log.info(`Connection opened for Bot ${botId}`);
                     qrCodes.delete(botId);
                     reconnectAttempts.delete(botId); // Reset backoff on successful connection
                     connectionTimestamps.set(botId, Date.now());
@@ -261,9 +263,9 @@ export class BaileysService {
                         try {
                             const s = sessions.get(botId);
                             if (s) await LabelService.syncLabels(s, botId);
-                            console.log(`[Baileys] Full label sync completed for Bot ${botId}`);
-                        } catch (e: any) {
-                            console.warn(`[Baileys] Label sync failed for Bot ${botId}:`, e.message);
+                            log.info(`Full label sync completed for Bot ${botId}`);
+                        } catch (e: unknown) {
+                            log.warn(`Label sync failed for Bot ${botId}:`, (e as Error).message);
                         }
 
                         // Start periodic label reconciliation after initial sync
@@ -284,7 +286,7 @@ export class BaileysService {
                         // Outside grace period — these are historical sync messages, skip
                         return;
                     }
-                    console.log(`[Baileys] Processing ${messages.length} offline catch-up message(s) for Bot ${botId}`);
+                    log.info(`Processing ${messages.length} offline catch-up message(s) for Bot ${botId}`);
                 }
 
                 // Reset watchdog on any message activity
@@ -305,72 +307,72 @@ export class BaileysService {
                         // In-memory dedup: skip if already processed recently
                         const dedupKey = `${botId}:${msg.key.remoteJid}:${msg.key.id}`;
                         if (isMessageDuplicate(dedupKey)) {
-                            console.log(`[Baileys] Dedup: skipping already-seen message ${msg.key.id}`);
+                            log.info(`Dedup: skipping already-seen message ${msg.key.id}`);
                             continue;
                         }
 
                         // @ts-ignore
                         await MessageIngestService.handleIncomingMessage(botId, msg);
                     } catch (e) {
-                        console.error(`[Baileys] Error in messages.upsert handler for msg ${msg.key.id}:`, e);
+                        log.error(`Error in messages.upsert handler for msg ${msg.key.id}:`, e);
                     }
                 }
             });
 
-            sock.ev.on('labels.edit', async (label: any) => {
+            sock.ev.on('labels.edit', async (label) => {
                 await LabelService.handleLabelEdit(botId, label);
             });
 
-            sock.ev.on('labels.association', async (event: any) => {
+            sock.ev.on('labels.association', async (event) => {
                 await LabelService.handleLabelAssociation(botId, event, sock);
             });
 
             // --- contacts.update: update session names when contacts change ---
-            sock.ev.on('contacts.update', async (updates: any[]) => {
+            sock.ev.on('contacts.update', async (updates) => {
                 for (const contact of updates) {
                     try {
                         await updateContactName(botId, contact);
-                    } catch (e: any) {
-                        console.warn(`[Baileys] contacts.update error:`, e.message);
+                    } catch (e: unknown) {
+                        log.warn('contacts.update error:', (e as Error).message);
                     }
                 }
             });
 
             // --- contacts.upsert: initial sync delivers full contact objects ---
-            sock.ev.on('contacts.upsert', async (contacts: any[]) => {
+            sock.ev.on('contacts.upsert', async (contacts) => {
                 for (const contact of contacts) {
                     try {
                         await updateContactName(botId, contact);
-                    } catch (e: any) {
-                        console.warn(`[Baileys] contacts.upsert error:`, e.message);
+                    } catch (e: unknown) {
+                        log.warn('contacts.upsert error:', (e as Error).message);
                     }
                 }
             });
 
             // --- chats.upsert: create sessions for existing chats on reconnect ---
-            sock.ev.on('chats.upsert', async (chats: any[]) => {
+            sock.ev.on('chats.upsert', async (chats) => {
                 const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
                 for (const chat of chats) {
                     try {
                         if (!chat.id || chat.id === 'status@broadcast') continue;
                         const jid = jidNormalizedUser(chat.id);
                         if (bot && BotConfigService.resolveExcludeGroups(bot) && jid.endsWith('@g.us')) continue;
-                        const name = chat.name || chat.subject || undefined;
+                        const name = chat.name || (chat as Record<string, unknown>).subject as string || undefined;
                         const { session, created } = await upsertSessionFromChat(botId, jid, name);
                         if (created && session) {
                             eventBus.emitBotEvent({ type: 'session:created', botId, session });
                         }
-                    } catch (e: any) {
-                        console.warn(`[Baileys] chats.upsert error:`, e.message);
+                    } catch (e: unknown) {
+                        log.warn('chats.upsert error:', (e as Error).message);
                     }
                 }
             });
 
             // --- messaging-history.set: bulk import historical messages ---
-            sock.ev.on('messaging-history.set', async (data: any) => {
+            sock.ev.on('messaging-history.set', async (data) => {
                 const { chats: histChats, contacts: histContacts, messages: histMessages } = data;
                 const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
-                console.log(`[Baileys] History sync for Bot ${botId}: ${histChats?.length || 0} chats, ${histContacts?.length || 0} contacts, ${histMessages?.length || 0} messages`);
+                log.info(`History sync for Bot ${botId}: ${histChats?.length || 0} chats, ${histContacts?.length || 0} contacts, ${histMessages?.length || 0} messages`);
 
                 // Upsert sessions from chats
                 if (histChats?.length) {
@@ -379,8 +381,8 @@ export class BaileysService {
                             if (!chat.id || chat.id === 'status@broadcast') continue;
                             const jid = jidNormalizedUser(chat.id);
                             if (bot && BotConfigService.resolveExcludeGroups(bot) && jid.endsWith('@g.us')) continue;
-                            await upsertSessionFromChat(botId, jid, chat.name || chat.subject);
-                        } catch (e) { console.warn('[Baileys] history chat upsert error:', (e as Error).message); }
+                            await upsertSessionFromChat(botId, jid, chat.name || (chat as Record<string, unknown>).subject as string);
+                        } catch (e) { log.warn('history chat upsert error:', (e as Error).message); }
                     }
                 }
 
@@ -389,7 +391,7 @@ export class BaileysService {
                     for (const contact of histContacts) {
                         try {
                             await updateContactName(botId, contact);
-                        } catch (e) { console.warn('[Baileys] history contact update error:', (e as Error).message); }
+                        } catch (e) { log.warn('history contact update error:', (e as Error).message); }
                     }
                 }
 
@@ -442,14 +444,14 @@ export class BaileysService {
                                 },
                             });
                             imported++;
-                        } catch (e) { console.warn('[Baileys] history message import error:', (e as Error).message); }
+                        } catch (e) { log.warn('history message import error:', (e as Error).message); }
                     }
-                    console.log(`[Baileys] History sync imported ${imported} messages for Bot ${botId}`);
+                    log.info(`History sync imported ${imported} messages for Bot ${botId}`);
                 }
             });
 
             // --- messages.update: handle edited messages ---
-            sock.ev.on('messages.update', async (updates: any[]) => {
+            sock.ev.on('messages.update', async (updates) => {
                 for (const { key, update } of updates) {
                     try {
                         if (!key?.id) continue;
@@ -460,7 +462,7 @@ export class BaileysService {
                                 where: { externalId: key.id },
                             });
                             if (count > 0) {
-                                console.log(`[Baileys] Message ${key.id} revoked for Bot ${botId}`);
+                                log.info(`Message ${key.id} revoked for Bot ${botId}`);
                                 const jid = key.remoteJid;
                                 if (jid) {
                                     let resolved = jidNormalizedUser(jid);
@@ -468,7 +470,7 @@ export class BaileysService {
                                         try {
                                             const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(resolved);
                                             if (pn) resolved = jidNormalizedUser(pn);
-                                        } catch (e) { console.warn('[Baileys] LID resolution failed in messages.update:', (e as Error).message); }
+                                        } catch (e) { log.warn('LID resolution failed in messages.update:', (e as Error).message); }
                                     }
                                     const identifier = resolved;
                                     const session = await prisma.session.findUnique({ where: { botId_identifier: { botId, identifier } } });
@@ -494,9 +496,9 @@ export class BaileysService {
                             where: { externalId: key.id },
                             data: { content: newContent },
                         });
-                        console.log(`[Baileys] Message ${key.id} edited for Bot ${botId}`);
-                    } catch (e: any) {
-                        console.warn(`[Baileys] messages.update error:`, e.message);
+                        log.info(`Message ${key.id} edited for Bot ${botId}`);
+                    } catch (e: unknown) {
+                        log.warn('messages.update error:', (e as Error).message);
                     }
                 }
             });
@@ -511,7 +513,7 @@ export class BaileysService {
                             try {
                                 const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(identifier);
                                 if (pn) identifier = jidNormalizedUser(pn);
-                            } catch (e) { console.warn('[Baileys] LID resolution failed in chats.delete:', (e as Error).message); }
+                            } catch (e) { log.warn('LID resolution failed in chats.delete:', (e as Error).message); }
                         }
                         const session = await prisma.session.findUnique({
                             where: { botId_identifier: { botId, identifier } },
@@ -525,7 +527,7 @@ export class BaileysService {
                         const { ConversationService } = await import('./conversation.service');
                         await ConversationService.clear(session.id);
 
-                        console.log(`[Baileys] Chat deleted for ${identifier} (Bot ${botId}): ${count} messages removed`);
+                        log.info(`Chat deleted for ${identifier} (Bot ${botId}): ${count} messages removed`);
 
                         eventBus.emitBotEvent({
                             type: 'messages:deleted',
@@ -533,15 +535,15 @@ export class BaileysService {
                             sessionId: session.id,
                             count,
                         });
-                    } catch (e: any) {
-                        console.warn(`[Baileys] chats.delete error:`, e.message);
+                    } catch (e: unknown) {
+                        log.warn('chats.delete error:', (e as Error).message);
                     }
                 }
             });
 
             // Handle message deletion (individual or chat clear)
-            sock.ev.on('messages.delete', async (deletion: any) => {
-                console.log(`[Baileys] messages.delete for Bot ${botId}:`, JSON.stringify(deletion).substring(0, 300));
+            sock.ev.on('messages.delete', async (deletion) => {
+                log.info(`messages.delete for Bot ${botId}:`, JSON.stringify(deletion).substring(0, 300));
                 try {
                     // Helper: resolve LID to normalized JID (keeps @s.whatsapp.net suffix)
                     const resolveToIdentifier = async (jid: string): Promise<string> => {
@@ -550,12 +552,12 @@ export class BaileysService {
                             try {
                                 const pn = await (sock as any).signalRepository?.lidMapping?.getPNForLID(resolved);
                                 if (pn) resolved = jidNormalizedUser(pn);
-                            } catch (e) { console.warn('[Baileys] LID resolution failed in messages.delete:', (e as Error).message); }
+                            } catch (e) { log.warn('LID resolution failed in messages.delete:', (e as Error).message); }
                         }
                         return resolved;
                     };
 
-                    if (deletion.all) {
+                    if ('all' in deletion && deletion.all) {
                         const jid = deletion.jid;
                         if (!jid) return;
 
@@ -567,10 +569,10 @@ export class BaileysService {
                         const { ConversationService } = await import('./conversation.service');
                         await ConversationService.clear(session.id);
 
-                        console.log(`[Baileys] Chat cleared for ${identifier} (Bot ${botId}): ${count} messages deleted`);
+                        log.info(`Chat cleared for ${identifier} (Bot ${botId}): ${count} messages deleted`);
                         eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
 
-                    } else if (deletion.keys?.length) {
+                    } else if ('keys' in deletion && deletion.keys?.length) {
                         // Group keys by resolved session
                         const keysBySession = new Map<string, string[]>();
 
@@ -590,22 +592,22 @@ export class BaileysService {
                             });
 
                             if (count > 0) {
-                                console.log(`[Baileys] ${count} message(s) deleted for ${identifier} (Bot ${botId})`);
+                                log.info(`${count} message(s) deleted for ${identifier} (Bot ${botId})`);
                                 eventBus.emitBotEvent({ type: 'messages:deleted', botId, sessionId: session.id, count });
                             }
                         }
                     }
-                } catch (e: any) {
-                    console.warn(`[Baileys] messages.delete error:`, e.message);
+                } catch (e: unknown) {
+                    log.warn('messages.delete error:', (e as Error).message);
                 }
             });
 
             return sock;
 
-        } catch (error: any) {
-            console.error(`[${new Date().toISOString()}] [Baileys] Failed to start session for bot ${botId}:`, error);
-            if (error.message?.includes('QR refs attempts ended')) {
-                console.log(`[${new Date().toISOString()}] [Baileys] QR timeout for bot ${botId}. Removing session to allow fresh retry.`);
+        } catch (error: unknown) {
+            log.error(`Failed to start session for bot ${botId}:`, error);
+            if (error instanceof Error && error.message?.includes('QR refs attempts ended')) {
+                log.info(`QR timeout for bot ${botId}. Removing session to allow fresh retry.`);
                 this.stopSession(botId);
             }
             return null;
@@ -652,7 +654,7 @@ export class BaileysService {
         }
 
         if (purged > 0) {
-            console.log(`[Baileys] Auto-purged ${purged} Signal session files for Bot ${botId} (Bad MAC recovery)`);
+            log.info(`Auto-purged ${purged} Signal session files for Bot ${botId} (Bad MAC recovery)`);
         }
     }
 
@@ -670,7 +672,7 @@ export class BaileysService {
             try {
                 await sock.logout();
             } catch (e) {
-                console.log(`[${new Date().toISOString()}] [Baileys] Error during logout for bot ${botId}:`, e);
+                log.error(`Error during logout for bot ${botId}:`, e);
             }
             sessions.delete(botId);
         }
@@ -683,16 +685,17 @@ export class BaileysService {
         const sessionDir = path.join(AUTH_DIR, botId);
         if (fs.existsSync(sessionDir)) {
             fs.rmSync(sessionDir, { recursive: true, force: true });
-            console.log(`[${new Date().toISOString()}] [Baileys] Cleared auth data for bot ${botId}`);
+            log.info(`Cleared auth data for bot ${botId}`);
         }
 
-        console.log(`[${new Date().toISOString()}] [Baileys] Session stopped for bot ${botId}`);
+        log.info(`Session stopped for bot ${botId}`);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys content can be text, image, audio, etc.
     static async sendMessage(botId: string, to: string, content: any): Promise<boolean> {
         const sock = sessions.get(botId);
         if (!sock) {
-            console.warn(`[${new Date().toISOString()}] [Baileys] sendMessage failed: Bot ${botId} not connected`);
+            log.warn(`sendMessage failed: Bot ${botId} not connected`);
             return false;
         }
 
@@ -715,16 +718,16 @@ export class BaileysService {
             // Persist outgoing message to DB so it shows in the monitor
             if (sent?.key?.id) {
                 MessageIngestService.persistOutgoingMessage(botId, to, sent.key.id, content).catch(e => {
-                    console.warn(`[Baileys] Outgoing message persistence error:`, (e as Error).message);
+                    log.warn('Outgoing message persistence error:', (e as Error).message);
                 });
             }
 
             return true;
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Log the error with details but don't crash
-            const errorCode = error?.code || 'UNKNOWN';
-            const errorMsg = error?.message || String(error);
-            console.error(`[${new Date().toISOString()}] [Baileys] sendMessage failed for Bot ${botId} to ${to}:`, {
+            const errorCode = (error instanceof Error && 'code' in error ? (error as Record<string, unknown>).code : undefined) || 'UNKNOWN';
+            const errorMsg = (error instanceof Error ? error.message : undefined) || String(error);
+            log.error(`sendMessage failed for Bot ${botId} to ${to}:`, {
                 code: errorCode,
                 message: errorMsg,
                 contentType: content?.text ? 'TEXT' : content?.image ? 'IMAGE' : content?.audio ? 'AUDIO' : 'OTHER'
@@ -749,8 +752,8 @@ export class BaileysService {
                 participant: undefined,
             }));
             await sock.readMessages(keys);
-        } catch (e: any) {
-            console.warn(`[Baileys] markRead failed:`, e.message);
+        } catch (e: unknown) {
+            log.warn('markRead failed:', (e as Error).message);
         }
     }
 
@@ -762,8 +765,8 @@ export class BaileysService {
         if (!sock) return;
         try {
             await sock.sendPresenceUpdate(presence, chatJid);
-        } catch (e: any) {
-            console.warn(`[Baileys] sendPresence(${presence}) failed:`, e.message);
+        } catch (e: unknown) {
+            log.warn(`sendPresence(${presence}) failed:`, (e as Error).message);
         }
     }
 
@@ -809,7 +812,7 @@ export class BaileysService {
         // Cancel all pending reconnect timers
         for (const [botId, timer] of reconnectTimers) {
             clearTimeout(timer);
-            console.log(`[Baileys] Cancelled reconnect timer for Bot ${botId}`);
+            log.info(`Cancelled reconnect timer for Bot ${botId}`);
         }
         reconnectTimers.clear();
         reconnectAttempts.clear();
@@ -818,9 +821,9 @@ export class BaileysService {
         for (const [botId, sock] of sessions) {
             try {
                 sock.ws.close();
-                console.log(`[Baileys] Closed socket for Bot ${botId}`);
-            } catch (e: any) {
-                console.warn(`[Baileys] Error closing socket for Bot ${botId}:`, e.message);
+                log.info(`Closed socket for Bot ${botId}`);
+            } catch (e: unknown) {
+                log.warn(`Error closing socket for Bot ${botId}:`, (e as Error).message);
             }
         }
         sessions.clear();

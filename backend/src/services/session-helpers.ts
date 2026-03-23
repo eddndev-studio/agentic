@@ -1,6 +1,6 @@
 import { jidNormalizedUser } from '@whiskeysockets/baileys';
 import { prisma } from './postgres.service';
-import { Platform, SessionStatus } from '@prisma/client';
+import { Platform, SessionStatus, type Session } from '@prisma/client';
 import { eventBus } from './event-bus';
 
 /**
@@ -28,7 +28,7 @@ export async function updateContactName(botId: string, contact: { id?: string; n
  * Handles LID↔phone normalization and P2002 race conditions.
  * @param altIdentifier Optional fallback identifier to search (e.g. raw LID when primary is resolved phone)
  */
-export async function upsertSessionFromChat(botId: string, jid: string, name?: string, altIdentifier?: string): Promise<{ session: any; created: boolean }> {
+export async function upsertSessionFromChat(botId: string, jid: string, name?: string, altIdentifier?: string): Promise<{ session: Session | null; created: boolean }> {
     const identifier = jidNormalizedUser(jid);
     let session = await prisma.session.findUnique({
         where: { botId_identifier: { botId, identifier } },
@@ -49,8 +49,8 @@ export async function upsertSessionFromChat(botId: string, jid: string, name?: s
                         data: { identifier },
                     });
                     console.log(`[Baileys] Migrated session identifier from ${altIdentifier} to ${identifier}`);
-                } catch (e: any) {
-                    if (e.code === 'P2002') {
+                } catch (e: unknown) {
+                    if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === 'P2002') {
                         // Another session already has this identifier — merge by deleting the old one
                         const canonical = await prisma.session.findUnique({
                             where: { botId_identifier: { botId, identifier } },
@@ -76,8 +76,8 @@ export async function upsertSessionFromChat(botId: string, jid: string, name?: s
             },
         });
         return { session, created: true };
-    } catch (e: any) {
-        if (e.code === 'P2002') {
+    } catch (e: unknown) {
+        if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === 'P2002') {
             session = await prisma.session.findUnique({
                 where: { botId_identifier: { botId, identifier } },
             });

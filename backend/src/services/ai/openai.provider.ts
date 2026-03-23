@@ -13,7 +13,7 @@ export class OpenAIProvider implements AIProvider {
         const FIXED_TEMPERATURE_MODELS = ["gpt-5-nano", "gpt-5-mini", "gpt-5", "o1", "o1-mini", "o3-mini"];
         const skipTemperature = FIXED_TEMPERATURE_MODELS.some(m => request.model.startsWith(m));
 
-        const body: any = {
+        const body: Record<string, unknown> = {
             model: request.model,
             messages: this.formatMessages(request.messages),
             ...(skipTemperature ? {} : { temperature: request.temperature ?? 0.7 }),
@@ -38,13 +38,13 @@ export class OpenAIProvider implements AIProvider {
             throw new Error(`OpenAI API error (${res.status}): ${err}`);
         }
 
-        const data = await res.json() as any;
+        const data = await res.json() as { choices?: Array<{ message?: { content?: string | null; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
         const choice = data.choices?.[0];
         const message = choice?.message;
 
         return {
             content: message?.content ?? null,
-            toolCalls: (message?.tool_calls ?? []).map((tc: any) => ({
+            toolCalls: (message?.tool_calls ?? []).map((tc) => ({
                 id: tc.id,
                 name: tc.function.name,
                 arguments: JSON.parse(tc.function.arguments || "{}"),
@@ -57,7 +57,7 @@ export class OpenAIProvider implements AIProvider {
         };
     }
 
-    private formatMessages(messages: AIMessage[]): any[] {
+    private formatMessages(messages: AIMessage[]): Array<Record<string, unknown>> {
         return messages.map((msg) => {
             if (msg.role === "assistant" && msg.toolCalls?.length) {
                 return {
@@ -89,7 +89,7 @@ export class OpenAIProvider implements AIProvider {
         });
     }
 
-    private formatTools(tools: AIToolDefinition[]): any[] {
+    private formatTools(tools: AIToolDefinition[]): Array<Record<string, unknown>> {
         return tools.map((t) => ({
             type: "function",
             function: {

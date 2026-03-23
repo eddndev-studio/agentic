@@ -80,8 +80,8 @@ export async function syncFlowTool(flow: FlowLike): Promise<void> {
                 },
             });
         }
-    } catch (e: any) {
-        if (e.code === "P2002") {
+    } catch (e: unknown) {
+        if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === "P2002") {
             console.warn(
                 `[flow-tool-sync] Name collision: '${baseName}' could not be resolved for flow ${flow.id}.`
             );

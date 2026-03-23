@@ -25,8 +25,8 @@ async function bindIPv6(address: string): Promise<void> {
     try {
         execSync(`ip -6 addr add ${address}/64 dev eth0 2>/dev/null || true`);
         console.log(`[IPv6] Bound ${address} to eth0`);
-    } catch (e: any) {
-        console.error(`[IPv6] Failed to bind ${address}:`, e.message);
+    } catch (e: unknown) {
+        console.error(`[IPv6] Failed to bind ${address}:`, (e instanceof Error ? e.message : e));
     }
 }
 
@@ -42,30 +42,23 @@ export const botController = new Elysia({ prefix: "/bots" })
     })
     // Create bot
     .post("/", async ({ body, set }) => {
-        const { name, platform, identifier } = body as any;
-
-        if (!name || !identifier) {
-            set.status = 400;
-            return "Name and Identifier are required";
-        }
-
         try {
             // Auto-assign IPv6
             const assignedIPv6 = generateRandomIPv6();
 
             const bot = await prisma.bot.create({
                 data: {
-                    name,
-                    platform: (platform as Platform) || Platform.WHATSAPP,
-                    identifier,
+                    name: body.name,
+                    platform: (body.platform as Platform) || Platform.WHATSAPP,
+                    identifier: body.identifier,
                     ipv6Address: assignedIPv6,
                     credentials: {}
                 }
             });
             await bindIPv6(assignedIPv6);
             return bot;
-        } catch (e: any) {
-            if (e.code === 'P2002') {
+        } catch (e: unknown) {
+            if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === 'P2002') {
                 set.status = 409;
                 return "Bot Identifier already exists";
             }
@@ -84,9 +77,9 @@ export const botController = new Elysia({ prefix: "/bots" })
         try {
             await BaileysService.startSession(id);
             return { success: true, message: "Session initialization started" };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return `Failed to start session: ${e.message}`;
+            return `Failed to start session: ${e instanceof Error ? e.message : e}`;
         }
     })
     .get("/:id/qr", async ({ params: { id }, set }) => {
@@ -111,9 +104,9 @@ export const botController = new Elysia({ prefix: "/bots" })
         try {
             await BaileysService.stopSession(id);
             return { success: true, message: "Session disconnected successfully" };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return `Failed to disconnect session: ${e.message}`;
+            return `Failed to disconnect session: ${e instanceof Error ? e.message : e}`;
         }
     })
     // Generic /:id routes
@@ -129,52 +122,49 @@ export const botController = new Elysia({ prefix: "/bots" })
         return bot;
     })
     .put("/:id", async ({ params: { id }, body, set }) => {
-        const { name, identifier, platform, credentials, ipv6Address,
-            aiEnabled, aiProvider, aiModel, systemPrompt, temperature, messageDelay,
-            contextMessages, autoReadReceipts,
-            excludeGroups, ignoredLabels, paused, thinkingLevel,
-            notificationChannels,
-            templateId, botVariables } = body as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body (many optional fields)
+        const b = body as any;
 
         try {
             // Check if system prompt or provider/model changed — if so, clear conversations
             let shouldClearConversations = false;
-            if (systemPrompt !== undefined || aiProvider !== undefined || aiModel !== undefined) {
+            if (b.systemPrompt !== undefined || b.aiProvider !== undefined || b.aiModel !== undefined) {
                 const currentBot = await prisma.bot.findUnique({ where: { id }, select: { systemPrompt: true, aiProvider: true, aiModel: true } });
                 if (currentBot) {
                     shouldClearConversations =
-                        (systemPrompt !== undefined && systemPrompt !== currentBot.systemPrompt) ||
-                        (aiProvider !== undefined && aiProvider !== currentBot.aiProvider) ||
-                        (aiModel !== undefined && aiModel !== currentBot.aiModel);
+                        (b.systemPrompt !== undefined && b.systemPrompt !== currentBot.systemPrompt) ||
+                        (b.aiProvider !== undefined && b.aiProvider !== currentBot.aiProvider) ||
+                        (b.aiModel !== undefined && b.aiModel !== currentBot.aiModel);
                 }
             }
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
             const data: any = {};
-            if (name !== undefined) data.name = name;
-            if (identifier !== undefined) data.identifier = identifier;
-            if (platform !== undefined) data.platform = platform as Platform;
-            if (credentials !== undefined) data.credentials = credentials;
-            if (ipv6Address !== undefined) data.ipv6Address = ipv6Address;
-            if (aiEnabled !== undefined) data.aiEnabled = aiEnabled;
-            if (aiProvider !== undefined) data.aiProvider = aiProvider as AIProvider;
-            if (aiModel !== undefined) data.aiModel = aiModel;
-            if (systemPrompt !== undefined) data.systemPrompt = systemPrompt;
-            if (temperature !== undefined) data.temperature = temperature;
-            if (messageDelay !== undefined) data.messageDelay = messageDelay;
-            if (contextMessages !== undefined) data.contextMessages = contextMessages;
-            if (autoReadReceipts !== undefined) data.autoReadReceipts = autoReadReceipts;
-            if (excludeGroups !== undefined) data.excludeGroups = excludeGroups;
-            if (ignoredLabels !== undefined) data.ignoredLabels = ignoredLabels;
-            if (paused !== undefined) data.paused = paused;
-            if (thinkingLevel !== undefined) data.thinkingLevel = thinkingLevel;
-            if (notificationChannels !== undefined) data.notificationChannels = notificationChannels;
-            if (templateId !== undefined) data.templateId = templateId || null;
-            if (botVariables !== undefined) data.botVariables = botVariables;
+            if (b.name !== undefined) data.name = b.name;
+            if (b.identifier !== undefined) data.identifier = b.identifier;
+            if (b.platform !== undefined) data.platform = b.platform as Platform;
+            if (b.credentials !== undefined) data.credentials = b.credentials;
+            if (b.ipv6Address !== undefined) data.ipv6Address = b.ipv6Address;
+            if (b.aiEnabled !== undefined) data.aiEnabled = b.aiEnabled;
+            if (b.aiProvider !== undefined) data.aiProvider = b.aiProvider as AIProvider;
+            if (b.aiModel !== undefined) data.aiModel = b.aiModel;
+            if (b.systemPrompt !== undefined) data.systemPrompt = b.systemPrompt;
+            if (b.temperature !== undefined) data.temperature = b.temperature;
+            if (b.messageDelay !== undefined) data.messageDelay = b.messageDelay;
+            if (b.contextMessages !== undefined) data.contextMessages = b.contextMessages;
+            if (b.autoReadReceipts !== undefined) data.autoReadReceipts = b.autoReadReceipts;
+            if (b.excludeGroups !== undefined) data.excludeGroups = b.excludeGroups;
+            if (b.ignoredLabels !== undefined) data.ignoredLabels = b.ignoredLabels;
+            if (b.paused !== undefined) data.paused = b.paused;
+            if (b.thinkingLevel !== undefined) data.thinkingLevel = b.thinkingLevel;
+            if (b.notificationChannels !== undefined) data.notificationChannels = b.notificationChannels;
+            if (b.templateId !== undefined) data.templateId = b.templateId || null;
+            if (b.botVariables !== undefined) data.botVariables = b.botVariables;
 
             const bot = await prisma.bot.update({ where: { id }, data });
 
             // Invalidate notification cache on config change
-            if (notificationChannels !== undefined) {
+            if (b.notificationChannels !== undefined) {
                 const { notificationService } = await import("../services/notification.service");
                 notificationService.invalidateCache(id);
             }
@@ -192,7 +182,7 @@ export const botController = new Elysia({ prefix: "/bots" })
             }
 
             return bot;
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 500;
             return "Failed to update bot";
         }
@@ -210,7 +200,7 @@ export const botController = new Elysia({ prefix: "/bots" })
             }
 
             return { success: true, cleared: sessions.length };
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 500;
             return { error: "Failed to clear conversations" };
         }
@@ -276,7 +266,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                                     type: s.type,
                                     content: s.content,
                                     mediaUrl: s.mediaUrl,
-                                    metadata: s.metadata as any,
+                                    metadata: s.metadata ?? undefined,
                                     delayMs: s.delayMs,
                                     jitterPct: s.jitterPct,
                                     order: s.order,
@@ -320,8 +310,8 @@ export const botController = new Elysia({ prefix: "/bots" })
                             name: tool.name,
                             description: tool.description,
                             actionType: tool.actionType,
-                            actionConfig: tool.actionConfig as any,
-                            parameters: tool.parameters as any,
+                            actionConfig: tool.actionConfig ?? {},
+                            parameters: tool.parameters ?? {},
                             status: tool.status,
                             flowId: tool.flowId ? flowIdMap.get(tool.flowId) || null : null,
                             botId: newBot.id,
@@ -350,8 +340,8 @@ export const botController = new Elysia({ prefix: "/bots" })
 
             if (result.ipv6Address) await bindIPv6(result.ipv6Address);
             return result;
-        } catch (e: any) {
-            if (e.code === "P2002") {
+        } catch (e: unknown) {
+            if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === "P2002") {
                 set.status = 409;
                 return { error: "Bot identifier already exists" };
             }
@@ -371,10 +361,11 @@ export const botController = new Elysia({ prefix: "/bots" })
                 where: { id }
             });
             return { success: true };
-        } catch (e: any) {
-            console.error("[DELETE /bots/:id] Error:", e?.message || e);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error("[DELETE /bots/:id] Error:", msg);
             console.error("[DELETE /bots/:id] Full error:", JSON.stringify(e, null, 2));
             set.status = 500;
-            return { error: "Failed to delete bot", details: e?.message };
+            return { error: "Failed to delete bot", details: msg };
         }
     });

@@ -10,6 +10,7 @@ export class MediaService {
      * Download media from a WhatsApp message, store in R2 (or local fallback),
      * and attach the URL to the persisted message.
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys message wrappers need broad type
     static async downloadAndAttachMedia(msg: WAMessage & { message: any }, msgType: string, messageId: string, botId?: string): Promise<void> {
         const buffer = await downloadMediaMessage(msg, 'buffer', {});
         if (!buffer) return;
@@ -59,7 +60,7 @@ export class MediaService {
 
             if (msgType === 'IMAGE') {
                 const { VisionService } = await import('./media/vision.service');
-                description = await VisionService.analyze(mediaUrl, "Describe this image briefly in 1 sentence in Spanish.", aiProvider);
+                description = await VisionService.analyze(mediaUrl, "Describe this image briefly in 1 sentence in Spanish.", aiProvider as "OPENAI" | "GEMINI");
             } else if (msgType === 'DOCUMENT' && mediaUrl.toLowerCase().endsWith('.pdf')) {
                 const { PDFService } = await import('./media/pdf.service');
                 const text = await PDFService.extractText(mediaUrl);

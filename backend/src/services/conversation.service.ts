@@ -27,8 +27,8 @@ export class ConversationService {
                     role: message.role,
                     content: message.content ?? null,
                     toolName: message.name ?? null,
-                    toolArgs: message.toolCalls ? message.toolCalls as any : null,
-                    toolResult: message.toolCallId ? { toolCallId: message.toolCallId } : null,
+                    toolArgs: message.toolCalls ? message.toolCalls as any : null, // eslint-disable-line @typescript-eslint/no-explicit-any -- Prisma JSON
+                    toolResult: message.toolCallId ? { toolCallId: message.toolCallId } as any : null, // eslint-disable-line @typescript-eslint/no-explicit-any -- Prisma JSON
                 },
             });
         } catch (e) {
@@ -57,8 +57,8 @@ export class ConversationService {
                     role: msg.role,
                     content: msg.content ?? null,
                     toolName: msg.name ?? null,
-                    toolArgs: msg.toolCalls ? msg.toolCalls as any : null,
-                    toolResult: msg.toolCallId ? { toolCallId: msg.toolCallId } : null,
+                    toolArgs: msg.toolCalls ? msg.toolCalls as any : null, // eslint-disable-line @typescript-eslint/no-explicit-any -- Prisma JSON
+                    toolResult: msg.toolCallId ? { toolCallId: msg.toolCallId } as any : null, // eslint-disable-line @typescript-eslint/no-explicit-any -- Prisma JSON
                 })),
             });
         } catch (e) {

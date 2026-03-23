@@ -116,8 +116,8 @@ class NotificationService {
                         sender: session.identifier || "bot",
                     },
                 });
-            } catch (err: any) {
-                console.error(`[NotificationService] Failed to send for ${event.type} to ${session.identifier}:`, err.message);
+            } catch (err: unknown) {
+                console.error(`[NotificationService] Failed to send for ${event.type} to ${session.identifier}:`, (err instanceof Error ? err.message : err));
             }
         }
     }
@@ -140,14 +140,14 @@ class NotificationService {
             case 'session:labels:add':
             case 'session:labels:remove': {
                 const changedLabel = event.changedLabelId
-                    ? event.labels.find((l: any) => l.id === event.changedLabelId)
+                    ? event.labels.find((l) => l.id === event.changedLabelId)
                       ?? (event.changedLabelName ? { name: event.changedLabelName } : null)
                     : null;
                 const actionText = event.type === 'session:labels:add' ? 'asignada' : 'retirada';
                 const emoji = event.type === 'session:labels:add' ? '\u{1F3F7}\uFE0F' : '\u{1F5D1}\uFE0F';
                 const detail = changedLabel
                     ? `Etiqueta: ${changedLabel.name} (${actionText})`
-                    : `Etiquetas: ${event.labels.map((l: any) => l.name).join(', ') || 'ninguna'}`;
+                    : `Etiquetas: ${event.labels.map((l) => l.name).join(', ') || 'ninguna'}`;
                 return `${emoji} *${label}*${botLine}${chatLine}\n${detail}\n\u{1F550} ${ts}`;
             }
             case 'bot:connected':

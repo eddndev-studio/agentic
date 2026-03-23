@@ -1,10 +1,13 @@
 import { prisma } from "../../services/postgres.service";
-import { Message, Trigger, TriggerScope } from "@prisma/client";
+import { Message, Trigger, TriggerScope, type Flow } from "@prisma/client";
 import { TriggerMatcher } from "../matcher/TriggerMatcher";
 import { BotConfigService, type BotWithTemplate } from "../../services/bot-config.service";
 import { redis } from "../../services/redis.service";
 import { queueService } from "../../services/queue.service";
 import { eventBus } from "../../services/event-bus";
+import { createLogger } from "../../logger";
+
+const log = createLogger('FlowEngine');
 
 /**
  * Orchestrates the lifecycle of Flow Executions.
@@ -33,11 +36,11 @@ export class FlowEngine {
         const activeTriggers = await BotConfigService.resolveTriggers(bot, sessionId, validScopes);
 
         // Only match TEXT triggers for message-based processing
-        const textTriggers = activeTriggers.filter((t: any) => !t.triggerType || t.triggerType === 'TEXT');
+        const textTriggers = activeTriggers.filter((t) => !t.triggerType || t.triggerType === 'TEXT');
         const match = TriggerMatcher.findMatch(message.content, textTriggers);
         if (!match) return;
 
-        const trigger = match.trigger as Trigger & { flow: any };
+        const trigger = match.trigger as Trigger & { flow: Flow | null };
         await this.startFlow(sessionId, session.botId, trigger, message.sender);
     }
 
@@ -46,27 +49,27 @@ export class FlowEngine {
      */
     async processLabelEvent(sessionId: string, botId: string, labelName: string, action: 'add' | 'remove', sourceFlowId?: string) {
         const bot = await BotConfigService.loadBot(botId);
-        if (!bot) { console.warn(`[FlowEngine] processLabelEvent: bot ${botId} not found`); return; }
-        if (bot.paused) { console.log(`[FlowEngine] processLabelEvent: bot ${bot.name} is paused, skipping`); return; }
+        if (!bot) { log.warn(`processLabelEvent: bot ${botId} not found`); return; }
+        if (bot.paused) { log.info(`processLabelEvent: bot ${bot.name} is paused, skipping`); return; }
 
         const session = await prisma.session.findUnique({
             where: { id: sessionId },
             select: { identifier: true }
         });
-        if (!session) { console.warn(`[FlowEngine] processLabelEvent: session ${sessionId} not found`); return; }
+        if (!session) { log.warn(`processLabelEvent: session ${sessionId} not found`); return; }
 
         // Resolve all triggers (label triggers use scope BOTH by convention)
         const activeTriggers = await BotConfigService.resolveTriggers(bot, sessionId, [TriggerScope.INCOMING, TriggerScope.OUTGOING, TriggerScope.BOTH]);
         const botVars = BotConfigService.getVariables(bot);
 
         const labelAction = action.toUpperCase(); // 'ADD' | 'REMOVE'
-        const labelTriggers = activeTriggers.filter((t: any) => t.triggerType === 'LABEL');
-        console.log(`[FlowEngine] processLabelEvent: label="${labelName}" action=${labelAction} triggers=${activeTriggers.length} labelTriggers=${labelTriggers.length}`);
+        const labelTriggers = activeTriggers.filter((t) => t.triggerType === 'LABEL');
+        log.info(`processLabelEvent: label="${labelName}" action=${labelAction} triggers=${activeTriggers.length} labelTriggers=${labelTriggers.length}`);
 
         for (const trigger of labelTriggers) {
-            const t = trigger as any;
+            const t = trigger;
             if (t.labelAction !== labelAction) {
-                console.log(`[FlowEngine] Trigger "${t.labelName}" skipped: action mismatch (trigger=${t.labelAction} event=${labelAction})`);
+                log.info(`Trigger "${t.labelName}" skipped: action mismatch (trigger=${t.labelAction} event=${labelAction})`);
                 continue;
             }
             if (sourceFlowId && t.flowId === sourceFlowId) continue;
@@ -74,56 +77,57 @@ export class FlowEngine {
             // Interpolate template variables in labelName
             const resolvedLabelName = BotConfigService.interpolate(t.labelName || '', botVars);
             if (resolvedLabelName !== labelName) {
-                console.log(`[FlowEngine] Trigger skipped: name mismatch (trigger="${resolvedLabelName}" event="${labelName}")`);
+                log.info(`Trigger skipped: name mismatch (trigger="${resolvedLabelName}" event="${labelName}")`);
                 continue;
             }
 
-            console.log(`[FlowEngine] Label trigger matched! Starting flow ${t.flowId} for session ${session.identifier}`);
-            await this.startFlow(sessionId, botId, trigger as Trigger & { flow: any }, session.identifier);
+            log.info(`Label trigger matched! Starting flow ${t.flowId} for session ${session.identifier}`);
+            await this.startFlow(sessionId, botId, trigger as Trigger & { flow: Flow | null }, session.identifier);
         }
     }
 
     /**
      * Shared logic: validate constraints and start a flow execution.
      */
-    private async startFlow(sessionId: string, botId: string, trigger: Trigger & { flow: any }, platformUserId: string) {
+    private async startFlow(sessionId: string, botId: string, trigger: Trigger & { flow: Flow | null }, platformUserId: string) {
         if (!trigger.flow) {
-            console.error(`[FlowEngine] Trigger '${trigger.keyword}' has no flow`);
+            log.error(`Trigger '${trigger.keyword}' has no flow`);
             return;
         }
+        const flow = trigger.flow; // narrowed to non-null
 
         const triggerLabel = trigger.keyword || trigger.labelName || trigger.id;
         const lockKey = `flow:lock:${sessionId}:${trigger.flowId}`;
         const lockAcquired = await redis.set(lockKey, "1", "EX", 30, "NX");
 
         if (!lockAcquired) {
-            console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Lock already held`);
+            log.info(`Trigger '${triggerLabel}' ignored: Lock already held`);
             return;
         }
 
         try {
             const execution = await prisma.$transaction(async (tx) => {
                 // Validate Cooldown
-                if (trigger.flow.cooldownMs > 0) {
+                if (flow.cooldownMs > 0) {
                     const lastExecution = await tx.execution.findFirst({
                         where: { sessionId, flowId: trigger.flowId },
                         orderBy: { startedAt: 'desc' }
                     });
                     if (lastExecution) {
                         const elapsed = Date.now() - lastExecution.startedAt.getTime();
-                        if (elapsed < trigger.flow.cooldownMs) {
-                            throw new Error(`COOLDOWN:${elapsed}/${trigger.flow.cooldownMs}`);
+                        if (elapsed < flow.cooldownMs) {
+                            throw new Error(`COOLDOWN:${elapsed}/${flow.cooldownMs}`);
                         }
                     }
                 }
 
                 // Validate Usage Limit
-                if (trigger.flow.usageLimit > 0) {
+                if (flow.usageLimit > 0) {
                     const usageCount = await tx.execution.count({
                         where: { sessionId, flowId: trigger.flowId }
                     });
-                    if (usageCount >= trigger.flow.usageLimit) {
-                        throw new Error(`LIMIT:${usageCount}/${trigger.flow.usageLimit}`);
+                    if (usageCount >= flow.usageLimit) {
+                        throw new Error(`LIMIT:${usageCount}/${flow.usageLimit}`);
                     }
                 }
 
@@ -136,16 +140,16 @@ export class FlowEngine {
                 }
 
                 // Validate Exclusions
-                if (trigger.flow.excludesFlows && trigger.flow.excludesFlows.length > 0) {
+                if (flow.excludesFlows && flow.excludesFlows.length > 0) {
                     const conflictCount = await tx.execution.count({
-                        where: { sessionId, flowId: { in: trigger.flow.excludesFlows } }
+                        where: { sessionId, flowId: { in: flow.excludesFlows } }
                     });
                     if (conflictCount > 0) {
                         throw new Error(`EXCLUDED: Mutually exclusive flow already executed.`);
                     }
                 }
 
-                console.log(`[FlowEngine] Matched Trigger '${triggerLabel}' -> Flow ${trigger.flowId}`);
+                log.info(`Matched Trigger '${triggerLabel}' -> Flow ${trigger.flowId}`);
 
                 return await tx.execution.create({
                     data: {
@@ -163,32 +167,33 @@ export class FlowEngine {
             eventBus.emitBotEvent({
                 type: 'flow:started',
                 botId,
-                flowName: trigger.flow.name,
+                flowName: flow.name,
                 sessionId,
             });
 
             await this.scheduleStep(execution.id, 0);
 
-        } catch (error: any) {
-            let errorMessage = error.message;
+        } catch (error: unknown) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            let errorMessage = errMsg;
 
-            if (error.message?.startsWith('SELF_TRIGGER')) {
-                console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Flow already running for this session`);
+            if (errMsg?.startsWith('SELF_TRIGGER')) {
+                log.info(`Trigger '${triggerLabel}' ignored: Flow already running for this session`);
                 return;
-            } else if (error.message?.startsWith('COOLDOWN:')) {
-                console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Cooldown active`);
-                errorMessage = `Cooldown active (${error.message.replace('COOLDOWN:', '')}ms)`;
-            } else if (error.message?.startsWith('LIMIT:')) {
-                console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: Usage limit reached`);
+            } else if (errMsg?.startsWith('COOLDOWN:')) {
+                log.info(`Trigger '${triggerLabel}' ignored: Cooldown active`);
+                errorMessage = `Cooldown active (${errMsg.replace('COOLDOWN:', '')}ms)`;
+            } else if (errMsg?.startsWith('LIMIT:')) {
+                log.info(`Trigger '${triggerLabel}' ignored: Usage limit reached`);
                 errorMessage = `Usage limit reached`;
-            } else if (error.message?.startsWith('EXCLUDED:')) {
-                console.log(`[FlowEngine] Trigger '${triggerLabel}' ignored: ${error.message}`);
-                errorMessage = error.message;
+            } else if (errMsg?.startsWith('EXCLUDED:')) {
+                log.info(`Trigger '${triggerLabel}' ignored: ${errMsg}`);
+                errorMessage = errMsg;
             } else {
-                console.error(`[FlowEngine] Error starting flow:`, error);
+                log.error('Error starting flow:', error);
             }
 
-            if (['COOLDOWN:', 'LIMIT:', 'EXCLUDED:'].some(p => error.message?.startsWith(p))) {
+            if (['COOLDOWN:', 'LIMIT:', 'EXCLUDED:'].some(p => errMsg?.startsWith(p))) {
                 try {
                     await prisma.execution.create({
                         data: {
@@ -208,7 +213,7 @@ export class FlowEngine {
                 eventBus.emitBotEvent({
                     type: 'flow:failed',
                     botId,
-                    flowName: trigger.flow.name,
+                    flowName: flow.name,
                     sessionId,
                     error: errorMessage,
                 });
@@ -235,7 +240,7 @@ export class FlowEngine {
             .find(s => s.order >= stepOrder && !s.aiOnly);
 
         if (!step) {
-            console.log(`[FlowEngine] Flow ${execution.flowId} finished.`);
+            log.info(`Flow ${execution.flowId} finished.`);
             await prisma.execution.update({
                 where: { id: executionId },
                 data: { status: "COMPLETED", completedAt: new Date() }
@@ -256,7 +261,7 @@ export class FlowEngine {
         const jitter = Math.floor(Math.random() * (variance * 2 + 1)) - variance; // +/- variance
         const finalDelay = Math.max(0, base + jitter);
 
-        console.log(`[FlowEngine] Scheduling Step ${step.order} in ${finalDelay}ms`);
+        log.info(`Scheduling Step ${step.order} in ${finalDelay}ms`);
 
         await queueService.scheduleStepExecution(executionId, step.id, finalDelay);
     }
@@ -266,7 +271,7 @@ export class FlowEngine {
      * Advances to the next step in the sequence.
      */
     async completeStep(executionId: string, currentStepOrder: number) {
-        console.log(`[FlowEngine] Completing Step ${currentStepOrder} for Execution ${executionId}`);
+        log.info(`Completing Step ${currentStepOrder} for Execution ${executionId}`);
 
         // Update DB (Optional: track per-step completion time or logs)
         // await prisma.executionStepLog.create(...) 

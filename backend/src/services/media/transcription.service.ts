@@ -44,7 +44,7 @@ export class TranscriptionService {
             throw new Error(`Whisper API error (${response.status}): ${err}`);
         }
 
-        const data = await response.json() as any;
+        const data = await response.json() as { text?: string };
         return data.text || "";
     }
 }

@@ -16,7 +16,7 @@ const originalLog = console.log;
 const originalWarn = console.warn;
 const originalError = console.error;
 
-function formatArgs(args: any[]): string {
+function formatArgs(args: unknown[]): string {
     return args.map(a => {
         if (typeof a === 'string') return a;
         try { return JSON.stringify(a); }
@@ -24,7 +24,7 @@ function formatArgs(args: any[]): string {
     }).join(' ');
 }
 
-function pushEntry(level: LogEntry['level'], args: any[]): void {
+function pushEntry(level: LogEntry['level'], args: unknown[]): void {
     const entry: LogEntry = {
         id: nextId++,
         timestamp: new Date().toISOString(),
@@ -41,9 +41,9 @@ function pushEntry(level: LogEntry['level'], args: any[]): void {
 }
 
 export function initSystemLogger(): void {
-    console.log = (...args: any[]) => { originalLog(...args); pushEntry('info', args); };
-    console.warn = (...args: any[]) => { originalWarn(...args); pushEntry('warn', args); };
-    console.error = (...args: any[]) => { originalError(...args); pushEntry('error', args); };
+    console.log = (...args: unknown[]) => { originalLog(...args); pushEntry('info', args); };
+    console.warn = (...args: unknown[]) => { originalWarn(...args); pushEntry('warn', args); };
+    console.error = (...args: unknown[]) => { originalError(...args); pushEntry('error', args); };
 }
 
 export function getRecentLogs(

@@ -6,7 +6,7 @@ export const authController = new Elysia({ prefix: "/auth" })
     .use(authMiddleware)
     .post("/login", async ({ body, jwt, set }) => {
         try {
-            const { email, password } = body as any;
+            const { email, password } = body as { email: string; password: string };
 
             const user = await AuthService.validateUser(email, password);
 

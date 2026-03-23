@@ -1,5 +1,5 @@
 import { prisma } from "./postgres.service";
-import type { Bot, Template, Tool, Trigger, TriggerScope } from "@prisma/client";
+import type { Bot, Template, Tool, Trigger, TriggerScope, Flow } from "@prisma/client";
 
 type BotWithTemplate = Bot & { template: Template | null };
 type ThinkingLevel = "LOW" | "MEDIUM" | "HIGH";
@@ -39,8 +39,8 @@ export class BotConfigService {
             systemPrompt: source.systemPrompt,
             temperature: source.temperature,
             thinkingLevel: (source.thinkingLevel as ThinkingLevel) ?? "LOW",
-            contextMessages: (source as any).contextMessages ?? 20,
-            autoReadReceipts: (source as any).autoReadReceipts ?? true,
+            contextMessages: ('contextMessages' in source ? (source as Record<string, unknown>).contextMessages as number : undefined) ?? 20,
+            autoReadReceipts: ('autoReadReceipts' in source ? (source as Record<string, unknown>).autoReadReceipts as boolean : undefined) ?? true,
         };
     }
 
@@ -80,8 +80,8 @@ export class BotConfigService {
         bot: BotWithTemplate,
         sessionId: string | null,
         scopes: TriggerScope[]
-    ): Promise<(Trigger & { flow: any })[]> {
-        const conditions: any[] = [];
+    ): Promise<(Trigger & { flow: Flow | null })[]> {
+        const conditions: Array<Record<string, unknown>> = [];
 
         if (bot.templateId) {
             conditions.push({ templateId: bot.templateId, sessionId: null });

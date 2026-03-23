@@ -6,6 +6,9 @@ import { upsertSessionFromChat } from './session-helpers';
 import * as fs from 'fs';
 import * as path from 'path';
 import { config } from '../config';
+import { createLogger } from '../logger';
+
+const log = createLogger('LabelService');
 
 // Label reconciliation timers: botId -> intervalId
 const labelReconcileTimers = new Map<string, ReturnType<typeof setInterval>>();
@@ -53,22 +56,22 @@ export class LabelService {
         try {
             const lid = await (sock as any).signalRepository.lidMapping.getLIDForPN(phoneJid);
             if (lid) {
-                console.log(`[Baileys] Resolved ${phoneJid} -> ${lid} for app state`);
+                log.info(`Resolved ${phoneJid} -> ${lid} for app state`);
                 return lid;
             }
-        } catch (e) { console.warn('[LabelService] JID-to-LID resolution failed:', (e as Error).message); }
+        } catch (e) { log.warn('JID-to-LID resolution failed:', (e as Error).message); }
         return phoneJid;
     }
 
     static async addChatLabel(sock: WASocket, botId: string, chatJid: string, waLabelId: string): Promise<void> {
         const jid = await this.resolveJidForAppState(sock, chatJid);
-        console.log(`[Baileys] addChatLabel: jid=${jid}, waLabelId=${waLabelId}`);
+        log.info(`addChatLabel: jid=${jid}, waLabelId=${waLabelId}`);
         await (sock as any).addChatLabel(jid, waLabelId);
     }
 
     static async removeChatLabel(sock: WASocket, botId: string, chatJid: string, waLabelId: string): Promise<void> {
         const jid = await this.resolveJidForAppState(sock, chatJid);
-        console.log(`[Baileys] removeChatLabel: jid=${jid}, waLabelId=${waLabelId}`);
+        log.info(`removeChatLabel: jid=${jid}, waLabelId=${waLabelId}`);
         await (sock as any).removeChatLabel(jid, waLabelId);
     }
 
@@ -97,7 +100,7 @@ export class LabelService {
         const sock = getSocket();
         if (!sock) return;
 
-        console.log(`[Baileys] Label reconciliation starting for Bot ${botId}`);
+        log.info(`Label reconciliation starting for Bot ${botId}`);
 
         // Snapshot DB state BEFORE sync
         const beforeLabels = await prisma.sessionLabel.findMany({
@@ -109,8 +112,8 @@ export class LabelService {
         // Force full re-sync — re-emits labels.association for all current WA associations
         try {
             await this.syncLabels(sock, botId);
-        } catch (e: any) {
-            console.warn(`[Baileys] Label reconciliation sync failed for Bot ${botId}:`, e.message);
+        } catch (e: unknown) {
+            log.warn(`Label reconciliation sync failed for Bot ${botId}:`, (e as Error).message);
             return;
         }
 
@@ -144,9 +147,9 @@ export class LabelService {
         }
 
         if (reconciledAdds > 0) {
-            console.log(`[Baileys] Label reconciliation found ${reconciledAdds} missed add(s) for Bot ${botId}`);
+            log.info(`Label reconciliation found ${reconciledAdds} missed add(s) for Bot ${botId}`);
         } else {
-            console.log(`[Baileys] Label reconciliation complete for Bot ${botId} — no drift detected`);
+            log.info(`Label reconciliation complete for Bot ${botId} — no drift detected`);
         }
     }
 
@@ -159,12 +162,12 @@ export class LabelService {
 
         const timer = setInterval(() => {
             this.reconcileLabels(botId, getSocket).catch(err => {
-                console.error(`[Baileys] Label reconciliation error for Bot ${botId}:`, err.message);
+                log.error(`Label reconciliation error for Bot ${botId}:`, err.message);
             });
         }, config.labels.reconcileInterval);
 
         labelReconcileTimers.set(botId, timer);
-        console.log(`[Baileys] Label reconciliation started for Bot ${botId} (every ${config.labels.reconcileInterval / 1000}s)`);
+        log.info(`Label reconciliation started for Bot ${botId} (every ${config.labels.reconcileInterval / 1000}s)`);
     }
 
     /**
@@ -190,7 +193,7 @@ export class LabelService {
     /**
      * Handle the `labels.edit` event from Baileys: upsert label metadata into DB.
      */
-    static async handleLabelEdit(botId: string, label: any): Promise<void> {
+    static async handleLabelEdit(botId: string, label: { id: string | number; name: string; color?: number; deleted?: boolean; predefinedId?: string | null }): Promise<void> {
         try {
             await prisma.label.upsert({
                 where: { botId_waLabelId: { botId, waLabelId: String(label.id) } },
@@ -209,9 +212,9 @@ export class LabelService {
                     predefinedId: label.predefinedId ?? null,
                 },
             });
-            console.log(`[Baileys] Label synced: "${label.name}" (${label.id}) for Bot ${botId}`);
+            log.info(`Label synced: "${label.name}" (${label.id}) for Bot ${botId}`);
         } catch (e) {
-            console.error(`[Baileys] labels.edit error:`, e);
+            log.error('labels.edit error:', e);
         }
     }
 
@@ -219,10 +222,10 @@ export class LabelService {
      * Handle the `labels.association` event from Baileys: resolve LID, upsert session,
      * look up label, dedup, upsert/delete sessionLabel, emit events, and trigger flows.
      */
-    static async handleLabelAssociation(botId: string, event: any, sock: WASocket): Promise<void> {
+    static async handleLabelAssociation(botId: string, event: { type: string; association: { type: string; chatId: string; labelId: string | number } }, sock: WASocket): Promise<void> {
         try {
             const association = event.association;
-            console.log(`[Baileys] labels.association event:`, JSON.stringify(event));
+            log.info('labels.association event:', JSON.stringify(event));
 
             if (event.type !== 'add' && event.type !== 'remove') return;
             if (association.type !== 'label_jid') return;
@@ -237,10 +240,10 @@ export class LabelService {
                     const pn = await (sock as any).signalRepository.lidMapping.getPNForLID(resolvedJid);
                     if (pn) {
                         resolvedJid = jidNormalizedUser(pn);
-                        console.log(`[Baileys] LID ${rawChatId} resolved to ${resolvedJid}`);
+                        log.info(`LID ${rawChatId} resolved to ${resolvedJid}`);
                     }
-                } catch (e: any) {
-                    console.warn(`[Baileys] LID resolution failed for ${rawChatId}:`, e.message);
+                } catch (e: unknown) {
+                    log.warn(`LID resolution failed for ${rawChatId}:`, (e as Error).message);
                 }
             }
 
@@ -250,7 +253,7 @@ export class LabelService {
                 botId, resolvedJid, undefined, altId
             );
             if (!session) {
-                console.warn(`[Baileys] labels.association: Could not resolve session for ${rawChatId}`);
+                log.warn(`labels.association: Could not resolve session for ${rawChatId}`);
                 return;
             }
             if (sessionCreated) {
@@ -261,7 +264,7 @@ export class LabelService {
                 where: { botId_waLabelId: { botId, waLabelId } },
             });
             if (!label) {
-                console.warn(`[Baileys] labels.association: No label for waLabelId=${waLabelId}, skipping`);
+                log.warn(`labels.association: No label for waLabelId=${waLabelId}, skipping`);
                 return;
             }
 
@@ -269,7 +272,7 @@ export class LabelService {
             const dedupKey = `${botId}:${session.id}:${label.id}:${event.type}`;
             const dedupTs = recentLabelEvents.get(dedupKey);
             if (dedupTs && Date.now() - dedupTs < config.labels.dedupTtl) {
-                console.log(`[Baileys] labels.association: Skipping duplicate for ${label.name} (${event.type})`);
+                log.info(`labels.association: Skipping duplicate for ${label.name} (${event.type})`);
                 return;
             }
             // Mark as processed NOW to prevent repeated Baileys events
@@ -289,15 +292,15 @@ export class LabelService {
                         update: {},
                         create: { sessionId: session.id, labelId: label.id },
                     });
-                } catch (e: any) {
-                    if (e.code !== 'P2002') throw e; // Ignore duplicate race condition
+                } catch (e: unknown) {
+                    if (!(e instanceof Error && 'code' in e && (e as Record<string, unknown>).code === 'P2002')) throw e; // Ignore duplicate race condition
                 }
-                console.log(`[Baileys] Label "${label.name}" added to session ${resolvedJid}`);
+                log.info(`Label "${label.name}" added to session ${resolvedJid}`);
             } else {
                 await prisma.sessionLabel.deleteMany({
                     where: { sessionId: session.id, labelId: label.id },
                 });
-                console.log(`[Baileys] Label "${label.name}" removed from session ${resolvedJid}`);
+                log.info(`Label "${label.name}" removed from session ${resolvedJid}`);
             }
 
             // Emit SSE so the frontend updates in real-time
@@ -333,10 +336,10 @@ export class LabelService {
 
             // Evaluate label-based flow triggers
             flowEngine.processLabelEvent(session.id, botId, label.name, event.type as 'add' | 'remove').catch(err => {
-                console.error(`[Baileys] FlowEngine label trigger error:`, err);
+                log.error('FlowEngine label trigger error:', err);
             });
         } catch (e) {
-            console.error(`[Baileys] labels.association error:`, e);
+            log.error('labels.association error:', e);
         }
     }
 }

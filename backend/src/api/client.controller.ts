@@ -9,8 +9,9 @@ export const ClientController = {
      * Get all clients
      */
     getAll: async ({ query }: Context) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped query
         const filters: any = {};
-        const q = query as any;
+        const q = query as Record<string, string | undefined>;
 
         if (q && q.botId) {
             filters.botId = q.botId;
@@ -48,6 +49,7 @@ export const ClientController = {
      * Create new client
      */
     create: async ({ body }: Context) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const data = body as any;
 
         if (!data.email || !data.phoneNumber || !data.botId) {
@@ -73,7 +75,7 @@ export const ClientController = {
             const { encryptedPassword: _, ...rest } = newClient;
             return rest;
 
-        } catch (error: any) {
+        } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any -- Prisma error
             if (error.code === 'P2002') {
                 const field = error.meta?.target?.[0] || 'email';
                 return new Response(`Client with this ${field} already exists`, { status: 409 });
@@ -87,6 +89,7 @@ export const ClientController = {
      * Update client
      */
     update: async ({ params: { id }, body }: Context) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const data = body as any;
 
         try {

@@ -126,7 +126,7 @@ export class AIEngine {
                             const pdfText = await PDFService.extractText(mediaUrl);
                             partContent = `[PDF content]: ${pdfText.substring(0, 3000)}`;
                         }
-                    } catch (mediaError: any) {
+                    } catch (mediaError: unknown) {
                         console.error(`[AIEngine] Media preprocessing error:`, mediaError);
                         partContent = partContent || "[Media file received but could not be processed]";
                     }
@@ -160,7 +160,7 @@ export class AIEngine {
             const dbToolDefs: AIToolDefinition[] = tools.map((t) => ({
                 name: t.name,
                 description: BotConfigService.interpolate(t.description, botVars),
-                parameters: (t.parameters as Record<string, any>) || { type: "object", properties: {} },
+                parameters: (t.parameters as Record<string, unknown>) || { type: "object", properties: {} },
             }));
 
             // Append builtins that don't collide with DB tools (DB has priority)
@@ -179,7 +179,7 @@ export class AIEngine {
             aiMessages.push(...history);
 
             // 7. Get AI provider and call (with automatic fallback)
-            let activeProvider = getAIProvider(aiConfig.aiProvider as any);
+            let activeProvider = getAIProvider(aiConfig.aiProvider as "GEMINI" | "OPENAI");
             let activeModel = aiConfig.aiModel;
             let usedFallback = false;
 
@@ -252,7 +252,7 @@ export class AIEngine {
                     }
 
                     // Interpolate bot variables in tool call arguments
-                    const interpolatedArgs: Record<string, any> = {};
+                    const interpolatedArgs: Record<string, unknown> = {};
                     for (const [k, v] of Object.entries(toolCall.arguments)) {
                         interpolatedArgs[k] = typeof v === "string" ? BotConfigService.interpolate(v, botVars) : v;
                     }
@@ -341,7 +341,7 @@ export class AIEngine {
             // 10. Update metadata on recent ConversationLog entries (async, fire-and-forget)
             this.logMetadata(sessionId, activeModel, response.usage?.totalTokens).catch(e => console.warn('[AIEngine] logMetadata failed:', (e as Error).message));
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(`[AIEngine] Error processing message for session ${sessionId}:`, error);
             // Tool-oriented mode: do NOT send error messages to the end user
         } finally {
@@ -367,12 +367,12 @@ export class AIEngine {
     ): Promise<AICompletionResponse & { _fallback?: boolean }> {
         try {
             return await primary.chat(request);
-        } catch (primaryError: any) {
+        } catch (primaryError: unknown) {
             const fb = FALLBACK_MAP[primaryName];
             if (!fb) throw primaryError; // No fallback configured
 
             console.warn(
-                `[AIEngine] ${primaryName} failed (${primaryError.message}), falling back to ${fb.provider}/${fb.model}`
+                `[AIEngine] ${primaryName} failed (${primaryError instanceof Error ? primaryError.message : primaryError}), falling back to ${fb.provider}/${fb.model}`
             );
 
             try {
@@ -382,9 +382,9 @@ export class AIEngine {
                     model: fb.model,
                 });
                 return { ...fallbackResponse, _fallback: true };
-            } catch (fallbackError: any) {
+            } catch (fallbackError: unknown) {
                 console.error(
-                    `[AIEngine] Fallback ${fb.provider} also failed:`, fallbackError.message
+                    `[AIEngine] Fallback ${fb.provider} also failed:`, fallbackError instanceof Error ? fallbackError.message : fallbackError
                 );
                 // Throw the original error — both providers are down
                 throw primaryError;

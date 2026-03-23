@@ -21,6 +21,7 @@ export const config = {
             'https://agentic.w-gateway.cc,https://agentic-api.w-gateway.cc,http://localhost:4321,http://localhost:5173',
         ).split(','),
         automationInterval: envInt('AUTOMATION_CHECK_INTERVAL_MS', 30 * 60 * 1000),
+        logLevel: env('LOG_LEVEL', 'info'),
     },
 
     // ── Baileys (WhatsApp socket) ────────────────────────────────────────────

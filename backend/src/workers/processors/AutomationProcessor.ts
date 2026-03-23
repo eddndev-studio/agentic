@@ -29,6 +29,7 @@ export class AutomationProcessor {
     }
 
     /** Sessions that HAVE the specified label and are inactive */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- complex Prisma include result
     private static async processWithLabel(automation: any): Promise<void> {
         const ignoredLabels: string[] = await BotConfigService.resolveIgnoredLabels(automation.bot);
 
@@ -69,6 +70,7 @@ export class AutomationProcessor {
     }
 
     /** Sessions that have NO labels at all and are inactive */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- complex Prisma include result
     private static async processWithoutLabel(automation: any): Promise<void> {
         const sessions = await prisma.session.findMany({
             where: {
@@ -92,6 +94,7 @@ export class AutomationProcessor {
         );
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- complex Prisma include result
     private static async triggerIfInactive(automation: any, session: any, cutoff: number): Promise<void> {
         // Skip the bot's own session
         if (session.identifier === automation.bot.identifier) return;

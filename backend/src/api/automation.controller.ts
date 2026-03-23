@@ -16,6 +16,7 @@ export const automationController = new Elysia({ prefix: "/bots" })
 
     // Create automation
     .post("/:id/automations", async ({ params: { id }, body, set }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { name, description, enabled, event, labelName, timeoutMs, prompt } = body as any;
 
         if (!name || !event || !timeoutMs || !prompt) {
@@ -39,8 +40,10 @@ export const automationController = new Elysia({ prefix: "/bots" })
 
     // Update automation
     .put("/:id/automations/:automationId", async ({ params: { automationId }, body, set }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { name, description, enabled, event, labelName, timeoutMs, prompt } = body as any;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
         const data: any = {};
         if (name !== undefined) data.name = name;
         if (description !== undefined) data.description = description;
@@ -52,7 +55,7 @@ export const automationController = new Elysia({ prefix: "/bots" })
 
         try {
             return await prisma.automation.update({ where: { id: automationId }, data });
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 404;
             return { error: "Automation not found" };
         }
@@ -63,7 +66,7 @@ export const automationController = new Elysia({ prefix: "/bots" })
         try {
             await prisma.automation.delete({ where: { id: automationId } });
             return { success: true };
-        } catch (e: any) {
+        } catch (_e: unknown) {
             set.status = 404;
             return { error: "Automation not found" };
         }

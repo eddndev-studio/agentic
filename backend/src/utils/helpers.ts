@@ -13,6 +13,7 @@ export function isRemoteUrl(source: string): boolean {
  * Safely merge a patch into an existing message's JSON metadata column.
  * Reads the current metadata, spreads the patch on top, and writes it back.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma JSON field
 export async function updateMessageMetadata(messageId: string, patch: Record<string, any>): Promise<void> {
     const { prisma } = await import("../services/postgres.service");
     const existing = await prisma.message.findUnique({ where: { id: messageId }, select: { metadata: true } });

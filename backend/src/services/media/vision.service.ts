@@ -23,7 +23,7 @@ export class VisionService {
         const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) throw new Error("OPENAI_API_KEY is required for image analysis");
 
-        let imageContent: any;
+        let imageContent: Record<string, unknown>;
 
         if (isRemoteUrl(imageSource)) {
             imageContent = { type: "image_url", image_url: { url: imageSource } };
@@ -62,7 +62,7 @@ export class VisionService {
             throw new Error(`OpenAI Vision API error (${res.status}): ${err}`);
         }
 
-        const data = await res.json() as any;
+        const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
         return data.choices?.[0]?.message?.content ?? "Unable to analyze image.";
     }
 
@@ -106,7 +106,7 @@ export class VisionService {
             throw new Error(`Gemini Vision API error (${res.status}): ${err}`);
         }
 
-        const data = await res.json() as any;
+        const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; choices?: Array<{ message?: { content?: string } }> };
         return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Unable to analyze image.";
     }
 }

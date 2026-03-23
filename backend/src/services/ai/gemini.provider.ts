@@ -29,7 +29,7 @@ export class GeminiProvider implements AIProvider {
 
         const url = `${BASE_URL}/models/${request.model}:generateContent?key=${this.apiKey}`;
 
-        const body: any = {
+        const body: Record<string, unknown> = {
             contents: this.formatContents(request.messages),
             generationConfig: {
                 temperature: request.temperature ?? 0.7,
@@ -68,7 +68,7 @@ export class GeminiProvider implements AIProvider {
             throw new Error(`Gemini API error (${res.status}): ${err}`);
         }
 
-        const data = await res.json() as any;
+        const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string; functionCall?: { name: string; args?: Record<string, unknown>; thought_signature?: string } }> } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } };
         const candidate = data.candidates?.[0];
         const parts = candidate?.content?.parts ?? [];
 
@@ -131,7 +131,7 @@ export class GeminiProvider implements AIProvider {
         }
 
         try {
-            const cacheBody: any = {
+            const cacheBody: Record<string, unknown> = {
                 model: `models/${model}`,
                 systemInstruction: {
                     parts: [{ text: systemPrompt }],
@@ -158,7 +158,7 @@ export class GeminiProvider implements AIProvider {
                 return null;
             }
 
-            const data = await res.json() as any;
+            const data = await res.json() as { name: string; usageMetadata?: { totalTokenCount?: number } };
             const name = data.name; // "cachedContents/{id}"
             const ttlSeconds = parseInt(CACHE_TTL);
 
@@ -170,8 +170,8 @@ export class GeminiProvider implements AIProvider {
 
             console.log(`[Gemini] Created context cache: ${name} (${data.usageMetadata?.totalTokenCount} tokens, TTL ${CACHE_TTL})`);
             return name;
-        } catch (error: any) {
-            console.warn(`[Gemini] Cache creation error, using inline:`, error.message);
+        } catch (error: unknown) {
+            console.warn(`[Gemini] Cache creation error, using inline:`, (error instanceof Error ? error.message : error));
             return null;
         }
     }
@@ -185,7 +185,7 @@ export class GeminiProvider implements AIProvider {
         return (hash >>> 0).toString(36);
     }
 
-    private formatContents(messages: AIMessage[]): any[] {
+    private formatContents(messages: AIMessage[]): Array<Record<string, unknown>> {
         // Pre-scan: identify tool calls that lack thoughtSignature.
         // Gemini requires thought_signature on all functionCall parts.
         // When history contains calls from OpenAI fallback (no signature),
@@ -201,7 +201,7 @@ export class GeminiProvider implements AIProvider {
             }
         }
 
-        const contents: any[] = [];
+        const contents: Array<Record<string, unknown>> = [];
 
         for (const msg of messages) {
             if (msg.role === "system") continue;
@@ -212,7 +212,7 @@ export class GeminiProvider implements AIProvider {
                     parts: [{ text: msg.content ?? "" }],
                 });
             } else if (msg.role === "assistant") {
-                const parts: any[] = [];
+                const parts: Array<Record<string, unknown>> = [];
                 if (msg.content) {
                     parts.push({ text: msg.content });
                 }
@@ -267,7 +267,7 @@ export class GeminiProvider implements AIProvider {
         return contents;
     }
 
-    private formatTools(tools: AIToolDefinition[]): any[] {
+    private formatTools(tools: AIToolDefinition[]): Array<Record<string, unknown>> {
         return tools.map((t) => ({
             name: t.name,
             description: t.description,
