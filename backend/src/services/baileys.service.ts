@@ -1275,7 +1275,45 @@ export class BaileysService {
                 content = clean;
             }
 
-            await sock.sendMessage(to, content);
+            const sent = await sock.sendMessage(to, content);
+
+            // Persist outgoing message to DB so it shows in the monitor
+            if (sent?.key?.id) {
+                try {
+                    const { session } = await BaileysService.upsertSessionFromChat(botId, jidNormalizedUser(to));
+                    if (session) {
+                        const msgType =
+                            content.image ? 'IMAGE' :
+                            content.video ? 'VIDEO' :
+                            content.audio ? (content.ptt ? 'PTT' : 'AUDIO') :
+                            content.document ? 'DOCUMENT' :
+                            content.sticker ? 'STICKER' : 'TEXT';
+                        const textContent =
+                            content.text || content.caption || '';
+
+                        await prisma.message.create({
+                            data: {
+                                externalId: sent.key.id,
+                                sessionId: session.id,
+                                sender: jidNormalizedUser(to),
+                                fromMe: true,
+                                content: textContent,
+                                type: msgType,
+                                isProcessed: true,
+                            },
+                        }).catch((e: any) => {
+                            // P2002 = duplicate, already captured by messages.upsert
+                            if (e.code !== 'P2002') console.warn(`[Baileys] Failed to persist outgoing message:`, e.message);
+                        });
+
+                        eventBus.emitBotEvent({ type: 'message:sent', botId, sessionId: session.id, content: textContent });
+                    }
+                } catch (e) {
+                    // Non-critical: don't fail the send if persistence fails
+                    console.warn(`[Baileys] Outgoing message persistence error:`, (e as Error).message);
+                }
+            }
+
             return true;
         } catch (error: any) {
             // Log the error with details but don't crash
