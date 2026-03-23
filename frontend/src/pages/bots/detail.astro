@@ -292,151 +292,226 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </template>
         </section>
 
-        <!-- Herramientas section -->
+        <!-- Variables section -->
         <section class="mb-8">
-                <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
-                    <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('tools')">Tools</h3>
-                    <a :href="'/tool-editor?botId=' + botId"
-                        class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
-                        <span>+</span>
-                        <span x-text="$t('new_tool')">New Tool</span>
-                    </a>
-                </div>
-
-                <!-- Built-in Tools -->
-                <div class="mb-6">
-                    <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('builtin_tools') || 'Built-in Tools'">Built-in Tools</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <template x-for="bt in builtinTools" :key="bt.name">
-                            <div class="flex flex-col justify-between p-3 bg-wa-bg-deep border border-wa-border/50 rounded-xl opacity-80 min-h-[80px]">
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-1">
-                                        <span class="font-bold font-mono text-xs text-white leading-tight" x-text="bt.name"></span>
-                                        <span class="text-[8px] font-sans bg-wa-green/10 text-wa-green px-1.5 py-0.5 rounded shrink-0">BUILTIN</span>
-                                    </div>
-                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="bt.description"></p>
-                                </div>
-                            </div>
+            <h3 class="text-xs text-wa-green tracking-normal mb-6">Variables</h3>
+                <!-- Template Selector -->
+                <div class="mb-8">
+                    <h3 class="text-xs text-wa-green tracking-normal mb-4" x-text="$t('template_assigned')">Template</h3>
+                    <div class="flex items-center gap-3">
+                        <template x-if="templatesLoaded">
+                            <select
+                                x-init="$nextTick(() => { $el.value = bot.templateId || '' })"
+                                @change="bot.templateId = $event.target.value || null; saveTemplate()"
+                                class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
+                            >
+                                <option value="" x-text="$t('no_template')">None (Custom)</option>
+                                <template x-for="tpl in availableTemplates" :key="tpl.id">
+                                    <option :value="tpl.id" x-text="tpl.name"></option>
+                                </template>
+                            </select>
                         </template>
+                        <span x-show="!templatesLoaded" class="text-xs text-wa-text-secondary" x-text="$t('loading')"></span>
+                        <span x-show="savingTemplate" class="text-xs text-wa-text-secondary" x-text="$t('saving')"></span>
                     </div>
+                    <p class="text-[10px] text-wa-text-secondary mt-2" x-show="bot.templateId">
+                        AI config, flows, tools y automations se heredan de la plantilla.
+                    </p>
                 </div>
 
-                <!-- Custom Tools -->
-                <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('custom_tools') || 'Custom Tools'">Custom Tools</h4>
-                <template x-if="tools.length > 0">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <template x-for="tool in tools" :key="tool.id">
-                            <a :href="'/tool-editor?id=' + tool.id"
-                                class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[100px]">
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-1">
-                                        <h4 class="text-sm font-bold font-mono group-hover:text-wa-green transition-colors leading-tight" x-text="tool.name"></h4>
-                                        <span class="text-[10px] font-sans px-1.5 py-0.5 rounded shrink-0"
-                                            :class="tool.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-wa-text-secondary'"
-                                            x-text="tool.status"></span>
+                <!-- Bot Variables (typed by template definition) -->
+                <h3 class="text-xs text-wa-green tracking-normal mb-2" x-text="$t('bot_variables')">Variables</h3>
+
+                <!-- Template-defined variables -->
+                <template x-if="templateVarDefs.length > 0">
+                    <div>
+                        <p class="text-[10px] text-wa-text-secondary mb-4">Configura los valores específicos de este bot para la plantilla.</p>
+                        <div class="space-y-4 mb-4">
+                            <template x-for="def in templateVarDefs" :key="def.name">
+                                <div class="bg-wa-bg-hover/50 p-3 rounded-lg border border-wa-border">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="text-xs font-mono text-purple-400" x-text="def.name"></span>
+                                        <span class="text-[9px] px-1.5 py-0.5 rounded"
+                                            :class="def.type === 'label' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'"
+                                            x-text="def.type === 'label' ? 'Etiqueta' : 'Texto'"></span>
                                     </div>
-                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="tool.description"></p>
+                                    <!-- Text type: textarea for multiline support -->
+                                    <template x-if="def.type === 'text'">
+                                        <textarea
+                                            :value="getVarValue(def.name)"
+                                            @input="setVarValue(def.name, $event.target.value)"
+                                            placeholder="Valor..."
+                                            rows="3"
+                                            class="w-full bg-wa-bg-deep/50 border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-y min-h-[2.5rem]"></textarea>
+                                    </template>
+                                    <!-- Label type: label picker -->
+                                    <template x-if="def.type === 'label'">
+                                        <div class="flex flex-wrap gap-2">
+                                            <template x-for="lbl in botLabels" :key="lbl.id">
+                                                <button type="button"
+                                                    @click="setVarValue(def.name, getVarValue(def.name) === lbl.name ? '' : lbl.name)"
+                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+                                                    :class="getVarValue(def.name) === lbl.name
+                                                        ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
+                                                        : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+                                                >
+                                                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                                    <span x-text="lbl.name"></span>
+                                                </button>
+                                            </template>
+                                            <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
+                                        </div>
+                                    </template>
                                 </div>
-                                <div class="mt-3">
-                                    <span class="text-[10px] font-sans bg-wa-green/10 text-wa-green px-2 py-0.5 rounded" x-text="tool.actionType"></span>
-                                </div>
-                            </a>
-                        </template>
+                            </template>
+                        </div>
                     </div>
                 </template>
 
-                <!-- Convert Flows Section -->
-                <template x-if="flows.length > 0">
-                    <div class="mt-8 pt-6 border-t border-wa-border">
-                        <h4 class="text-xs text-wa-text-secondary tracking-normal mb-4" x-text="$t('convert_to_tool')">Convert Flows to Tools</h4>
-                        <div class="space-y-2">
-                            <template x-for="flow in flows" :key="'convert-' + flow.id">
-                                <div class="flex items-center justify-between gap-3 p-3 bg-wa-bg-deep border border-wa-border rounded-lg">
-                                    <span class="text-sm text-wa-text-secondary min-w-0 break-words" x-text="flow.name"></span>
-                                    <button @click="convertFlowToTool(flow.id)"
-                                        class="px-3 py-1 text-[10px] font-sans border border-wa-green/30 text-wa-green hover:bg-wa-green/10 transition-colors rounded-lg flex-shrink-0 whitespace-nowrap"
-                                        x-text="$t('convert_to_tool')">
+                <!-- No template or no vars defined: free-form editor -->
+                <template x-if="templateVarDefs.length === 0">
+                    <div>
+                        <p class="text-[10px] text-wa-text-secondary mb-4" x-text="$t('bot_variables_desc')"></p>
+                        <div class="space-y-3 mb-4">
+                            <template x-for="(variable, index) in variablesList" :key="index">
+                                <div class="flex gap-2">
+                                    <input type="text" x-model="variable.key" :placeholder="$t('variable_key')" class="w-40 shrink-0 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono self-start" />
+                                    <span class="text-wa-text-secondary self-start mt-2.5">=</span>
+                                    <textarea x-model="variable.value" :placeholder="$t('variable_value')" rows="3" class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-y min-h-[2.5rem]"></textarea>
+                                    <button @click="variablesList.splice(index, 1)" class="p-2 text-red-400 hover:text-red-300 transition-colors self-start">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     </button>
                                 </div>
                             </template>
                         </div>
-                    </div>
-                </template>
-
-                <!-- Empty Custom Tools hint -->
-                <template x-if="tools.length === 0">
-                    <p class="text-xs text-wa-text-secondary text-center py-4" x-text="$t('no_custom_tools') || 'No custom tools yet. Built-in tools are always active.'"></p>
-                </template>
-
-                <!-- Automations subsection -->
-                <div class="mt-8 pt-6 border-t border-wa-border">
-                    <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
-                        <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('automations')">Automations</h3>
-                        <button @click="openCreateAutomation()"
-                            class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
-                            <span>+</span>
-                            <span x-text="$t('create_automation')">Create Automation</span>
+                        <div x-show="variablesList.length === 0" class="p-6 border border-dashed border-wa-border rounded-lg text-center text-wa-text-secondary text-xs mb-4">
+                            <span x-text="$t('no_variables')">No variables defined</span>
+                        </div>
+                        <button @click="variablesList.push({ key: '', value: '' })" class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors mr-3">
+                            + <span x-text="$t('add_variable')">Add Variable</span>
                         </button>
                     </div>
+                </template>
 
-                    <!-- Automation List -->
-                    <template x-if="automations.length > 0">
-                        <div class="space-y-3">
-                            <template x-for="auto in automations" :key="auto.id">
-                                <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
-                                    <div class="flex justify-between items-start gap-3">
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                                <h4 class="font-bold font-sans text-white" x-text="auto.name"></h4>
-                                                <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400" x-text="auto.event"></span>
-                                                <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-wa-green/10 text-wa-green" x-text="auto.labelName"></span>
-                                            </div>
-                                            <p class="text-xs text-wa-text-secondary mb-2" x-text="auto.description || ''"></p>
-                                            <div class="flex items-center gap-4 text-[10px] text-wa-text-secondary">
-                                                <span x-text="'Timeout: ' + formatTimeout(auto.timeoutMs)"></span>
-                                                <span class="truncate max-w-xs" x-text="'Prompt: ' + auto.prompt.substring(0, 60) + (auto.prompt.length > 60 ? '...' : '')"></span>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-2 flex-shrink-0">
-                                            <!-- Toggle -->
-                                            <button @click="toggleAutomation(auto.id, !auto.enabled)"
-                                                class="relative w-10 h-5 rounded-full transition-colors"
-                                                :class="auto.enabled ? 'bg-wa-green' : 'bg-gray-700'">
-                                                <span class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all"
-                                                    :class="auto.enabled ? 'left-5' : 'left-0.5'"></span>
-                                            </button>
-                                            <!-- Edit -->
-                                            <button @click="editAutomation(auto)"
-                                                class="p-1 text-wa-text-secondary hover:text-wa-green transition-colors">
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                                </svg>
-                                            </button>
-                                            <!-- Delete -->
-                                            <button @click="deleteAutomation(auto.id)"
-                                                class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors">
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
+                <div class="flex items-center gap-3 mt-4">
+                    <button
+                        @click="saveVariables()"
+                        :disabled="savingVariables"
+                        class="px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors"
+                        x-text="savingVariables ? $t('saving') : $t('save_variables')"
+                    >
+                        Save Variables
+                    </button>
+                    <span x-show="variablesSaved" x-transition.opacity class="text-xs text-green-400 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Guardado
+                    </span>
+                </div>
+        </section>
+
+        <!-- Notificaciones section -->
+        <section class="mb-8">
+            <h3 class="text-xs text-wa-green tracking-normal mb-6">Notificaciones</h3>
+
+                <form @submit.prevent="saveNotifications()" class="space-y-6">
+
+                    <!-- Channel list with per-channel config -->
+                    <div class="space-y-4">
+                        <template x-for="(ch, idx) in notificationChannels" :key="ch.sessionId">
+                            <div class="bg-wa-bg-deep border border-wa-border rounded-xl p-4 space-y-4">
+                                <!-- Channel header -->
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                                        <span class="w-2 h-2 bg-wa-green rounded-full flex-shrink-0"></span>
+                                        <input
+                                            type="text"
+                                            x-model="ch.nickname"
+                                            :placeholder="ch._name || 'Apodo del canal...'"
+                                            class="bg-transparent text-sm text-white font-medium outline-none border-b border-transparent focus:border-wa-green/50 transition-colors w-full placeholder-wa-text-secondary/50"
+                                        />
+                                    </div>
+                                    <span class="text-[10px] text-wa-text-secondary/50 flex-shrink-0" x-text="ch._name"></span>
+                                    <button type="button" @click="removeNotifChannel(idx)"
+                                        class="text-xs text-red-400 hover:text-red-300 transition-colors flex-shrink-0">Quitar</button>
+                                </div>
+
+                                <!-- Events for this channel -->
+                                <div>
+                                    <label class="block text-[10px] text-wa-text-secondary mb-2">Eventos</label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <template x-for="[key, label] in [
+                                            ['flow:completed', 'Flujo completado'],
+                                            ['flow:failed', 'Flujo fallido'],
+                                            ['session:created', 'Sesión creada'],
+                                            ['session:labels:add', 'Etiqueta asignada'],
+                                            ['session:labels:remove', 'Etiqueta retirada'],
+                                            ['bot:connected', 'Conectado'],
+                                            ['bot:disconnected', 'Desconectado'],
+                                            ['tool:executed', 'Herramienta'],
+                                            ['messages:deleted', 'Chat borrado'],
+                                        ]" :key="'ev-' + idx + '-' + key">
+                                            <button type="button"
+                                                @click="toggleChannelEvent(idx, key)"
+                                                class="px-2 py-1 text-[10px] rounded-lg border transition-all"
+                                                :class="ch.events.includes(key)
+                                                    ? 'bg-wa-green/15 border-wa-green/40 text-wa-green'
+                                                    : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+                                                x-text="label"></button>
+                                        </template>
                                     </div>
                                 </div>
-                            </template>
-                        </div>
-                    </template>
 
-                    <!-- Empty State -->
-                    <template x-if="automations.length === 0">
-                        <div class="text-center py-12 border border-dashed border-wa-border mt-4 rounded-xl">
-                            <p class="text-xs font-sans text-wa-text-secondary mb-4" x-text="$t('no_automations')">No automations configured</p>
-                            <button @click="openCreateAutomation()"
-                                class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg">
-                                + <span x-text="$t('create_automation')">Create Automation</span>
-                            </button>
-                        </div>
-                    </template>
-                </div>
+                                <!-- Per-label filter for this channel -->
+                                <div x-show="ch.events.includes('session:labels:add') || ch.events.includes('session:labels:remove')" x-transition>
+                                    <label class="block text-[10px] text-wa-text-secondary mb-2">Filtrar etiquetas <span class="text-wa-text-secondary/50">(vacío = todas)</span></label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <template x-for="lbl in botLabels" :key="'lbl-' + idx + '-' + lbl.id">
+                                            <button type="button"
+                                                @click="toggleChannelLabel(idx, lbl.id)"
+                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all border cursor-pointer select-none"
+                                                :class="ch.labels.includes(lbl.id)
+                                                    ? 'bg-wa-green/15 border-wa-green/40 text-wa-green'
+                                                    : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'">
+                                                <span class="w-2 h-2 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                                <span x-text="lbl.name"></span>
+                                            </button>
+                                        </template>
+                                        <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-[10px]">Sin etiquetas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="notificationChannels.length === 0" class="text-xs text-wa-text-secondary p-4 border border-dashed border-wa-border rounded-lg text-center">Sin canales configurados.</div>
+
+                    <!-- Add channel -->
+                    <div>
+                        <button type="button" @click="loadNotifSessions()"
+                            class="px-4 py-2 text-xs border border-wa-border text-wa-text-secondary hover:text-white hover:border-wa-green/30 transition-colors rounded-lg">
+                            + Agregar canal
+                        </button>
+
+                        <template x-if="notifSessions.length > 0">
+                            <div class="mt-2 space-y-1 max-h-48 overflow-y-auto border border-wa-border rounded-lg p-2 bg-wa-bg-deep">
+                                <template x-for="sess in notifSessions" :key="sess.id">
+                                    <button type="button" @click="addNotifChannel(sess.id)"
+                                        class="w-full text-left px-3 py-2 text-sm text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover rounded transition-colors"
+                                        :class="notificationChannels.some(c => c.sessionId === sess.id) ? 'opacity-40 pointer-events-none' : ''"
+                                        x-text="sess.name || sess.identifier"></button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Save -->
+                    <div class="pt-4">
+                        <button type="submit" :disabled="savingNotifications"
+                            class="px-6 py-3 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors disabled:opacity-50 rounded-lg"
+                            x-text="savingNotifications ? 'Guardando...' : 'Guardar Notificaciones'">
+                        </button>
+                    </div>
+                </form>
         </section>
 
         <!-- ZONE 2: Configuration (tabs with URL persistence) -->
@@ -448,15 +523,15 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     :class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
                     Config IA
                 </button>
-                <button @click="activeTab = 'variables'; updateTabUrl()"
+                <button @click="activeTab = 'tools'; updateTabUrl()"
                     class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
-                    :class="activeTab === 'variables' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-                    Variables
+                    :class="activeTab === 'tools' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                    Herramientas
                 </button>
-                <button @click="activeTab = 'notifications'; updateTabUrl()"
+                <button @click="activeTab = 'automations'; updateTabUrl()"
                     class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
-                    :class="activeTab === 'notifications' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-                    Notificaciones
+                    :class="activeTab === 'automations' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                    Automatizaciones
                 </button>
                 <button @click="activeTab = 'clients'; updateTabUrl()"
                     class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
@@ -693,225 +768,151 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             </div>
             </div>
 
-            <!-- Tab content: Variables -->
-            <div x-show="activeTab === 'variables'" x-transition:enter>
-                <!-- Template Selector -->
-                <div class="mb-8">
-                    <h3 class="text-xs text-wa-green tracking-normal mb-4" x-text="$t('template_assigned')">Template</h3>
-                    <div class="flex items-center gap-3">
-                        <template x-if="templatesLoaded">
-                            <select
-                                x-init="$nextTick(() => { $el.value = bot.templateId || '' })"
-                                @change="bot.templateId = $event.target.value || null; saveTemplate()"
-                                class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
-                            >
-                                <option value="" x-text="$t('no_template')">None (Custom)</option>
-                                <template x-for="tpl in availableTemplates" :key="tpl.id">
-                                    <option :value="tpl.id" x-text="tpl.name"></option>
-                                </template>
-                            </select>
-                        </template>
-                        <span x-show="!templatesLoaded" class="text-xs text-wa-text-secondary" x-text="$t('loading')"></span>
-                        <span x-show="savingTemplate" class="text-xs text-wa-text-secondary" x-text="$t('saving')"></span>
-                    </div>
-                    <p class="text-[10px] text-wa-text-secondary mt-2" x-show="bot.templateId">
-                        AI config, flows, tools y automations se heredan de la plantilla.
-                    </p>
+            <!-- Tab content: Herramientas -->
+            <div x-show="activeTab === 'tools'" x-transition:enter>
+                <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
+                    <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('tools')">Herramientas</h3>
+                    <a :href="'/tool-editor?botId=' + botId"
+                        class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
+                        <span>+</span>
+                        <span x-text="$t('new_tool')">New Tool</span>
+                    </a>
                 </div>
 
-                <!-- Bot Variables (typed by template definition) -->
-                <h3 class="text-xs text-wa-green tracking-normal mb-2" x-text="$t('bot_variables')">Variables</h3>
-
-                <!-- Template-defined variables -->
-                <template x-if="templateVarDefs.length > 0">
-                    <div>
-                        <p class="text-[10px] text-wa-text-secondary mb-4">Configura los valores específicos de este bot para la plantilla.</p>
-                        <div class="space-y-4 mb-4">
-                            <template x-for="def in templateVarDefs" :key="def.name">
-                                <div class="bg-wa-bg-hover/50 p-3 rounded-lg border border-wa-border">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <span class="text-xs font-mono text-purple-400" x-text="def.name"></span>
-                                        <span class="text-[9px] px-1.5 py-0.5 rounded"
-                                            :class="def.type === 'label' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'"
-                                            x-text="def.type === 'label' ? 'Etiqueta' : 'Texto'"></span>
+                <!-- Built-in Tools -->
+                <div class="mb-6">
+                    <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('builtin_tools') || 'Built-in Tools'">Built-in Tools</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <template x-for="bt in builtinTools" :key="bt.name">
+                            <div class="flex flex-col justify-between p-3 bg-wa-bg-deep border border-wa-border/50 rounded-xl opacity-80 min-h-[80px]">
+                                <div>
+                                    <div class="flex items-start justify-between gap-2 mb-1">
+                                        <span class="font-bold font-mono text-xs text-white leading-tight" x-text="bt.name"></span>
+                                        <span class="text-[8px] font-sans bg-wa-green/10 text-wa-green px-1.5 py-0.5 rounded shrink-0">BUILTIN</span>
                                     </div>
-                                    <!-- Text type: textarea for multiline support -->
-                                    <template x-if="def.type === 'text'">
-                                        <textarea
-                                            :value="getVarValue(def.name)"
-                                            @input="setVarValue(def.name, $event.target.value)"
-                                            placeholder="Valor..."
-                                            rows="3"
-                                            class="w-full bg-wa-bg-deep/50 border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-y min-h-[2.5rem]"></textarea>
-                                    </template>
-                                    <!-- Label type: label picker -->
-                                    <template x-if="def.type === 'label'">
-                                        <div class="flex flex-wrap gap-2">
-                                            <template x-for="lbl in botLabels" :key="lbl.id">
-                                                <button type="button"
-                                                    @click="setVarValue(def.name, getVarValue(def.name) === lbl.name ? '' : lbl.name)"
-                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
-                                                    :class="getVarValue(def.name) === lbl.name
-                                                        ? 'bg-purple-500/15 border-purple-500/40 text-purple-400'
-                                                        : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
-                                                >
-                                                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
-                                                    <span x-text="lbl.name"></span>
-                                                </button>
-                                            </template>
-                                            <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
-                                        </div>
-                                    </template>
+                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="bt.description"></p>
                                 </div>
-                            </template>
-                        </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Custom Tools -->
+                <h4 class="text-[10px] text-wa-text-secondary tracking-widest uppercase mb-3" x-text="$t('custom_tools') || 'Custom Tools'">Custom Tools</h4>
+                <template x-if="tools.length > 0">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <template x-for="tool in tools" :key="tool.id">
+                            <a :href="'/tool-editor?id=' + tool.id"
+                                class="flex flex-col justify-between p-4 bg-wa-bg-deep border border-wa-border hover:border-wa-green/30 transition-all group rounded-xl min-h-[100px]">
+                                <div>
+                                    <div class="flex items-start justify-between gap-2 mb-1">
+                                        <h4 class="text-sm font-bold font-mono group-hover:text-wa-green transition-colors leading-tight" x-text="tool.name"></h4>
+                                        <span class="text-[10px] font-sans px-1.5 py-0.5 rounded shrink-0"
+                                            :class="tool.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-wa-text-secondary'"
+                                            x-text="tool.status"></span>
+                                    </div>
+                                    <p class="text-[10px] text-wa-text-secondary line-clamp-2" x-text="tool.description"></p>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="text-[10px] font-sans bg-wa-green/10 text-wa-green px-2 py-0.5 rounded" x-text="tool.actionType"></span>
+                                </div>
+                            </a>
+                        </template>
                     </div>
                 </template>
 
-                <!-- No template or no vars defined: free-form editor -->
-                <template x-if="templateVarDefs.length === 0">
-                    <div>
-                        <p class="text-[10px] text-wa-text-secondary mb-4" x-text="$t('bot_variables_desc')"></p>
-                        <div class="space-y-3 mb-4">
-                            <template x-for="(variable, index) in variablesList" :key="index">
-                                <div class="flex gap-2">
-                                    <input type="text" x-model="variable.key" :placeholder="$t('variable_key')" class="w-40 shrink-0 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono self-start" />
-                                    <span class="text-wa-text-secondary self-start mt-2.5">=</span>
-                                    <textarea x-model="variable.value" :placeholder="$t('variable_value')" rows="3" class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-y min-h-[2.5rem]"></textarea>
-                                    <button @click="variablesList.splice(index, 1)" class="p-2 text-red-400 hover:text-red-300 transition-colors self-start">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                <!-- Convert Flows Section -->
+                <template x-if="flows.length > 0">
+                    <div class="mt-8 pt-6 border-t border-wa-border">
+                        <h4 class="text-xs text-wa-text-secondary tracking-normal mb-4" x-text="$t('convert_to_tool')">Convert Flows to Tools</h4>
+                        <div class="space-y-2">
+                            <template x-for="flow in flows" :key="'convert-' + flow.id">
+                                <div class="flex items-center justify-between gap-3 p-3 bg-wa-bg-deep border border-wa-border rounded-lg">
+                                    <span class="text-sm text-wa-text-secondary min-w-0 break-words" x-text="flow.name"></span>
+                                    <button @click="convertFlowToTool(flow.id)"
+                                        class="px-3 py-1 text-[10px] font-sans border border-wa-green/30 text-wa-green hover:bg-wa-green/10 transition-colors rounded-lg flex-shrink-0 whitespace-nowrap"
+                                        x-text="$t('convert_to_tool')">
                                     </button>
                                 </div>
                             </template>
                         </div>
-                        <div x-show="variablesList.length === 0" class="p-6 border border-dashed border-wa-border rounded-lg text-center text-wa-text-secondary text-xs mb-4">
-                            <span x-text="$t('no_variables')">No variables defined</span>
-                        </div>
-                        <button @click="variablesList.push({ key: '', value: '' })" class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors mr-3">
-                            + <span x-text="$t('add_variable')">Add Variable</span>
-                        </button>
                     </div>
                 </template>
 
-                <div class="flex items-center gap-3 mt-4">
-                    <button
-                        @click="saveVariables()"
-                        :disabled="savingVariables"
-                        class="px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors"
-                        x-text="savingVariables ? $t('saving') : $t('save_variables')"
-                    >
-                        Save Variables
-                    </button>
-                    <span x-show="variablesSaved" x-transition.opacity class="text-xs text-green-400 flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        Guardado
-                    </span>
-                </div>
+                <!-- Empty Custom Tools hint -->
+                <template x-if="tools.length === 0">
+                    <p class="text-xs text-wa-text-secondary text-center py-4" x-text="$t('no_custom_tools') || 'No custom tools yet. Built-in tools are always active.'"></p>
+                </template>
             </div>
 
-            <!-- Tab content: Notifications -->
-            <div x-show="activeTab === 'notifications'" x-transition:enter>
-                <h3 class="text-xs text-wa-green tracking-normal mb-6">Notificaciones</h3>
+            <!-- Tab content: Automatizaciones -->
+            <div x-show="activeTab === 'automations'" x-transition:enter>
+                <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
+                    <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('automations')">Automatizaciones</h3>
+                    <button @click="openCreateAutomation()"
+                        class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
+                        <span>+</span>
+                        <span x-text="$t('create_automation')">Create Automation</span>
+                    </button>
+                </div>
 
-                <form @submit.prevent="saveNotifications()" class="space-y-6">
-
-                    <!-- Channel list with per-channel config -->
-                    <div class="space-y-4">
-                        <template x-for="(ch, idx) in notificationChannels" :key="ch.sessionId">
-                            <div class="bg-wa-bg-deep border border-wa-border rounded-xl p-4 space-y-4">
-                                <!-- Channel header -->
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="flex items-center gap-2 flex-1 min-w-0">
-                                        <span class="w-2 h-2 bg-wa-green rounded-full flex-shrink-0"></span>
-                                        <input
-                                            type="text"
-                                            x-model="ch.nickname"
-                                            :placeholder="ch._name || 'Apodo del canal...'"
-                                            class="bg-transparent text-sm text-white font-medium outline-none border-b border-transparent focus:border-wa-green/50 transition-colors w-full placeholder-wa-text-secondary/50"
-                                        />
+                <!-- Automation List -->
+                <template x-if="automations.length > 0">
+                    <div class="space-y-3">
+                        <template x-for="auto in automations" :key="auto.id">
+                            <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+                                <div class="flex justify-between items-start gap-3">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                            <h4 class="font-bold font-sans text-white" x-text="auto.name"></h4>
+                                            <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400" x-text="auto.event"></span>
+                                            <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-wa-green/10 text-wa-green" x-text="auto.labelName"></span>
+                                        </div>
+                                        <p class="text-xs text-wa-text-secondary mb-2" x-text="auto.description || ''"></p>
+                                        <div class="flex items-center gap-4 text-[10px] text-wa-text-secondary">
+                                            <span x-text="'Timeout: ' + formatTimeout(auto.timeoutMs)"></span>
+                                            <span class="truncate max-w-xs" x-text="'Prompt: ' + auto.prompt.substring(0, 60) + (auto.prompt.length > 60 ? '...' : '')"></span>
+                                        </div>
                                     </div>
-                                    <span class="text-[10px] text-wa-text-secondary/50 flex-shrink-0" x-text="ch._name"></span>
-                                    <button type="button" @click="removeNotifChannel(idx)"
-                                        class="text-xs text-red-400 hover:text-red-300 transition-colors flex-shrink-0">Quitar</button>
-                                </div>
-
-                                <!-- Events for this channel -->
-                                <div>
-                                    <label class="block text-[10px] text-wa-text-secondary mb-2">Eventos</label>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        <template x-for="[key, label] in [
-                                            ['flow:completed', 'Flujo completado'],
-                                            ['flow:failed', 'Flujo fallido'],
-                                            ['session:created', 'Sesión creada'],
-                                            ['session:labels:add', 'Etiqueta asignada'],
-                                            ['session:labels:remove', 'Etiqueta retirada'],
-                                            ['bot:connected', 'Conectado'],
-                                            ['bot:disconnected', 'Desconectado'],
-                                            ['tool:executed', 'Herramienta'],
-                                            ['messages:deleted', 'Chat borrado'],
-                                        ]" :key="'ev-' + idx + '-' + key">
-                                            <button type="button"
-                                                @click="toggleChannelEvent(idx, key)"
-                                                class="px-2 py-1 text-[10px] rounded-lg border transition-all"
-                                                :class="ch.events.includes(key)
-                                                    ? 'bg-wa-green/15 border-wa-green/40 text-wa-green'
-                                                    : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
-                                                x-text="label"></button>
-                                        </template>
-                                    </div>
-                                </div>
-
-                                <!-- Per-label filter for this channel -->
-                                <div x-show="ch.events.includes('session:labels:add') || ch.events.includes('session:labels:remove')" x-transition>
-                                    <label class="block text-[10px] text-wa-text-secondary mb-2">Filtrar etiquetas <span class="text-wa-text-secondary/50">(vacío = todas)</span></label>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        <template x-for="lbl in botLabels" :key="'lbl-' + idx + '-' + lbl.id">
-                                            <button type="button"
-                                                @click="toggleChannelLabel(idx, lbl.id)"
-                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all border cursor-pointer select-none"
-                                                :class="ch.labels.includes(lbl.id)
-                                                    ? 'bg-wa-green/15 border-wa-green/40 text-wa-green'
-                                                    : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'">
-                                                <span class="w-2 h-2 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
-                                                <span x-text="lbl.name"></span>
-                                            </button>
-                                        </template>
-                                        <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-[10px]">Sin etiquetas</span>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <!-- Toggle -->
+                                        <button @click="toggleAutomation(auto.id, !auto.enabled)"
+                                            class="relative w-10 h-5 rounded-full transition-colors"
+                                            :class="auto.enabled ? 'bg-wa-green' : 'bg-gray-700'">
+                                            <span class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all"
+                                                :class="auto.enabled ? 'left-5' : 'left-0.5'"></span>
+                                        </button>
+                                        <!-- Edit -->
+                                        <button @click="editAutomation(auto)"
+                                            class="p-1 text-wa-text-secondary hover:text-wa-green transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                        </button>
+                                        <!-- Delete -->
+                                        <button @click="deleteAutomation(auto.id)"
+                                            class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </template>
                     </div>
+                </template>
 
-                    <div x-show="notificationChannels.length === 0" class="text-xs text-wa-text-secondary p-4 border border-dashed border-wa-border rounded-lg text-center">Sin canales configurados.</div>
-
-                    <!-- Add channel -->
-                    <div>
-                        <button type="button" @click="loadNotifSessions()"
-                            class="px-4 py-2 text-xs border border-wa-border text-wa-text-secondary hover:text-white hover:border-wa-green/30 transition-colors rounded-lg">
-                            + Agregar canal
-                        </button>
-
-                        <template x-if="notifSessions.length > 0">
-                            <div class="mt-2 space-y-1 max-h-48 overflow-y-auto border border-wa-border rounded-lg p-2 bg-wa-bg-deep">
-                                <template x-for="sess in notifSessions" :key="sess.id">
-                                    <button type="button" @click="addNotifChannel(sess.id)"
-                                        class="w-full text-left px-3 py-2 text-sm text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover rounded transition-colors"
-                                        :class="notificationChannels.some(c => c.sessionId === sess.id) ? 'opacity-40 pointer-events-none' : ''"
-                                        x-text="sess.name || sess.identifier"></button>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- Save -->
-                    <div class="pt-4">
-                        <button type="submit" :disabled="savingNotifications"
-                            class="px-6 py-3 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors disabled:opacity-50 rounded-lg"
-                            x-text="savingNotifications ? 'Guardando...' : 'Guardar Notificaciones'">
+                <!-- Empty State -->
+                <template x-if="automations.length === 0">
+                    <div class="text-center py-12 border border-dashed border-wa-border mt-4 rounded-xl">
+                        <p class="text-xs font-sans text-wa-text-secondary mb-4" x-text="$t('no_automations')">No automations configured</p>
+                        <button @click="openCreateAutomation()"
+                            class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg">
+                            + <span x-text="$t('create_automation')">Create Automation</span>
                         </button>
                     </div>
-                </form>
+                </template>
             </div>
 
             <!-- Tab content: Clients -->
@@ -1724,7 +1725,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
                 // Read tab from URL
                 const tabParam = params.get('tab');
-                if (tabParam && ['config', 'variables', 'notifications', 'clients', 'logs'].includes(tabParam)) {
+                if (tabParam && ['config', 'tools', 'automations', 'clients', 'logs'].includes(tabParam)) {
                     this.activeTab = tabParam;
                 }
 
@@ -1810,7 +1811,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         }
                     }
 
-                    // Load tools and automations (always visible in Zone 1)
+                    // Load tools and automations (shown in tabs)
                     this.loadTools();
                     this.loadAutomations();
 
