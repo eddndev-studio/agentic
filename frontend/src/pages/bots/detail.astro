@@ -820,13 +820,19 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         <template x-for="(ch, idx) in notificationChannels" :key="ch.sessionId">
                             <div class="bg-wa-bg-deep border border-wa-border rounded-xl p-4 space-y-4">
                                 <!-- Channel header -->
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-2 h-2 bg-wa-green rounded-full"></span>
-                                        <span class="text-sm text-white font-medium" x-text="ch._name || 'Canal'"></span>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                                        <span class="w-2 h-2 bg-wa-green rounded-full flex-shrink-0"></span>
+                                        <input
+                                            type="text"
+                                            x-model="ch.nickname"
+                                            :placeholder="ch._name || 'Apodo del canal...'"
+                                            class="bg-transparent text-sm text-white font-medium outline-none border-b border-transparent focus:border-wa-green/50 transition-colors w-full placeholder-wa-text-secondary/50"
+                                        />
                                     </div>
+                                    <span class="text-[10px] text-wa-text-secondary/50 flex-shrink-0" x-text="ch._name"></span>
                                     <button type="button" @click="removeNotifChannel(idx)"
-                                        class="text-xs text-red-400 hover:text-red-300 transition-colors">Quitar</button>
+                                        class="text-xs text-red-400 hover:text-red-300 transition-colors flex-shrink-0">Quitar</button>
                                 </div>
 
                                 <!-- Events for this channel -->
@@ -1653,7 +1659,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
             // Notification Config State
             savingNotifications: false,
-            notificationChannels: [] as { sessionId: string; events: string[]; labels: string[]; _name: string }[],
+            notificationChannels: [] as { sessionId: string; events: string[]; labels: string[]; nickname: string; _name: string }[],
             notifSessions: [] as any[],
 
             // Automations State
@@ -1752,6 +1758,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         sessionId: ch.sessionId,
                         events: ch.events || [],
                         labels: ch.labels || [],
+                        nickname: ch.nickname || '',
                         _name: '', // resolved below
                     }));
 
@@ -2225,11 +2232,12 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             async saveNotifications() {
                 this.savingNotifications = true;
                 try {
-                    // Strip _name before saving (frontend-only field)
+                    // Strip _name before saving (frontend-only field), keep nickname
                     const channelsToSave = this.notificationChannels.map((ch: any) => ({
                         sessionId: ch.sessionId,
                         events: ch.events,
                         labels: ch.labels,
+                        nickname: ch.nickname || '',
                     }));
                     const updated = await ApiClient.put(`/bots/${this.botId}`, {
                         notificationChannels: channelsToSave,

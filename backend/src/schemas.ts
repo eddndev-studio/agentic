@@ -82,6 +82,7 @@ export const NotificationChannelSchema = z.object({
     sessionId: z.string(),
     events: z.array(z.string()),
     labels: z.array(z.string()),
+    nickname: z.string().optional(),
 });
 
 export const NotificationChannelsSchema = z.array(NotificationChannelSchema);
