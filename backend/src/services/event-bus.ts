@@ -25,7 +25,12 @@ export type BotEvent =
     | { type: 'flow:completed';   botId: string; flowName: string; sessionId: string }
     | { type: 'flow:failed';      botId: string; flowName: string; sessionId: string; error: string }
     | { type: 'tool:executed';    botId: string; toolName: string; sessionId: string; success: boolean }
-    | { type: 'messages:deleted'; botId: string; sessionId: string; count: number };
+    | { type: 'messages:deleted'; botId: string; sessionId: string; count: number }
+    | { type: 'emulator:debug:trigger-eval'; botId: string; sessionId: string; triggers: Array<{ name: string; triggerType: string; matched: boolean; reason?: string }> }
+    | { type: 'emulator:debug:ai-context'; botId: string; sessionId: string; systemPrompt: string; messageCount: number; toolCount: number; model: string; temperature: number }
+    | { type: 'emulator:debug:ai-response'; botId: string; sessionId: string; content: string | null; toolCalls: Array<{ name: string; args: Record<string, unknown> }>; usage: { promptTokens: number; completionTokens: number } | null; model: string }
+    | { type: 'emulator:debug:tool-call'; botId: string; sessionId: string; toolName: string; args: Record<string, unknown>; result: unknown; success: boolean; durationMs: number }
+    | { type: 'emulator:debug:flow-event'; botId: string; sessionId: string; flowName: string; event: 'started' | 'step' | 'completed' | 'failed'; stepOrder?: number; stepType?: string; error?: string };
 
 export type SystemEvent = { type: 'system:log'; log: LogEntry };
 

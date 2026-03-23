@@ -191,6 +191,21 @@ export class AIEngine {
                 thinkingLevel: aiConfig.thinkingLevel ?? "LOW",
             };
 
+            // Emit emulator debug: AI context
+            const isEmulatorSession = session.identifier.startsWith('emu://');
+            if (isEmulatorSession) {
+                eventBus.emitBotEvent({
+                    type: 'emulator:debug:ai-context',
+                    botId: bot.id,
+                    sessionId,
+                    systemPrompt: aiConfig.systemPrompt || '',
+                    messageCount: aiMessages.length,
+                    toolCount: toolDefinitions.length,
+                    model: activeModel,
+                    temperature: aiConfig.temperature ?? 0.7,
+                });
+            }
+
             let response = await this.chatWithFallback(
                 activeProvider, chatRequest, aiConfig.aiProvider
             );
@@ -201,6 +216,19 @@ export class AIEngine {
                 activeProvider = getAIProvider(fb.provider);
                 activeModel = fb.model;
                 usedFallback = true;
+            }
+
+            // Emit emulator debug: AI response
+            if (isEmulatorSession) {
+                eventBus.emitBotEvent({
+                    type: 'emulator:debug:ai-response',
+                    botId: bot.id,
+                    sessionId,
+                    content: response.content,
+                    toolCalls: response.toolCalls.map(tc => ({ name: tc.name, args: tc.arguments })),
+                    usage: response.usage ? { promptTokens: response.usage.promptTokens, completionTokens: response.usage.completionTokens } : null,
+                    model: usedFallback ? activeModel : aiConfig.aiModel,
+                });
             }
 
             // 8. Tool call loop

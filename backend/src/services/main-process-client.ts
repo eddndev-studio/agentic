@@ -78,6 +78,18 @@ export const mainProcessClient = {
     ): Promise<{ success: boolean; data: unknown; sentMessages?: boolean }> {
         return post("/internal/tool", { botId, sessionId, toolName, toolArgs });
     },
+
+    /**
+     * Forward an emulator debug event to the main process eventBus.
+     * Fire-and-forget — errors are logged but never thrown.
+     */
+    async emitEmulatorDebug(event: Record<string, unknown>): Promise<void> {
+        try {
+            await post("/internal/emulator-event", { event });
+        } catch (e) {
+            console.warn("[MainProcessClient] emitEmulatorDebug failed:", (e as Error).message);
+        }
+    },
 };
 
 /**

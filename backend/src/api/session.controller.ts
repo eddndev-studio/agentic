@@ -18,7 +18,10 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         const skip = Number(offset) || 0;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma dynamic where clause
-        const where: any = {};
+        const where: any = {
+            // Hide emulator sessions from the production monitor
+            NOT: { identifier: { startsWith: 'emu://' } },
+        };
         if (botId) where.botId = botId;
         if (search) {
             where.OR = [

@@ -693,6 +693,16 @@ export class BaileysService {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys content can be text, image, audio, etc.
     static async sendMessage(botId: string, to: string, content: any): Promise<boolean> {
+        // Intercept emulator sessions — don't send via WhatsApp
+        if (to.startsWith('emu://')) {
+            const externalId = `emu_sent_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            // Persist outgoing message
+            await MessageIngestService.persistOutgoingMessage(botId, to, externalId, content).catch(e => {
+                log.warn('Emulator outgoing persistence error:', (e as Error).message);
+            });
+            return true;
+        }
+
         const sock = sessions.get(botId);
         if (!sock) {
             log.warn(`sendMessage failed: Bot ${botId} not connected`);
@@ -742,6 +752,7 @@ export class BaileysService {
      * Mark messages as read (blue ticks) for a chat.
      */
     static async markRead(botId: string, chatJid: string, messageIds: string[]): Promise<void> {
+        if (chatJid.startsWith('emu://')) return; // No-op for emulator
         const sock = sessions.get(botId);
         if (!sock || messageIds.length === 0) return;
         try {
@@ -761,6 +772,7 @@ export class BaileysService {
      * Send presence update (typing / paused) for a chat.
      */
     static async sendPresence(botId: string, chatJid: string, presence: "composing" | "paused"): Promise<void> {
+        if (chatJid.startsWith('emu://')) return; // No-op for emulator
         const sock = sessions.get(botId);
         if (!sock) return;
         try {
@@ -779,12 +791,14 @@ export class BaileysService {
     }
 
     static async addChatLabel(botId: string, chatJid: string, waLabelId: string): Promise<void> {
+        if (chatJid.startsWith('emu://')) return; // No-op for emulator
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
         return LabelService.addChatLabel(sock, botId, chatJid, waLabelId);
     }
 
     static async removeChatLabel(botId: string, chatJid: string, waLabelId: string): Promise<void> {
+        if (chatJid.startsWith('emu://')) return; // No-op for emulator
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
         return LabelService.removeChatLabel(sock, botId, chatJid, waLabelId);

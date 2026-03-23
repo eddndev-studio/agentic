@@ -31,29 +31,47 @@ export class ToolExecutor {
         originalMessage?: { content?: string | null },
         bot?: BotWithTemplate
     ): Promise<ToolResult> {
+        const startTime = Date.now();
+        let result: ToolResult;
         try {
             // Fast-path: built-in tools don't need a DB record
             if (isBuiltinTool(toolCall.name)) {
-                return await this.executeBuiltin(botId, session, { name: toolCall.name }, toolCall.arguments);
+                result = await this.executeBuiltin(botId, session, { name: toolCall.name }, toolCall.arguments);
+            } else {
+                // Use pre-loaded bot or fall back to DB lookup
+                const resolvedBot = bot ?? await BotConfigService.loadBot(botId);
+                if (!resolvedBot) {
+                    result = { success: false, data: `Bot '${botId}' not found.` };
+                } else {
+                    const tool = await BotConfigService.resolveTool(resolvedBot, toolCall.name);
+                    if (!tool) {
+                        result = { success: false, data: `Tool '${toolCall.name}' not found or disabled.` };
+                    } else {
+                        result = await this.dispatchByActionType(botId, session, tool, toolCall.arguments, resolvedBot);
+                    }
+                }
             }
-
-            // Use pre-loaded bot or fall back to DB lookup
-            const resolvedBot = bot ?? await BotConfigService.loadBot(botId);
-            if (!resolvedBot) {
-                return { success: false, data: `Bot '${botId}' not found.` };
-            }
-
-            const tool = await BotConfigService.resolveTool(resolvedBot, toolCall.name);
-
-            if (!tool) {
-                return { success: false, data: `Tool '${toolCall.name}' not found or disabled.` };
-            }
-
-            return await this.dispatchByActionType(botId, session, tool, toolCall.arguments, resolvedBot);
         } catch (error: unknown) {
             console.error(`[ToolExecutor] Error executing tool '${toolCall.name}':`, error);
-            return { success: false, data: (error instanceof Error ? error.message : undefined) || "Tool execution failed" };
+            result = { success: false, data: (error instanceof Error ? error.message : undefined) || "Tool execution failed" };
         }
+
+        // Emit emulator debug event for tool execution
+        if (session.identifier.startsWith('emu://')) {
+            const durationMs = Date.now() - startTime;
+            eventBus.emitBotEvent({
+                type: 'emulator:debug:tool-call',
+                botId,
+                sessionId: session.id,
+                toolName: toolCall.name,
+                args: toolCall.arguments,
+                result: result.data,
+                success: result.success,
+                durationMs,
+            });
+        }
+
+        return result;
     }
 
     /**
@@ -123,6 +141,17 @@ export class ToolExecutor {
             sessionId: session.id,
         });
 
+        const isEmulator = session.identifier.startsWith('emu://');
+        if (isEmulator) {
+            eventBus.emitBotEvent({
+                type: 'emulator:debug:flow-event',
+                botId,
+                sessionId: session.id,
+                flowName: flow.name,
+                event: 'started',
+            });
+        }
+
         // Use pre-loaded bot for variable interpolation (no extra DB query)
         const botVars = BotConfigService.getVariables(bot);
 
@@ -183,6 +212,18 @@ export class ToolExecutor {
                     data: { currentStep: step.order },
                 });
                 console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (${step.type}) ok`);
+
+                if (isEmulator) {
+                    eventBus.emitBotEvent({
+                        type: 'emulator:debug:flow-event',
+                        botId,
+                        sessionId: session.id,
+                        flowName: flow.name,
+                        event: 'step',
+                        stepOrder: step.order,
+                        stepType: step.type,
+                    });
+                }
             } catch (e: unknown) {
                 failCount++;
                 const reason = (e instanceof Error ? e.message : undefined) || "unknown error";
@@ -215,6 +256,15 @@ export class ToolExecutor {
                 flowName: flow.name,
                 sessionId: session.id,
             });
+            if (isEmulator) {
+                eventBus.emitBotEvent({
+                    type: 'emulator:debug:flow-event',
+                    botId,
+                    sessionId: session.id,
+                    flowName: flow.name,
+                    event: 'completed',
+                });
+            }
         } else {
             eventBus.emitBotEvent({
                 type: 'flow:failed',
@@ -223,6 +273,16 @@ export class ToolExecutor {
                 sessionId: session.id,
                 error: errorMsg || 'Unknown error',
             });
+            if (isEmulator) {
+                eventBus.emitBotEvent({
+                    type: 'emulator:debug:flow-event',
+                    botId,
+                    sessionId: session.id,
+                    flowName: flow.name,
+                    event: 'failed',
+                    error: errorMsg || 'Unknown error',
+                });
+            }
         }
 
         const summary = failCount === 0

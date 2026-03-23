@@ -38,10 +38,26 @@ export class FlowEngine {
         // Only match TEXT triggers for message-based processing
         const textTriggers = activeTriggers.filter((t) => !t.triggerType || t.triggerType === 'TEXT');
         const match = TriggerMatcher.findMatch(message.content, textTriggers);
+
+        // Emit emulator debug event for trigger evaluation
+        if (session.identifier.startsWith('emu://')) {
+            eventBus.emitBotEvent({
+                type: 'emulator:debug:trigger-eval',
+                botId: session.botId,
+                sessionId,
+                triggers: textTriggers.map(t => ({
+                    name: t.keyword || t.labelName || t.id,
+                    triggerType: t.triggerType || 'TEXT',
+                    matched: match?.trigger.id === t.id,
+                    reason: match?.trigger.id === t.id ? `Matched "${message.content}"` : undefined,
+                })),
+            });
+        }
+
         if (!match) return;
 
         const trigger = match.trigger as Trigger & { flow: Flow | null };
-        await this.startFlow(sessionId, session.botId, trigger, message.sender);
+        await this.startFlow(sessionId, session.botId, trigger, message.sender, session.identifier);
     }
 
     /**
@@ -82,19 +98,20 @@ export class FlowEngine {
             }
 
             log.info(`Label trigger matched! Starting flow ${t.flowId} for session ${session.identifier}`);
-            await this.startFlow(sessionId, botId, trigger as Trigger & { flow: Flow | null }, session.identifier);
+            await this.startFlow(sessionId, botId, trigger as Trigger & { flow: Flow | null }, session.identifier, session.identifier);
         }
     }
 
     /**
      * Shared logic: validate constraints and start a flow execution.
      */
-    private async startFlow(sessionId: string, botId: string, trigger: Trigger & { flow: Flow | null }, platformUserId: string) {
+    private async startFlow(sessionId: string, botId: string, trigger: Trigger & { flow: Flow | null }, platformUserId: string, sessionIdentifier?: string) {
         if (!trigger.flow) {
             log.error(`Trigger '${trigger.keyword}' has no flow`);
             return;
         }
         const flow = trigger.flow; // narrowed to non-null
+        const isEmulator = sessionIdentifier?.startsWith('emu://') || platformUserId.startsWith('emu://');
 
         const triggerLabel = trigger.keyword || trigger.labelName || trigger.id;
         const lockKey = `flow:lock:${sessionId}:${trigger.flowId}`;
@@ -171,6 +188,16 @@ export class FlowEngine {
                 sessionId,
             });
 
+            if (isEmulator) {
+                eventBus.emitBotEvent({
+                    type: 'emulator:debug:flow-event',
+                    botId,
+                    sessionId,
+                    flowName: flow.name,
+                    event: 'started',
+                });
+            }
+
             await this.scheduleStep(execution.id, 0);
 
         } catch (error: unknown) {
@@ -217,6 +244,17 @@ export class FlowEngine {
                     sessionId,
                     error: errorMessage,
                 });
+
+                if (isEmulator) {
+                    eventBus.emitBotEvent({
+                        type: 'emulator:debug:flow-event',
+                        botId,
+                        sessionId,
+                        flowName: flow.name,
+                        event: 'failed',
+                        error: errorMessage,
+                    });
+                }
             }
         } finally {
             await redis.del(lockKey);
@@ -252,6 +290,16 @@ export class FlowEngine {
                 flowName: execution.flow.name,
                 sessionId: execution.sessionId,
             });
+
+            if (execution.session.identifier.startsWith('emu://')) {
+                eventBus.emitBotEvent({
+                    type: 'emulator:debug:flow-event',
+                    botId: execution.session.botId,
+                    sessionId: execution.sessionId,
+                    flowName: execution.flow.name,
+                    event: 'completed',
+                });
+            }
             return;
         }
 

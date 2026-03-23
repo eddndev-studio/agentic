@@ -92,6 +92,7 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 import { prisma } from "./services/postgres.service";
 import { BaileysService } from "./services/baileys.service";
 import { ToolExecutor } from "./core/ai/ToolExecutor";
+import { eventBus, type BotEvent } from "./services/event-bus";
 import { Platform } from "@prisma/client";
 
 // Recover orphaned accumulator messages from a previous crash (Redis keys without in-memory timers)
@@ -149,6 +150,7 @@ import { eventsController } from "./api/events.controller";
 import { automationController } from "./api/automation.controller";
 import { templateController } from "./api/template.controller";
 import { logsController } from "./api/logs.controller";
+import { emulatorController } from "./api/emulator.controller";
 const ALLOWED_ORIGINS = new Set(config.server.corsOrigins);
 
 const app = new Elysia({ adapter: node() })
@@ -223,6 +225,17 @@ const app = new Elysia({ adapter: node() })
             return { error: e instanceof Error ? e.message : String(e) };
         }
     })
+    // Internal endpoint for the worker to emit emulator debug events on the main-process eventBus
+    .post("/internal/emulator-event", async ({ body, set }) => {
+        const { event } = body as { event: BotEvent };
+        try {
+            eventBus.emitBotEvent(event);
+            return { ok: true };
+        } catch (e: unknown) {
+            set.status = 500;
+            return { error: e instanceof Error ? e.message : String(e) };
+        }
+    })
     .use(webhookController)
     .use(uploadController)
     .use(flowController)
@@ -237,6 +250,7 @@ const app = new Elysia({ adapter: node() })
     .use(automationController)
     .use(templateController)
     .use(logsController)
+    .use(emulatorController)
     .get("/", () => "Agentic Orchestrator Active")
     .get("/health", () => ({ status: "ok", timestamp: new Date().toISOString() }))
     .get("/info", () => ({
