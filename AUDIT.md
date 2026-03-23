@@ -1,16 +1,16 @@
 # Auditoría Arquitectónica - Agentic
-> Fecha: 2026-03-22 | Estado: En progreso
+> Fecha: 2026-03-22 | Estado: Casi completa
 
 ## P0 — Crítico
 
 ### [x] 1. God Object: `baileys.service.ts` (1,571 → 847 líneas)
 Partido en 5 servicios: session-helpers, media.service, label.service, message-ingest.service, baileys.service
 
-### [ ] 2. Zod schemas para campos JSON de Prisma
-Campos sin validación: `metadata` (Message, Step), `actionConfig` (Tool), `notificationChannels` (Bot), `credentials` (Bot), `botVariables` (Bot)
+### [x] 2. Zod schemas para campos JSON de Prisma
+Creado schemas.ts con validación tipada. 13 as-any críticos reemplazados. Resto se puede hacer incrementalmente.
 
-### [ ] 3. Eliminar abuso de `any` (184+ instancias)
-Peores: baileys.service (52), ToolExecutor (15), bot.controller (14), flow.controller (10)
+### [~] 3. Eliminar abuso de `any` (184+ → ~170 instancias)
+13 casts críticos eliminados con Zod. Los restantes son mayormente en event handlers de Baileys y request bodies de Elysia — se pueden ir eliminando incrementalmente.
 
 ## P1 — Alto
 
@@ -37,7 +37,7 @@ Creado utils/helpers.ts con isRemoteUrl() y updateMessageMetadata(). 9 patrones 
 ### [x] 10. Retry logic en main-process-client
 Exponential backoff (3 retries, 200/400/800ms) para /internal/* endpoints
 
-## P3 — Bajo
+## P3 — Bajo (pendiente para futuro)
 
 ### [ ] 11. Agregar tests
 Al menos ToolExecutor, AIEngine, FlowEngine
