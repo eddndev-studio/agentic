@@ -13,6 +13,7 @@ import { Boom } from '@hapi/boom';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'node:https';
+import { execSync } from 'node:child_process';
 import QRCode from 'qrcode';
 import { prisma } from './postgres.service';
 import { flowEngine } from '../core/flow';
@@ -266,7 +267,6 @@ export class BaileysService {
             if (!isAvailable) {
                 // Auto-bind: try to add the address to eth0
                 try {
-                    const { execSync } = require("child_process");
                     execSync(`ip -6 addr add ${botConfig.ipv6Address}/64 dev eth0 2>/dev/null || true`);
                     isAvailable = await this.isAddressAvailable(botConfig.ipv6Address);
                     if (isAvailable) {

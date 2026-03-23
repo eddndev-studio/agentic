@@ -1,4 +1,5 @@
 import { Elysia, t } from "elysia";
+import { execSync } from "node:child_process";
 import { prisma } from "../services/postgres.service";
 import { Platform, AIProvider } from "@prisma/client";
 import { BaileysService } from "../services/baileys.service";
@@ -22,7 +23,6 @@ function generateRandomIPv6(): string {
  */
 async function bindIPv6(address: string): Promise<void> {
     try {
-        const { execSync } = require("child_process");
         execSync(`ip -6 addr add ${address}/64 dev eth0 2>/dev/null || true`);
         console.log(`[IPv6] Bound ${address} to eth0`);
     } catch (e: any) {
