@@ -302,6 +302,12 @@ export class MessageIngestService {
                 const textContent =
                     content.text || content.caption || '';
 
+                // Extract media URL from Baileys content structure
+                const mediaUrl =
+                    content.image?.url || content.video?.url ||
+                    content.audio?.url || content.document?.url ||
+                    content.sticker?.url || undefined;
+
                 const message = await prisma.message.create({
                     data: {
                         externalId: sentKeyId,
@@ -311,6 +317,7 @@ export class MessageIngestService {
                         content: textContent,
                         type: msgType,
                         isProcessed: true,
+                        ...(mediaUrl ? { metadata: { mediaUrl } } : {}),
                     },
                 }).catch((e: unknown) => {
                     if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code !== 'P2002') log.warn('Failed to persist outgoing message:', e instanceof Error ? e.message : e);
