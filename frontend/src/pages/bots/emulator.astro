@@ -240,25 +240,60 @@ import Layout from "../../layouts/Layout.astro";
                 </div>
 
                 <!-- Input area -->
-                <div class="bg-wa-bg-header px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
-                    <form @submit.prevent="sendMessage()" class="flex-1 flex items-center gap-2">
-                        <input
-                            type="text"
-                            x-model="messageInput"
-                            :disabled="!sessionId"
-                            class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2.5 px-4 rounded-full focus:outline-none placeholder-wa-text-secondary disabled:opacity-50"
-                            placeholder="Escribe un mensaje..."
-                        />
+                <div class="bg-wa-bg-header px-4 py-2.5 flex flex-col gap-2 flex-shrink-0">
+                    <!-- Media preview -->
+                    <div x-show="mediaPreview" class="flex items-center gap-2 bg-wa-bg-hover rounded-lg px-3 py-2">
+                        <img x-show="mediaPreview?.type === 'IMAGE'" :src="mediaPreview?.url" class="w-12 h-12 rounded object-cover" />
+                        <video x-show="mediaPreview?.type === 'VIDEO'" :src="mediaPreview?.url" class="w-12 h-12 rounded object-cover"></video>
+                        <div x-show="mediaPreview?.type === 'AUDIO' || mediaPreview?.type === 'PTT'" class="w-10 h-10 rounded-full bg-wa-green/20 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-wa-green" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3z"/></svg>
+                        </div>
+                        <div x-show="mediaPreview?.type === 'DOCUMENT'" class="w-10 h-10 rounded bg-wa-bg-deep flex items-center justify-center">
+                            <svg class="w-5 h-5 text-wa-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <span class="text-xs text-wa-text-primary truncate block" x-text="mediaPreview?.name"></span>
+                            <span class="text-[10px] text-wa-text-secondary" x-text="mediaPreview?.type"></span>
+                        </div>
+                        <button @click="clearMedia()" class="text-wa-text-secondary hover:text-red-400 transition-colors p-1">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <!-- Attach button -->
+                        <input type="file" x-ref="fileInput" class="hidden" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx" @change="handleFileSelect($event)" />
                         <button
-                            type="submit"
-                            :disabled="!messageInput.trim() || sending || !sessionId"
-                            class="w-10 h-10 rounded-full bg-wa-green text-white flex items-center justify-center hover:bg-wa-green-hover transition-colors disabled:opacity-40 flex-shrink-0"
+                            @click="$refs.fileInput.click()"
+                            :disabled="!sessionId || sending"
+                            class="w-10 h-10 flex items-center justify-center text-wa-text-secondary hover:text-wa-green transition-colors rounded-full hover:bg-wa-bg-hover disabled:opacity-40 flex-shrink-0"
+                            title="Adjuntar archivo"
                         >
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                             </svg>
                         </button>
-                    </form>
+
+                        <!-- Text input -->
+                        <form @submit.prevent="sendMessage()" class="flex-1 flex items-center gap-2">
+                            <input
+                                type="text"
+                                x-model="messageInput"
+                                :disabled="!sessionId"
+                                class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2.5 px-4 rounded-full focus:outline-none placeholder-wa-text-secondary disabled:opacity-50"
+                                placeholder="Escribe un mensaje..."
+                            />
+                            <button
+                                type="submit"
+                                :disabled="(!messageInput.trim() && !mediaPreview) || sending || !sessionId"
+                                class="w-10 h-10 rounded-full bg-wa-green text-white flex items-center justify-center hover:bg-wa-green-hover transition-colors disabled:opacity-40 flex-shrink-0"
+                            >
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -544,6 +579,7 @@ import Layout from "../../layouts/Layout.astro";
             messageInput: '',
             sending: false,
             isProcessing: false,
+            mediaPreview: null as { url: string; name: string; type: string; file: File } | null,
 
             // Debug
             debugEvents: [] as any[],
@@ -724,20 +760,64 @@ import Layout from "../../layouts/Layout.astro";
             // --- Actions ---
 
             async sendMessage() {
-                if (!this.messageInput.trim() || !this.sessionId) return;
+                const hasText = this.messageInput.trim();
+                const hasMedia = !!this.mediaPreview;
+                if ((!hasText && !hasMedia) || !this.sessionId) return;
+
                 this.sending = true;
                 const content = this.messageInput;
+                const media = this.mediaPreview;
                 this.messageInput = '';
+                this.mediaPreview = null;
                 this.isProcessing = true;
+
                 try {
-                    // Don't add optimistic message — SSE message:received will deliver it
-                    await ApiClient.post(`/emulator/sessions/${this.sessionId}/message`, { content });
+                    if (media) {
+                        // Upload file first, then inject as media message
+                        const formData = new FormData();
+                        formData.append('file', media.file);
+                        const uploadRes = await fetch(
+                            (import.meta.env.PUBLIC_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://agentic-api.w-gateway.cc')) + '/upload',
+                            { method: 'POST', body: formData, credentials: 'include' }
+                        );
+                        const uploadData = await uploadRes.json();
+                        if (uploadData.status !== 'success') throw new Error(uploadData.message || 'Upload failed');
+
+                        await ApiClient.post(`/emulator/sessions/${this.sessionId}/message`, {
+                            content: content || '',
+                            type: media.type,
+                            mediaUrl: uploadData.url,
+                        });
+                    } else {
+                        await ApiClient.post(`/emulator/sessions/${this.sessionId}/message`, { content });
+                    }
                 } catch (e: any) {
                     this.isProcessing = false;
                     (window as any).__toast?.error('Send failed: ' + (e.message || 'Unknown error'));
                 } finally {
                     this.sending = false;
                 }
+            },
+
+            handleFileSelect(event: Event) {
+                const input = event.target as HTMLInputElement;
+                const file = input.files?.[0];
+                if (!file) return;
+
+                const mime = file.type || '';
+                let type = 'DOCUMENT';
+                if (mime.startsWith('image/')) type = 'IMAGE';
+                else if (mime.startsWith('video/')) type = 'VIDEO';
+                else if (mime.startsWith('audio/')) type = 'AUDIO';
+
+                const url = URL.createObjectURL(file);
+                this.mediaPreview = { url, name: file.name, type, file };
+                input.value = ''; // reset so same file can be re-selected
+            },
+
+            clearMedia() {
+                if (this.mediaPreview?.url) URL.revokeObjectURL(this.mediaPreview.url);
+                this.mediaPreview = null;
             },
 
             async resetSession() {
