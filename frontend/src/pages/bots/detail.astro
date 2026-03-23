@@ -193,11 +193,52 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             </div>
         </header>
 
-        <!-- ZONE 1: Primary content (always visible) -->
-        <div class="space-y-8">
+        <!-- Tab bar -->
+        <div class="flex gap-1 border-b border-wa-border mb-6 overflow-x-auto">
+            <button @click="activeTab = 'flows'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'flows' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Flujos
+            </button>
+            <button @click="activeTab = 'config'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Config IA
+            </button>
+            <button @click="activeTab = 'tools'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'tools' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Herramientas
+            </button>
+            <button @click="activeTab = 'automations'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'automations' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Automatizaciones
+            </button>
+            <button @click="activeTab = 'variables'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'variables' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Variables
+            </button>
+            <button @click="activeTab = 'notifications'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'notifications' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Notificaciones
+            </button>
+            <button @click="activeTab = 'clients'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'clients' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Clientes
+            </button>
+            <button @click="activeTab = 'logs'; updateTabUrl(); if (!logsLoaded) { loadLogs(); logsLoaded = true; }"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'logs' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Registros
+            </button>
+        </div>
 
-        <!-- Flujos section -->
-        <section class="mb-8">
+        <!-- Tab content: Flujos -->
+        <div x-show="activeTab === 'flows'" x-transition:enter>
                     <div class="flex justify-between items-center mb-6">
                         <h3
                             class="text-xs text-wa-green tracking-normal"
@@ -290,9 +331,10 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                             </a>
                         </div>
                     </template>
-        </section>
+        </div>
 
-        <!-- Variables section -->
+        <!-- Tab content: Variables -->
+        <div x-show="activeTab === 'variables'" x-transition:enter>
         <section class="mb-8">
             <h3 class="text-xs text-wa-green tracking-normal mb-6">Variables</h3>
                 <!-- Template Selector -->
@@ -408,8 +450,10 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </span>
                 </div>
         </section>
+        </div>
 
-        <!-- Notificaciones section -->
+        <!-- Tab content: Notificaciones -->
+        <div x-show="activeTab === 'notifications'" x-transition:enter>
         <section class="mb-8">
             <h3 class="text-xs text-wa-green tracking-normal mb-6">Notificaciones</h3>
 
@@ -513,37 +557,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </div>
                 </form>
         </section>
-
-        <!-- ZONE 2: Configuration (tabs with URL persistence) -->
-        <section>
-            <!-- Tab bar -->
-            <div class="flex gap-1 border-b border-wa-border mb-6">
-                <button @click="activeTab = 'config'; updateTabUrl()"
-                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
-                    :class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-                    Config IA
-                </button>
-                <button @click="activeTab = 'tools'; updateTabUrl()"
-                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
-                    :class="activeTab === 'tools' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-                    Herramientas
-                </button>
-                <button @click="activeTab = 'automations'; updateTabUrl()"
-                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
-                    :class="activeTab === 'automations' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-                    Automatizaciones
-                </button>
-                <button @click="activeTab = 'clients'; updateTabUrl()"
-                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
-                    :class="activeTab === 'clients' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-                    Clientes
-                </button>
-                <button @click="activeTab = 'logs'; updateTabUrl(); if (!logsLoaded) { loadLogs(); logsLoaded = true; }"
-                    class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg"
-                    :class="activeTab === 'logs' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-                    Registros
-                </button>
-            </div>
+        </div>
 
             <!-- Tab content: Config IA -->
             <div x-show="activeTab === 'config'" x-transition:enter>
@@ -1192,10 +1206,6 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </div>
                 </div>
             </div>
-        </section>
-
-        </div> <!-- /Two-zone layout -->
-
         <!-- Create/Edit Automation Modal -->
         <div x-show="showAutomationModal"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
@@ -1717,7 +1727,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             tools: [] as any[],
 
             // Tab State
-            activeTab: "config" as string,
+            activeTab: "flows" as string,
             logsLoaded: false,
             logs: [] as Execution[],
             loadingLogs: false,
@@ -1740,7 +1750,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
 
                 // Read tab from URL
                 const tabParam = params.get('tab');
-                if (tabParam && ['config', 'tools', 'automations', 'clients', 'logs'].includes(tabParam)) {
+                if (tabParam && ['flows', 'config', 'tools', 'automations', 'variables', 'notifications', 'clients', 'logs'].includes(tabParam)) {
                     this.activeTab = tabParam;
                 }
 

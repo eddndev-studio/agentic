@@ -37,10 +37,34 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 			</div>
 		</header>
 
-		<!-- ZONE 1: Primary content (always visible) -->
+		<!-- Tab bar -->
+		<section>
+			<div class="flex gap-1 border-b border-wa-border mb-6 overflow-x-auto">
+				<button @click="activeTab = 'flows'; updateTabUrl()"
+					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+					:class="activeTab === 'flows' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+					Flujos
+				</button>
+				<button @click="activeTab = 'config'; updateTabUrl()"
+					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+					:class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+					Config IA
+				</button>
+				<button @click="activeTab = 'variables'; updateTabUrl()"
+					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+					:class="activeTab === 'variables' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+					Variables
+				</button>
+				<button @click="activeTab = 'bots'; updateTabUrl()"
+					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+					:class="activeTab === 'bots' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+					Bots
+				</button>
+			</div>
+		</section>
 
-		<!-- Flujos section -->
-		<section class="mb-8">
+		<!-- Flujos tab -->
+		<div x-show="activeTab === 'flows'" x-transition:enter>
 			<div class="flex justify-between items-center mb-6">
 				<h3 class="text-xs text-wa-green tracking-normal">Flujos</h3>
 				<div class="flex items-center gap-3">
@@ -92,10 +116,10 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 			<EmptyState x-show="!template.flows || template.flows.length === 0">
 				<span x-text="$t('no_flows')">No flows</span>
 			</EmptyState>
-		</section>
+		</div>
 
-		<!-- Variables section -->
-		<section class="mb-8">
+		<!-- Variables tab -->
+		<div x-show="activeTab === 'variables'" x-transition:enter>
 			<h3 class="text-xs text-wa-green tracking-normal mb-4">Variables</h3>
 			<p class="text-[10px] text-wa-text-secondary mb-4">Define las variables que cada bot debe configurar al usar esta plantilla.</p>
 
@@ -180,10 +204,10 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					</div>
 				</div>
 			</div>
-		</section>
+		</div>
 
-		<!-- Config IA section -->
-		<section class="mb-8">
+		<!-- Config IA tab -->
+		<div x-show="activeTab === 'config'" x-transition:enter>
 			<h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
 			<form @submit.prevent="saveAIConfig()" class="space-y-6">
 				<!-- AI Enabled Toggle -->
@@ -350,10 +374,10 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 
 				<button type="submit" :disabled="savingAI" class="px-6 py-2 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="savingAI ? $t('saving') : $t('save_changes')">Save</button>
 			</form>
-		</section>
+		</div>
 
-		<!-- Bots section -->
-		<section class="mb-8">
+		<!-- Bots tab -->
+		<div x-show="activeTab === 'bots'" x-transition:enter>
 			<div class="flex justify-between items-center mb-6">
 				<h3 class="text-xs text-wa-green tracking-normal" x-text="$t('template_bots_count')">Bots using this template</h3>
 				<button
@@ -380,7 +404,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					No hay bots usando esta plantilla.
 				</EmptyState>
 			</div>
-		</section>
+		</div>
 
 	</div>
 
@@ -424,6 +448,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 
 	document.addEventListener("alpine:init", () => {
 		Alpine.data("templateDetail", () => ({
+			activeTab: "flows" as string,
 			templateId: null as string | null,
 			template: {} as any,
 			flowSearch: "",
@@ -471,6 +496,11 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 			async init() {
 				const params = new URLSearchParams(window.location.search);
 				this.templateId = params.get("id");
+
+				const tabParam = params.get('tab');
+				if (tabParam && ['flows', 'config', 'variables', 'bots'].includes(tabParam)) {
+					this.activeTab = tabParam;
+				}
 
 				if (!this.templateId) {
 					this.error = "No template ID provided";
@@ -586,6 +616,12 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 				} else {
 					this.aiConfig.ignoredLabels.push(varName);
 				}
+			},
+
+			updateTabUrl() {
+				const url = new URL(window.location.href);
+				url.searchParams.set('tab', this.activeTab);
+				history.replaceState(null, '', url.toString());
 			},
 		}));
 	});
