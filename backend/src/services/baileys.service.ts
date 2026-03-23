@@ -49,7 +49,7 @@ const LABEL_RECONCILE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 // Dedup guard: prevents double-firing when local code emits AND Baileys re-emits
 // Key: "botId:sessionId:labelId:action", value: timestamp
 const recentLabelEvents = new Map<string, number>();
-const LABEL_DEDUP_TTL = 5000; // 5 seconds
+const LABEL_DEDUP_TTL = 30_000; // 30 seconds
 
 // ─── In-memory message dedup cache (prevents reprocessing on reconnect/replay) ───
 const MESSAGE_DEDUP_TTL = 20 * 60 * 1000; // 20 minutes
@@ -508,14 +508,15 @@ export class BaileysService {
                         return;
                     }
 
-                    // Dedup: skip if this event was already handled by ToolExecutor or SessionController
+                    // Dedup: skip if already processed recently (by this handler, ToolExecutor, or SessionController)
                     const dedupKey = `${botId}:${session.id}:${label.id}:${event.type}`;
                     const dedupTs = recentLabelEvents.get(dedupKey);
                     if (dedupTs && Date.now() - dedupTs < LABEL_DEDUP_TTL) {
                         console.log(`[Baileys] labels.association: Skipping duplicate for ${label.name} (${event.type})`);
-                        recentLabelEvents.delete(dedupKey);
                         return;
                     }
+                    // Mark as processed NOW to prevent repeated Baileys events
+                    recentLabelEvents.set(dedupKey, Date.now());
 
                     if (event.type === 'add') {
                         try {
