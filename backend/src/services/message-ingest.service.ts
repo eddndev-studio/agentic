@@ -286,7 +286,12 @@ export class MessageIngestService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys message content structure varies
     static async persistOutgoingMessage(botId: string, to: string, sentKeyId: string, content: any): Promise<void> {
         try {
-            const { session } = await upsertSessionFromChat(botId, jidNormalizedUser(to));
+            // For emulator sessions, look up directly by identifier (not a valid JID)
+            const isEmulator = to.startsWith('emu://');
+            const { session } = isEmulator
+                ? { session: await prisma.session.findFirst({ where: { identifier: to, botId } }) }
+                : await upsertSessionFromChat(botId, jidNormalizedUser(to));
+
             if (session) {
                 const msgType =
                     content.image ? 'IMAGE' :
@@ -297,25 +302,29 @@ export class MessageIngestService {
                 const textContent =
                     content.text || content.caption || '';
 
-                await prisma.message.create({
+                const message = await prisma.message.create({
                     data: {
                         externalId: sentKeyId,
                         sessionId: session.id,
-                        sender: jidNormalizedUser(to),
+                        sender: isEmulator ? to : jidNormalizedUser(to),
                         fromMe: true,
                         content: textContent,
                         type: msgType,
                         isProcessed: true,
                     },
                 }).catch((e: unknown) => {
-                    // P2002 = duplicate, already captured by messages.upsert
                     if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code !== 'P2002') log.warn('Failed to persist outgoing message:', e instanceof Error ? e.message : e);
+                    return null;
                 });
 
-                eventBus.emitBotEvent({ type: 'message:sent', botId, sessionId: session.id, content: textContent });
+                // Emit full message object so the frontend can render it immediately
+                if (message) {
+                    eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
+                } else {
+                    eventBus.emitBotEvent({ type: 'message:sent', botId, sessionId: session.id, content: textContent });
+                }
             }
         } catch (e) {
-            // Non-critical: don't fail the send if persistence fails
             log.warn('Outgoing message persistence error:', (e as Error).message);
         }
     }
