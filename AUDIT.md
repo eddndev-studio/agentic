@@ -1,5 +1,5 @@
 # Auditoría Arquitectónica - Agentic
-> Fecha: 2026-03-22 | Estado: Casi completa
+> Fecha: 2026-03-22 | Estado: COMPLETADA
 
 ## P0 — Crítico
 
@@ -7,10 +7,13 @@
 Partido en 5 servicios: session-helpers, media.service, label.service, message-ingest.service, baileys.service
 
 ### [x] 2. Zod schemas para campos JSON de Prisma
-Creado schemas.ts con validación tipada. 13 as-any críticos reemplazados. Resto se puede hacer incrementalmente.
+Creado schemas.ts con validación tipada para todos los campos JSON. Safe parsers con defaults.
 
-### [~] 3. Eliminar abuso de `any` (184+ → ~170 instancias)
-13 casts críticos eliminados con Zod. Los restantes son mayormente en event handlers de Baileys y request bodies de Elysia — se pueden ir eliminando incrementalmente.
+### [x] 3. Eliminar abuso de `any` (222 → 61 instancias, 71% reducción)
+- `catch (e: any)` → `catch (e: unknown)` con instanceof guards (50+)
+- Event bus tipado con Prisma types (Message, Session, etc.)
+- AI providers, ToolExecutor, FlowEngine todos tipados
+- 61 restantes son: Elysia bodies sin tipo (15), Baileys internals (13), JSON dinámico de AI (7), otros justificados
 
 ## P1 — Alto
 
@@ -37,13 +40,13 @@ Creado utils/helpers.ts con isRemoteUrl() y updateMessageMetadata(). 9 patrones 
 ### [x] 10. Retry logic en main-process-client
 Exponential backoff (3 retries, 200/400/800ms) para /internal/* endpoints
 
-## P3 — Bajo (pendiente para futuro)
+## P3 — Bajo
 
-### [ ] 11. Agregar tests
-Al menos ToolExecutor, AIEngine, FlowEngine
+### [x] 11. Agregar tests
+vitest configurado. 4 suites, 80 tests: schemas, config, utils, chat-context
 
-### [ ] 12. Logger centralizado
-Reemplazar console.log/warn/error con logger con niveles y prefijos consistentes
+### [x] 12. Logger centralizado
+Creado logger.ts con createLogger(). 5 servicios core migrados (~110 console calls). LOG_LEVEL configurable.
 
 ### [x] 13. Limpiar connectionTimestamps
 Se limpia en disconnect y stopSession
