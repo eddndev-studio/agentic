@@ -1,0 +1,851 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="Emulator" fullWidth>
+    <div
+        x-data="botEmulator"
+        class="h-[calc(100vh-0.5rem)] flex flex-col overflow-hidden rounded-lg"
+    >
+        <!-- Header -->
+        <div class="h-14 bg-wa-bg-header flex items-center px-4 gap-3 flex-shrink-0 border-b border-wa-border">
+            <a :href="'/bots/detail?id=' + botId" class="text-wa-text-secondary hover:text-wa-green transition-colors flex-shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </a>
+            <h1 class="text-base font-semibold truncate" x-text="botName || 'Emulator'"></h1>
+            <span class="text-[10px] px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-md font-medium flex-shrink-0">EMULATOR</span>
+            <div class="flex-1"></div>
+
+            <!-- Mobile debug toggle -->
+            <button
+                @click="showDebugMobile = !showDebugMobile"
+                class="md:hidden px-3 py-1.5 border border-wa-border text-wa-text-secondary text-[11px] hover:bg-wa-bg-hover transition-colors rounded-lg flex items-center gap-1.5"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                <span>Debug</span>
+            </button>
+
+            <!-- Session labels -->
+            <div class="hidden sm:flex items-center gap-1 flex-shrink-0">
+                <template x-for="lbl in currentLabels" :key="lbl.id || lbl.name">
+                    <span
+                        class="text-[9px] px-1.5 py-0.5 rounded-full text-white/90"
+                        :style="`background:${labelColor(lbl.color)}`"
+                        x-text="lbl.name"
+                    ></span>
+                </template>
+            </div>
+
+            <button
+                @click="resetSession()"
+                class="px-3 py-1.5 border border-wa-border text-wa-text-secondary font-sans text-[11px] hover:bg-wa-bg-hover transition-colors rounded-lg flex items-center gap-1.5 flex-shrink-0"
+                title="Reset session"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span class="hidden sm:inline">Reset</span>
+            </button>
+            <button
+                @click="destroySession()"
+                class="px-3 py-1.5 border border-red-500/30 text-red-400 font-sans text-[11px] hover:bg-red-500/10 transition-colors rounded-lg flex items-center gap-1.5 flex-shrink-0"
+                title="Destroy session"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <span class="hidden sm:inline">Destroy</span>
+            </button>
+        </div>
+
+        <!-- Main content: split -->
+        <div class="flex-1 flex min-h-0 overflow-hidden">
+            <!-- Chat Panel (left, 60%) -->
+            <div class="flex-1 md:w-[60%] md:flex-shrink-0 flex flex-col min-h-0 min-w-0"
+                 :class="showDebugMobile ? 'hidden md:flex' : 'flex'">
+
+                <!-- Messages area -->
+                <div
+                    x-ref="messagesContainer"
+                    class="flex-1 overflow-y-auto px-[6%] md:px-[10%] py-4 min-h-0 wa-chat-wallpaper"
+                >
+                    <!-- Loading state -->
+                    <template x-if="!sessionId">
+                        <div class="flex items-center justify-center h-full">
+                            <span class="text-sm text-wa-text-secondary animate-pulse">Iniciando emulador...</span>
+                        </div>
+                    </template>
+
+                    <template x-if="sessionId && messages.length === 0 && !isProcessing">
+                        <div class="flex items-center justify-center h-full">
+                            <div class="text-center">
+                                <div class="w-16 h-16 rounded-full bg-wa-bg-hover/50 flex items-center justify-center mx-auto mb-4">
+                                    <svg class="w-8 h-8 text-wa-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                    </svg>
+                                </div>
+                                <p class="text-sm text-wa-text-secondary">Escribe un mensaje para comenzar la simulacion</p>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-for="(msg, idx) in messages" :key="msg.id">
+                        <div>
+                            <!-- Date separator -->
+                            <div x-show="showDateSep(messages, idx)" class="flex justify-center my-3">
+                                <span class="wa-date-pill" x-text="dateLabel(msg.createdAt)"></span>
+                            </div>
+
+                            <!-- Message bubble — INVERTED: fromMe=false is user (right), fromMe=true is bot (left) -->
+                            <div class="flex mb-[2px]"
+                                 :class="[
+                                     msg.fromMe ? 'justify-start' : 'justify-end',
+                                     isLastInGroup(messages, idx) ? 'mb-2' : ''
+                                 ]"
+                            >
+                                <div
+                                    class="relative max-w-[85%] md:max-w-[65%] text-sm break-words shadow-sm overflow-hidden"
+                                    :class="[
+                                        msg.fromMe ? 'bg-wa-bubble-in text-white' : 'bg-wa-bubble-out text-white',
+                                        isLastInGroup(messages, idx)
+                                            ? (msg.fromMe ? 'rounded-lg rounded-bl-none wa-bubble-tail-in' : 'rounded-lg rounded-br-none wa-bubble-tail-out')
+                                            : 'rounded-lg',
+                                        getMediaUrl(msg) && ['IMAGE', 'VIDEO', 'STICKER'].includes(msg.type) ? '' : 'px-2.5 py-1.5'
+                                    ]"
+                                >
+                                    <!-- Bot indicator -->
+                                    <div x-show="msg.fromMe && isFirstInGroup(messages, idx)" class="text-[9px] text-purple-400 font-medium mb-0.5 px-0.5">Bot</div>
+
+                                    <!-- IMAGE -->
+                                    <template x-if="msg.type === 'IMAGE' && getMediaUrl(msg)">
+                                        <a :href="getMediaUrl(msg)" target="_blank" rel="noopener" class="block">
+                                            <img :src="getMediaUrl(msg)" class="w-full max-h-72 object-cover" loading="lazy" alt="" />
+                                        </a>
+                                    </template>
+
+                                    <!-- VIDEO -->
+                                    <template x-if="msg.type === 'VIDEO' && getMediaUrl(msg)">
+                                        <div>
+                                            <video :src="getMediaUrl(msg)" controls preload="metadata" class="w-full max-h-72"></video>
+                                        </div>
+                                    </template>
+
+                                    <!-- AUDIO -->
+                                    <template x-if="msg.type === 'AUDIO' && getMediaUrl(msg)">
+                                        <div class="px-2.5 pt-2 min-w-[240px]">
+                                            <audio :src="getMediaUrl(msg)" controls preload="metadata" class="w-full h-10"></audio>
+                                        </div>
+                                    </template>
+
+                                    <!-- DOCUMENT -->
+                                    <template x-if="msg.type === 'DOCUMENT' && getMediaUrl(msg)">
+                                        <a :href="getMediaUrl(msg)" target="_blank" rel="noopener" class="flex items-center gap-3 bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1 hover:bg-white/10 transition-colors">
+                                            <svg class="w-8 h-8 text-wa-text-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                            <div class="min-w-0">
+                                                <span class="text-xs text-blue-300 block truncate">Documento</span>
+                                                <span class="text-[10px] text-wa-text-secondary">Toca para abrir</span>
+                                            </div>
+                                        </a>
+                                    </template>
+
+                                    <!-- STICKER -->
+                                    <template x-if="msg.type === 'STICKER' && getMediaUrl(msg)">
+                                        <img :src="getMediaUrl(msg)" class="w-32 h-32 object-contain" loading="lazy" alt="Sticker" />
+                                    </template>
+
+                                    <!-- PTT (voice note) -->
+                                    <template x-if="msg.type === 'PTT' && getMediaUrl(msg)">
+                                        <div class="px-2.5 pt-2 min-w-[240px] flex items-center gap-2">
+                                            <svg class="w-5 h-5 text-wa-green flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 0014 0h-2zM11 19.93V22h2v-2.07A8 8 0 0020 12h-2a6 6 0 01-12 0H4a8 8 0 007 7.93z"/></svg>
+                                            <audio :src="getMediaUrl(msg)" controls preload="metadata" class="w-full h-10"></audio>
+                                        </div>
+                                    </template>
+
+                                    <!-- REACTION -->
+                                    <template x-if="msg.type === 'REACTION'">
+                                        <div class="flex items-center gap-1.5 px-1">
+                                            <span class="text-2xl" x-text="msg.content || '&#10060;'"></span>
+                                            <span class="text-[10px] text-wa-text-secondary" x-text="msg.content ? 'reacciono' : 'quito reaccion'"></span>
+                                        </div>
+                                    </template>
+
+                                    <!-- CONTACT -->
+                                    <template x-if="msg.type === 'CONTACT'">
+                                        <div class="flex items-center gap-2 bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1">
+                                            <svg class="w-8 h-8 text-wa-text-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg>
+                                            <span class="text-xs" x-text="msg.content || 'Contacto'"></span>
+                                        </div>
+                                    </template>
+
+                                    <!-- LOCATION -->
+                                    <template x-if="msg.type === 'LOCATION'">
+                                        <a :href="'https://maps.google.com/?q=' + (msg.metadata?.latitude || 0) + ',' + (msg.metadata?.longitude || 0)" target="_blank" rel="noopener" class="flex items-center gap-2 bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1 hover:bg-white/10 transition-colors">
+                                            <svg class="w-8 h-8 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+                                            <div class="min-w-0">
+                                                <span class="text-xs text-blue-300 block truncate" x-text="msg.content || 'Ubicacion'"></span>
+                                                <span class="text-[10px] text-wa-text-secondary">Toca para abrir en Maps</span>
+                                            </div>
+                                        </a>
+                                    </template>
+
+                                    <!-- POLL -->
+                                    <template x-if="msg.type === 'POLL'">
+                                        <div class="bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1">
+                                            <div class="flex items-center gap-1.5 mb-2">
+                                                <svg class="w-4 h-4 text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zm0-8v2h14V9H7z"/></svg>
+                                                <span class="text-xs font-medium" x-text="msg.content || 'Encuesta'"></span>
+                                            </div>
+                                            <template x-if="msg.metadata?.options">
+                                                <div class="flex flex-col gap-1">
+                                                    <template x-for="opt in msg.metadata.options" :key="opt">
+                                                        <span class="text-[10px] text-wa-text-secondary bg-white/5 rounded px-2 py-1" x-text="opt"></span>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- Text content -->
+                                    <div :class="getMediaUrl(msg) && ['IMAGE', 'VIDEO', 'STICKER'].includes(msg.type) ? 'px-2.5 py-1.5' : ''" x-show="msg.type !== 'REACTION' || msg.content">
+                                        <span x-show="msg.content && msg.content !== '[media]'" x-text="msg.content" class="whitespace-pre-wrap"></span>
+                                        <span x-show="!msg.content && !getMediaUrl(msg) && msg.type !== 'TEXT'" class="text-wa-text-secondary italic">[media]</span>
+                                        <span class="inline-flex items-center gap-1 float-right ml-2 mt-1 text-[11px] text-wa-text-secondary align-bottom leading-none translate-y-0.5">
+                                            <span x-text="shortTime(msg.createdAt)"></span>
+                                            <template x-if="msg.fromMe">
+                                                <svg class="w-4 h-4 wa-check-blue" viewBox="0 0 16 15" fill="currentColor">
+                                                    <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.3a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l3.605 4.19a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z"/>
+                                                    <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
+                                                </svg>
+                                            </template>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Thinking indicator -->
+                    <div x-show="isProcessing" class="flex justify-start mb-2">
+                        <div class="bg-wa-bubble-in text-white rounded-lg rounded-bl-none wa-bubble-tail-in px-3 py-2 shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="flex gap-1">
+                                    <span class="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></span>
+                                    <span class="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></span>
+                                    <span class="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></span>
+                                </span>
+                                <span class="text-[11px] text-purple-400">Pensando...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input area -->
+                <div class="bg-wa-bg-header px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
+                    <form @submit.prevent="sendMessage()" class="flex-1 flex items-center gap-2">
+                        <input
+                            type="text"
+                            x-model="messageInput"
+                            :disabled="!sessionId"
+                            class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2.5 px-4 rounded-full focus:outline-none placeholder-wa-text-secondary disabled:opacity-50"
+                            placeholder="Escribe un mensaje..."
+                        />
+                        <button
+                            type="submit"
+                            :disabled="!messageInput.trim() || sending || !sessionId"
+                            class="w-10 h-10 rounded-full bg-wa-green text-white flex items-center justify-center hover:bg-wa-green-hover transition-colors disabled:opacity-40 flex-shrink-0"
+                        >
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Debug Panel (right, 40%) -->
+            <div
+                class="flex flex-col min-h-0 border-l border-wa-border bg-wa-bg-deep"
+                :class="showDebugMobile ? 'flex w-full md:w-[40%]' : 'hidden md:flex md:w-[40%]'"
+            >
+                <!-- Debug tabs -->
+                <div class="flex items-center bg-wa-bg-panel border-b border-wa-border flex-shrink-0">
+                    <button
+                        @click="activeDebugTab = 'timeline'"
+                        class="flex-1 py-2.5 text-[11px] font-medium text-center transition-colors border-b-2"
+                        :class="activeDebugTab === 'timeline' ? 'border-purple-500 text-purple-400' : 'border-transparent text-wa-text-secondary hover:text-wa-text-primary'"
+                    >Timeline</button>
+                    <button
+                        @click="activeDebugTab = 'ai'"
+                        class="flex-1 py-2.5 text-[11px] font-medium text-center transition-colors border-b-2"
+                        :class="activeDebugTab === 'ai' ? 'border-blue-500 text-blue-400' : 'border-transparent text-wa-text-secondary hover:text-wa-text-primary'"
+                    >AI Context</button>
+                    <button
+                        @click="activeDebugTab = 'triggers'"
+                        class="flex-1 py-2.5 text-[11px] font-medium text-center transition-colors border-b-2"
+                        :class="activeDebugTab === 'triggers' ? 'border-yellow-500 text-yellow-400' : 'border-transparent text-wa-text-secondary hover:text-wa-text-primary'"
+                    >Triggers</button>
+                    <!-- Mobile back button -->
+                    <button
+                        @click="showDebugMobile = false"
+                        class="md:hidden px-3 py-2 text-wa-text-secondary hover:text-wa-text-primary"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Tab content -->
+                <div class="flex-1 overflow-y-auto min-h-0" x-ref="debugContainer">
+
+                    <!-- Timeline tab -->
+                    <div x-show="activeDebugTab === 'timeline'" class="p-3 space-y-1">
+                        <template x-if="debugEvents.length === 0">
+                            <div class="flex items-center justify-center py-12">
+                                <p class="text-[11px] text-wa-text-secondary">Sin eventos aun. Envia un mensaje para empezar.</p>
+                            </div>
+                        </template>
+
+                        <template x-for="(ev, evIdx) in debugEvents" :key="ev._id">
+                            <div>
+                                <!-- trigger-eval -->
+                                <template x-if="ev.type === 'emulator:debug:trigger-eval'">
+                                    <div class="border-l-2 border-purple-500 pl-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded">TRIGGERS</span>
+                                            <span class="text-[10px] text-wa-text-secondary" x-text="shortTimeMs(ev.timestamp)"></span>
+                                        </div>
+                                        <div class="mt-1 space-y-1">
+                                            <template x-for="t in (ev.data?.triggers || [])" :key="t.name">
+                                                <div class="flex items-center gap-1.5 text-[11px]">
+                                                    <span x-text="t.matched ? '\u2713' : '\u2717'" :class="t.matched ? 'text-green-400' : 'text-red-400'"></span>
+                                                    <span class="text-wa-text-secondary" x-text="t.name"></span>
+                                                    <span x-show="t.reason" class="text-wa-text-secondary/50 text-[9px]" x-text="t.reason"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- ai-context -->
+                                <template x-if="ev.type === 'emulator:debug:ai-context'">
+                                    <div class="border-l-2 border-blue-500 pl-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">AI CONTEXT</span>
+                                            <span class="text-[10px] text-wa-text-secondary" x-text="shortTimeMs(ev.timestamp)"></span>
+                                        </div>
+                                        <div class="mt-1 text-[11px] text-wa-text-secondary">
+                                            <span x-text="(ev.data?.messageCount || 0) + ' msgs'"></span> &middot;
+                                            <span x-text="(ev.data?.toolCount || 0) + ' tools'"></span> &middot;
+                                            <span x-text="ev.data?.model || 'unknown'"></span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- ai-response -->
+                                <template x-if="ev.type === 'emulator:debug:ai-response'">
+                                    <div class="border-l-2 border-green-500 pl-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded">AI RESPONSE</span>
+                                            <span class="text-[10px] text-wa-text-secondary" x-text="shortTimeMs(ev.timestamp)"></span>
+                                        </div>
+                                        <div class="mt-1 text-[11px] text-wa-text-secondary space-y-0.5">
+                                            <div x-show="ev.data?.content" x-text="((ev.data?.content || '').substring(0, 100)) + (ev.data?.content?.length > 100 ? '...' : '')"></div>
+                                            <div x-show="ev.data?.toolCalls?.length" x-text="ev.data?.toolCalls?.length + ' tool calls'" class="text-green-400/70"></div>
+                                            <div x-show="ev.data?.usage" class="text-[9px]" x-text="(ev.data?.usage?.promptTokens || 0) + ' \u2192 ' + (ev.data?.usage?.completionTokens || 0) + ' tokens'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- tool-call -->
+                                <template x-if="ev.type === 'emulator:debug:tool-call'">
+                                    <div class="border-l-2 border-yellow-500 pl-3 py-2">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-[10px] px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded">TOOL</span>
+                                            <span class="text-[11px] text-wa-text-primary" x-text="ev.data?.toolName || 'unknown'"></span>
+                                            <span class="text-[9px]" :class="ev.data?.success ? 'text-green-400' : 'text-red-400'" x-text="(ev.data?.durationMs || 0) + 'ms'"></span>
+                                            <span class="text-[10px] text-wa-text-secondary" x-text="shortTimeMs(ev.timestamp)"></span>
+                                        </div>
+                                        <div x-show="ev.data?.error" class="mt-1 text-[10px] text-red-400" x-text="ev.data?.error"></div>
+                                    </div>
+                                </template>
+
+                                <!-- flow-event -->
+                                <template x-if="ev.type === 'emulator:debug:flow-event'">
+                                    <div class="border-l-2 border-cyan-500 pl-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded">FLOW</span>
+                                            <span class="text-[11px] text-wa-text-primary" x-text="(ev.data?.flowName || '') + ' \u2192 ' + (ev.data?.event || '')"></span>
+                                            <span class="text-[10px] text-wa-text-secondary" x-text="shortTimeMs(ev.timestamp)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- session labels -->
+                                <template x-if="ev.type === 'session:labels:add' || ev.type === 'session:labels:remove'">
+                                    <div class="border-l-2 border-orange-500 pl-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded">LABEL</span>
+                                            <span class="text-[11px] text-wa-text-secondary" x-text="(ev.type === 'session:labels:add' ? '+ ' : '- ') + (ev.data?.labelName || ev.data?.label?.name || 'label')"></span>
+                                            <span class="text-[10px] text-wa-text-secondary" x-text="shortTimeMs(ev.timestamp)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- message events in timeline -->
+                                <template x-if="ev.type === 'message:received' || ev.type === 'message:sent'">
+                                    <div class="border-l-2 pl-3 py-2" :class="ev.type === 'message:received' ? 'border-gray-500' : 'border-wa-green'">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded"
+                                                :class="ev.type === 'message:received' ? 'bg-gray-500/20 text-gray-400' : 'bg-wa-green/20 text-wa-green'"
+                                                x-text="ev.type === 'message:received' ? 'MSG IN' : 'MSG OUT'"></span>
+                                            <span class="text-[11px] text-wa-text-secondary truncate" x-text="(ev.data?.message?.content || ev.data?.content || '').substring(0, 60)"></span>
+                                            <span class="text-[10px] text-wa-text-secondary flex-shrink-0" x-text="shortTimeMs(ev.timestamp)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Generic fallback -->
+                                <template x-if="!['emulator:debug:trigger-eval','emulator:debug:ai-context','emulator:debug:ai-response','emulator:debug:tool-call','emulator:debug:flow-event','session:labels:add','session:labels:remove','message:received','message:sent'].includes(ev.type)">
+                                    <div class="border-l-2 border-gray-600 pl-3 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] px-1.5 py-0.5 bg-gray-600/20 text-gray-400 rounded" x-text="ev.type"></span>
+                                            <span class="text-[10px] text-wa-text-secondary" x-text="shortTimeMs(ev.timestamp)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- AI Context tab -->
+                    <div x-show="activeDebugTab === 'ai'" class="p-3 space-y-4">
+                        <template x-if="!currentAIContext">
+                            <div class="flex items-center justify-center py-12">
+                                <p class="text-[11px] text-wa-text-secondary">Esperando contexto de IA... Envia un mensaje primero.</p>
+                            </div>
+                        </template>
+
+                        <template x-if="currentAIContext">
+                            <div class="space-y-4">
+                                <!-- Config pills -->
+                                <div class="flex flex-wrap gap-1.5">
+                                    <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Model: ' + (currentAIContext.model || '?')"></span>
+                                    <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="(currentAIContext.messageCount || 0) + ' msgs'"></span>
+                                    <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="(currentAIContext.toolCount || 0) + ' tools'"></span>
+                                    <span x-show="currentAIContext.temperature != null" class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Temp: ' + currentAIContext.temperature"></span>
+                                </div>
+
+                                <!-- Token usage (cumulative) -->
+                                <div x-show="cumulativeTokens.prompt > 0" class="flex flex-wrap gap-1.5">
+                                    <span class="text-[10px] px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400" x-text="'Prompt: ' + cumulativeTokens.prompt.toLocaleString()"></span>
+                                    <span class="text-[10px] px-2 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-400" x-text="'Completion: ' + cumulativeTokens.completion.toLocaleString()"></span>
+                                    <span class="text-[10px] px-2 py-1 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400" x-text="'Total: ' + (cumulativeTokens.prompt + cumulativeTokens.completion).toLocaleString()"></span>
+                                </div>
+
+                                <!-- System prompt -->
+                                <div x-data="{ expanded: false }">
+                                    <button @click="expanded = !expanded" class="flex items-center gap-1.5 text-[10px] text-wa-green tracking-widest uppercase mb-2 hover:text-wa-green-hover transition-colors">
+                                        <svg class="w-3 h-3 transition-transform" :class="expanded ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                        System Prompt
+                                    </button>
+                                    <pre x-show="expanded" class="bg-wa-bg-panel border border-wa-border rounded-lg p-3 text-[11px] text-wa-text-secondary font-mono whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed" x-text="currentAIContext.systemPrompt || '(vacio)'" style="display: none;"></pre>
+                                </div>
+
+                                <!-- Messages in context -->
+                                <div x-show="currentAIContext.messages?.length">
+                                    <h4 class="text-[10px] text-wa-green tracking-widest uppercase mb-2">Messages in Context</h4>
+                                    <div class="bg-wa-bg-panel border border-wa-border rounded-lg p-3 max-h-64 overflow-y-auto space-y-1">
+                                        <template x-for="(ctxMsg, i) in (currentAIContext.messages || [])" :key="i">
+                                            <div class="text-[11px] font-mono leading-relaxed">
+                                                <span class="font-bold"
+                                                      :class="{
+                                                          'text-blue-400': ctxMsg.role === 'user',
+                                                          'text-wa-green': ctxMsg.role === 'assistant',
+                                                          'text-yellow-400': ctxMsg.role === 'tool',
+                                                          'text-purple-400': ctxMsg.role === 'system'
+                                                      }"
+                                                      x-text="'[' + ctxMsg.role + ']'"></span>
+                                                <span class="text-wa-text-secondary" x-text="ctxMsg.content ? (ctxMsg.content.length > 150 ? ctxMsg.content.substring(0, 150) + '...' : ctxMsg.content) : ''"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Triggers tab -->
+                    <div x-show="activeDebugTab === 'triggers'" class="p-3 space-y-3">
+                        <template x-if="!lastTriggerEval">
+                            <div class="flex items-center justify-center py-12">
+                                <p class="text-[11px] text-wa-text-secondary">Esperando evaluacion de triggers... Envia un mensaje primero.</p>
+                            </div>
+                        </template>
+
+                        <template x-if="lastTriggerEval">
+                            <div class="space-y-2">
+                                <div class="text-[10px] text-wa-text-secondary mb-3">
+                                    Ultima evaluacion: <span x-text="shortTimeMs(lastTriggerEval.timestamp)" class="text-wa-text-primary"></span>
+                                </div>
+                                <template x-for="t in (lastTriggerEval.data?.triggers || [])" :key="t.name">
+                                    <div class="bg-wa-bg-panel border border-wa-border rounded-lg p-3">
+                                        <div class="flex items-center gap-2 mb-1.5">
+                                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                                                  :class="t.matched ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'"
+                                                  x-text="t.matched ? '\u2713' : '\u2717'"></span>
+                                            <span class="text-[12px] font-medium text-wa-text-primary" x-text="t.name"></span>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1.5 text-[10px]">
+                                            <span x-show="t.type" class="px-1.5 py-0.5 bg-wa-bg-hover border border-wa-border text-wa-text-secondary rounded" x-text="'Type: ' + t.type"></span>
+                                            <span x-show="t.keyword" class="px-1.5 py-0.5 bg-wa-bg-hover border border-wa-border text-wa-text-secondary rounded" x-text="'Keyword: ' + t.keyword"></span>
+                                            <span x-show="t.matchType" class="px-1.5 py-0.5 bg-wa-bg-hover border border-wa-border text-wa-text-secondary rounded" x-text="'Match: ' + t.matchType"></span>
+                                            <span x-show="t.scope" class="px-1.5 py-0.5 bg-wa-bg-hover border border-wa-border text-wa-text-secondary rounded" x-text="'Scope: ' + t.scope"></span>
+                                        </div>
+                                        <div x-show="t.reason" class="mt-1.5 text-[10px] text-wa-text-secondary/70" x-text="t.reason"></div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Debug event count footer -->
+                <div class="flex items-center justify-between px-3 py-2 border-t border-wa-border bg-wa-bg-panel flex-shrink-0">
+                    <span class="text-[10px] text-wa-text-secondary" x-text="debugEvents.length + ' events'"></span>
+                    <button
+                        @click="debugEvents = []; currentAIContext = null; lastTriggerEval = null; cumulativeTokens = { prompt: 0, completion: 0 }"
+                        class="text-[10px] text-wa-text-secondary hover:text-red-400 transition-colors"
+                    >Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    declare const Alpine: any;
+    import { ApiClient } from "../../lib/api";
+    import { BotEventSource } from "../../lib/events";
+
+    document.addEventListener("alpine:init", () => {
+        Alpine.data("botEmulator", () => ({
+            botId: null as string | null,
+            botName: '',
+            sessionId: null as string | null,
+            messages: [] as any[],
+            messageInput: '',
+            sending: false,
+            isProcessing: false,
+
+            // Debug
+            debugEvents: [] as any[],
+            activeDebugTab: 'timeline' as 'timeline' | 'ai' | 'triggers',
+            currentAIContext: null as any,
+            lastTriggerEval: null as any,
+            currentLabels: [] as any[],
+            cumulativeTokens: { prompt: 0, completion: 0 },
+
+            // Mobile
+            showDebugMobile: false,
+
+            // SSE
+            sseClient: null as BotEventSource | null,
+
+            // Internal counter for unique debug event IDs
+            _evCounter: 0,
+
+            async init() {
+                const params = new URLSearchParams(window.location.search);
+                this.botId = params.get('botId');
+
+                if (!this.botId) {
+                    window.location.href = '/bots';
+                    return;
+                }
+
+                // Fetch bot info
+                try {
+                    const bot = await ApiClient.get(`/bots/${this.botId}`);
+                    this.botName = bot.name;
+                } catch (e: any) {
+                    console.error('[Emulator] Failed to load bot:', e);
+                }
+
+                // Create emulator session
+                try {
+                    const session = await ApiClient.post('/emulator/sessions', { botId: this.botId });
+                    this.sessionId = session.id || session.sessionId;
+                    console.log('[Emulator] Session created:', this.sessionId);
+                } catch (e: any) {
+                    console.error('[Emulator] Failed to create session:', e);
+                    (window as any).__toast?.error('Failed to create emulator session: ' + (e.message || 'Unknown error'));
+                    return;
+                }
+
+                // Connect SSE
+                this.connectSSE();
+            },
+
+            connectSSE() {
+                if (!this.botId) return;
+                this.sseClient = new BotEventSource(this.botId);
+
+                this.sseClient
+                    .on('message:received', (data: any) => {
+                        if (data.sessionId !== this.sessionId) return;
+                        // Avoid duplicate from optimistic add
+                        const msg = data.message || data;
+                        if (msg.id && !String(msg.id).startsWith('temp_')) {
+                            // Remove optimistic version if it exists
+                            this.messages = this.messages.filter((m: any) =>
+                                !String(m.id).startsWith('temp_') || m.content !== msg.content
+                            );
+                        }
+                        this.messages.push({
+                            id: msg.id || 'sse_' + Date.now(),
+                            content: msg.content,
+                            fromMe: msg.fromMe ?? false,
+                            type: msg.type || 'TEXT',
+                            metadata: msg.metadata,
+                            createdAt: msg.createdAt || new Date().toISOString(),
+                        });
+                        this.$nextTick(() => this.scrollChatToBottom());
+                        this.pushDebugEvent('message:received', data);
+                    })
+                    .on('message:sent', (data: any) => {
+                        if (data.sessionId !== this.sessionId) return;
+                        const msg = data.message || data;
+                        this.messages.push({
+                            id: msg.id || 'sent_' + Date.now(),
+                            content: msg.content || data.content,
+                            fromMe: true,
+                            type: msg.type || 'TEXT',
+                            metadata: msg.metadata,
+                            createdAt: msg.createdAt || new Date().toISOString(),
+                        });
+                        this.isProcessing = false;
+                        this.$nextTick(() => this.scrollChatToBottom());
+                        this.pushDebugEvent('message:sent', data);
+                    })
+                    .on('session:labels:add' as any, (data: any) => {
+                        if (data.sessionId !== this.sessionId) return;
+                        const label = data.label || data;
+                        if (label && !this.currentLabels.some((l: any) => l.id === label.id)) {
+                            this.currentLabels.push(label);
+                        }
+                        this.pushDebugEvent('session:labels:add', data);
+                    })
+                    .on('session:labels:remove' as any, (data: any) => {
+                        if (data.sessionId !== this.sessionId) return;
+                        const labelId = data.labelId || data.label?.id;
+                        this.currentLabels = this.currentLabels.filter((l: any) => l.id !== labelId);
+                        this.pushDebugEvent('session:labels:remove', data);
+                    });
+
+                // For emulator-specific debug events, we need to listen on the raw EventSource
+                // since BotEventSource only handles predefined types. We monkey-patch.
+                this.sseClient.connect();
+
+                // Add a raw handler for debug events via the underlying EventSource
+                // We access it after connect() has created the EventSource
+                const originalOnMessage = (this.sseClient as any).es?.onmessage;
+                if ((this.sseClient as any).es) {
+                    (this.sseClient as any).es.onmessage = (event: MessageEvent) => {
+                        // Call original handler first (handles standard events)
+                        if (originalOnMessage) originalOnMessage.call((this.sseClient as any).es, event);
+
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (!data.type) return;
+
+                            // Filter by sessionId for session-specific events
+                            if (data.sessionId && data.sessionId !== this.sessionId) return;
+
+                            switch (data.type) {
+                                case 'emulator:debug:trigger-eval':
+                                    this.lastTriggerEval = { data: data.data || data, timestamp: data.timestamp || new Date().toISOString() };
+                                    this.pushDebugEvent(data.type, data.data || data);
+                                    break;
+                                case 'emulator:debug:ai-context':
+                                    this.currentAIContext = data.data || data;
+                                    this.isProcessing = true;
+                                    this.pushDebugEvent(data.type, data.data || data);
+                                    break;
+                                case 'emulator:debug:ai-response':
+                                    this.isProcessing = false;
+                                    // Accumulate tokens
+                                    if (data.data?.usage || data.usage) {
+                                        const usage = data.data?.usage || data.usage;
+                                        this.cumulativeTokens.prompt += usage.promptTokens || 0;
+                                        this.cumulativeTokens.completion += usage.completionTokens || 0;
+                                    }
+                                    this.pushDebugEvent(data.type, data.data || data);
+                                    break;
+                                case 'emulator:debug:tool-call':
+                                    this.pushDebugEvent(data.type, data.data || data);
+                                    break;
+                                case 'emulator:debug:flow-event':
+                                    this.pushDebugEvent(data.type, data.data || data);
+                                    break;
+                            }
+                        } catch {}
+                    };
+                }
+            },
+
+            pushDebugEvent(type: string, data: any) {
+                this._evCounter++;
+                this.debugEvents.push({
+                    _id: this._evCounter,
+                    type,
+                    data,
+                    timestamp: data?.timestamp || new Date().toISOString(),
+                });
+                // Keep last 500 events max
+                if (this.debugEvents.length > 500) {
+                    this.debugEvents = this.debugEvents.slice(-500);
+                }
+                this.$nextTick(() => this.scrollDebugToBottom());
+            },
+
+            destroy() {
+                if (this.sseClient) this.sseClient.close();
+            },
+
+            // --- Actions ---
+
+            async sendMessage() {
+                if (!this.messageInput.trim() || !this.sessionId) return;
+                this.sending = true;
+                const content = this.messageInput;
+                try {
+                    await ApiClient.post(`/emulator/sessions/${this.sessionId}/message`, {
+                        content,
+                    });
+                    // Optimistically add user message
+                    this.messages.push({
+                        id: 'temp_' + Date.now(),
+                        content,
+                        fromMe: false, // user message (incoming to bot)
+                        type: 'TEXT',
+                        createdAt: new Date().toISOString(),
+                    });
+                    this.messageInput = '';
+                    this.isProcessing = true;
+                    this.$nextTick(() => this.scrollChatToBottom());
+                } catch (e: any) {
+                    (window as any).__toast?.error('Send failed: ' + (e.message || 'Unknown error'));
+                } finally {
+                    this.sending = false;
+                }
+            },
+
+            async resetSession() {
+                if (!this.sessionId) return;
+                try {
+                    await ApiClient.post(`/emulator/sessions/${this.sessionId}/reset`, {});
+                    this.messages = [];
+                    this.debugEvents = [];
+                    this.currentAIContext = null;
+                    this.lastTriggerEval = null;
+                    this.currentLabels = [];
+                    this.isProcessing = false;
+                    this.cumulativeTokens = { prompt: 0, completion: 0 };
+                    (window as any).__toast?.info('Session reset');
+                } catch (e: any) {
+                    (window as any).__toast?.error('Reset failed: ' + (e.message || 'Unknown error'));
+                }
+            },
+
+            async destroySession() {
+                if (!this.sessionId) return;
+                try {
+                    await ApiClient.delete(`/emulator/sessions/${this.sessionId}`);
+                    (window as any).__toast?.info('Session destroyed');
+                } catch (e: any) {
+                    console.error('[Emulator] Destroy failed:', e);
+                }
+                window.location.href = `/bots/detail?id=${this.botId}`;
+            },
+
+            // --- Scroll helpers ---
+
+            scrollChatToBottom() {
+                const container = this.$refs.messagesContainer as HTMLElement;
+                if (container) container.scrollTop = container.scrollHeight;
+            },
+
+            scrollDebugToBottom() {
+                const container = this.$refs.debugContainer as HTMLElement;
+                if (container) container.scrollTop = container.scrollHeight;
+            },
+
+            // --- UI Helpers (same as monitor) ---
+
+            dateLabel(dateStr: string): string {
+                if (!dateStr) return '';
+                const d = new Date(dateStr);
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                const diff = (today.getTime() - msgDay.getTime()) / 86400000;
+                if (diff === 0) return 'Hoy';
+                if (diff === 1) return 'Ayer';
+                return d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            },
+
+            showDateSep(msgs: any[], i: number): boolean {
+                if (i === 0) return true;
+                const prev = new Date(msgs[i - 1].createdAt);
+                const curr = new Date(msgs[i].createdAt);
+                return prev.getFullYear() !== curr.getFullYear()
+                    || prev.getMonth() !== curr.getMonth()
+                    || prev.getDate() !== curr.getDate();
+            },
+
+            isLastInGroup(msgs: any[], i: number): boolean {
+                if (i === msgs.length - 1) return true;
+                return msgs[i].fromMe !== msgs[i + 1].fromMe;
+            },
+
+            isFirstInGroup(msgs: any[], i: number): boolean {
+                if (i === 0) return true;
+                return msgs[i].fromMe !== msgs[i - 1].fromMe;
+            },
+
+            shortTime(dateStr: string): string {
+                if (!dateStr) return '';
+                const d = new Date(dateStr);
+                return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
+            },
+
+            shortTimeMs(dateStr: string): string {
+                if (!dateStr) return '';
+                const d = new Date(dateStr);
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mm = String(d.getMinutes()).padStart(2, '0');
+                const ss = String(d.getSeconds()).padStart(2, '0');
+                const ms = String(d.getMilliseconds()).padStart(3, '0');
+                return `${hh}:${mm}:${ss}.${ms}`;
+            },
+
+            getMediaUrl(msg: any): string | null {
+                const url = msg.metadata?.mediaUrl;
+                if (!url) return null;
+                if (url.startsWith('http://') || url.startsWith('https://')) return url;
+                const filename = url.split('/').pop();
+                const base = (import.meta.env.PUBLIC_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://agentic-api.w-gateway.cc'));
+                return `${base}/upload/files/${filename}`;
+            },
+
+            labelColor(colorIndex: number): string {
+                const colors = [
+                    '#00a884', '#53bdeb', '#009de2', '#025bfe', '#7c3aed',
+                    '#ff2e74', '#ef4444', '#ff9a00', '#ffcb00', '#a4c639',
+                    '#00d166', '#00bfa5', '#02c6cf', '#7986cb', '#b39ddb',
+                    '#f48fb1', '#9e9e9e', '#78909c', '#8d6e63', '#a1887f',
+                ];
+                return colors[colorIndex % colors.length] || colors[0];
+            },
+        }));
+    });
+</script>
