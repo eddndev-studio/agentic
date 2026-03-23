@@ -2,10 +2,10 @@
 import Layout from "../../layouts/Layout.astro";
 ---
 
-<Layout title="Monitor">
+<Layout title="Monitor" fullWidth>
     <div
         x-data="botMonitor"
-        class="h-[calc(100vh-4rem-3.5rem)] flex overflow-hidden"
+        class="h-[calc(100vh-0.5rem)] flex overflow-hidden rounded-lg"
     >
         <!-- Left: Sessions panel -->
         <div
@@ -248,9 +248,18 @@ import Layout from "../../layouts/Layout.astro";
                     <!-- Messages area -->
                     <div
                         x-ref="messagesContainer"
-                        class="flex-1 overflow-y-auto px-[6%] md:px-[12%] py-4 min-h-0 wa-chat-wallpaper"
+                        @scroll="onChatScroll()"
+                        class="flex-1 overflow-y-auto px-[6%] md:px-[10%] py-4 min-h-0 wa-chat-wallpaper"
                     >
-                        <template x-if="messages.length === 0">
+                        <!-- Load more indicator -->
+                        <div x-show="loadingMore" class="flex justify-center py-3">
+                            <span class="wa-date-pill">Cargando mensajes...</span>
+                        </div>
+                        <div x-show="!loadingMore && !hasMoreMessages && messages.length > 0" class="flex justify-center py-3">
+                            <span class="wa-date-pill">Inicio del chat</span>
+                        </div>
+
+                        <template x-if="messages.length === 0 && !loadingMore">
                             <div class="flex items-center justify-center h-full">
                                 <p class="text-sm text-wa-text-secondary" x-text="$t('no_messages')"></p>
                             </div>
@@ -647,6 +656,11 @@ import Layout from "../../layouts/Layout.astro";
             // Labels
             botLabels: [] as any[],
 
+            // Pagination
+            loadingMore: false,
+            hasMoreMessages: true,
+            messageLimit: 80,
+
             // SSE + fallback polling
             sseClient: null as BotEventSource | null,
             pollInterval: null as ReturnType<typeof setInterval> | null,
@@ -821,18 +835,57 @@ import Layout from "../../layouts/Layout.astro";
 
             async selectSession(session: any) {
                 this.selectedSession = session;
+                this.messages = [];
+                this.hasMoreMessages = true;
+                this.loadingMore = false;
                 await this.loadMessages();
             },
 
             async loadMessages() {
                 if (!this.selectedSession) return;
                 try {
-                    const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=100`);
+                    const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=${this.messageLimit}`);
                     this.messages = res.data;
                     this.lastMessageCount = res.pagination.total;
+                    this.hasMoreMessages = res.data.length < res.pagination.total;
                     this.$nextTick(() => this.scrollToBottom());
                 } catch (e) {
                     console.error("Failed to load messages", e);
+                }
+            },
+
+            async loadMoreMessages() {
+                if (!this.selectedSession || this.loadingMore || !this.hasMoreMessages) return;
+                this.loadingMore = true;
+                const container = this.$refs.messagesContainer as HTMLElement;
+                const prevHeight = container?.scrollHeight || 0;
+                try {
+                    const offset = this.messages.length;
+                    const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=${this.messageLimit}&offset=${offset}`);
+                    if (res.data.length === 0) {
+                        this.hasMoreMessages = false;
+                    } else {
+                        // Prepend older messages
+                        this.messages = [...res.data, ...this.messages];
+                        this.hasMoreMessages = this.messages.length < res.pagination.total;
+                        // Restore scroll position so it doesn't jump
+                        this.$nextTick(() => {
+                            if (container) {
+                                container.scrollTop = container.scrollHeight - prevHeight;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Failed to load more messages", e);
+                } finally {
+                    this.loadingMore = false;
+                }
+            },
+
+            onChatScroll() {
+                const container = this.$refs.messagesContainer as HTMLElement;
+                if (container && container.scrollTop < 100 && this.hasMoreMessages && !this.loadingMore) {
+                    this.loadMoreMessages();
                 }
             },
 
@@ -840,10 +893,11 @@ import Layout from "../../layouts/Layout.astro";
                 await this.loadSessions();
                 if (this.selectedSession) {
                     try {
-                        const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=100`);
+                        const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=${this.messageLimit}`);
                         if (res.pagination.total !== this.lastMessageCount) {
                             this.messages = res.data;
                             this.lastMessageCount = res.pagination.total;
+                            this.hasMoreMessages = res.data.length < res.pagination.total;
                             this.$nextTick(() => this.scrollToBottom());
                         }
                     } catch {}
