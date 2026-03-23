@@ -17,9 +17,13 @@ export class EmulatorService {
 
     /** Create a virtual session for emulation */
     static async createSession(botId: string): Promise<any> {
-        const bot = await prisma.bot.findUnique({ where: { id: botId } });
+        const bot = await prisma.bot.findUnique({
+            where: { id: botId },
+            include: { template: { select: { aiEnabled: true } } },
+        });
         if (!bot) throw new Error('Bot not found');
 
+        const defaultAi = bot.template?.aiEnabled ?? bot.aiEnabled ?? false;
         const identifier = `${EMU_PREFIX}${botId}/${Date.now()}`;
         const session = await prisma.session.create({
             data: {
@@ -28,7 +32,7 @@ export class EmulatorService {
                 name: `Emulator (${bot.name})`,
                 platform: 'WHATSAPP',
                 status: 'CONNECTED',
-                aiEnabled: true,
+                aiEnabled: defaultAi,
             },
         });
 
