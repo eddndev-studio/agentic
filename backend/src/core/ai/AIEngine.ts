@@ -9,6 +9,7 @@ import { ToolExecutor } from "./ToolExecutor";
 import { TranscriptionService, VisionService, PDFService } from "../../services/media";
 import * as fs from "fs";
 import { isRemoteUrl } from "../../utils/helpers";
+import { safeParseMessageMetadata } from "../../schemas";
 import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 import type { Message } from "@prisma/client";
 import { eventBus } from "../../services/event-bus";
@@ -103,7 +104,7 @@ export class AIEngine {
 
             for (const msg of messages) {
                 let partContent = msg.content || "";
-                const metadata = (msg.metadata as any) || {};
+                const metadata = safeParseMessageMetadata(msg.metadata);
                 const mediaUrl = metadata.mediaUrl;
 
                 if (mediaUrl) {

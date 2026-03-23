@@ -3,6 +3,7 @@ import { prisma } from "../services/postgres.service";
 import { aiEngine } from "../core/ai";
 import { MessageAccumulator } from "../services/accumulator.service";
 import { Platform, SessionStatus } from "@prisma/client";
+import { safeParseBotCredentials } from "../schemas";
 
 export const webhookController = new Elysia({ prefix: "/webhook" })
     .post("/:platform", async ({ params, body, headers, set }) => {
@@ -32,7 +33,7 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
             }
 
             // Verify webhook secret (required — configure one in bot credentials)
-            const webhookSecret = (bot.credentials as any)?.webhookSecret;
+            const webhookSecret = safeParseBotCredentials(bot.credentials).webhookSecret;
             if (!webhookSecret) {
                 console.warn(`[Webhook] Bot '${botIdentifier}' has no webhookSecret configured — rejecting request`);
                 set.status = 403;

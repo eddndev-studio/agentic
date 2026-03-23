@@ -8,6 +8,7 @@ import { MessageAccumulator } from './accumulator.service';
 import { queueService } from './queue.service';
 import { upsertSessionFromChat } from './session-helpers';
 import { config } from '../config';
+import { safeParseMessageMetadata } from '../schemas';
 
 // ─── In-memory message dedup cache (prevents reprocessing on reconnect/replay) ───
 const messageDedup = new Map<string, number>(); // dedupKey -> timestamp
@@ -179,7 +180,7 @@ export class MessageIngestService {
 
                     // Generate AI descriptions only for IMAGE and DOCUMENT (skip stickers, audio, etc.)
                     if (msgType === 'IMAGE' || msgType === 'DOCUMENT') {
-                        MediaService.generateMediaDescription(message.id, msgType, (message.metadata as any)?.mediaUrl, bot.aiProvider)
+                        MediaService.generateMediaDescription(message.id, msgType, safeParseMessageMetadata(message.metadata).mediaUrl, bot.aiProvider)
                             .catch(err => console.warn(`[Baileys] Media description failed for ${messageExternalId}:`, err.message));
                     }
                 } catch (mediaErr) {

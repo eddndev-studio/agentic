@@ -4,6 +4,7 @@ import { flowEngine } from "../../core/flow";
 import { BotConfigService } from "../../services/bot-config.service";
 import { Step, Execution, Session, Platform } from "@prisma/client";
 import { sendMessage } from "../../services/message-sender";
+import { safeParseStepMetadata } from "../../schemas";
 
 interface StepJobData {
     executionId: string;
@@ -79,7 +80,7 @@ export class StepProcessor {
             switch (step.type) {
                 case 'TEXT': {
                     const textPayload: any = { text: interpolate(step.content || "") };
-                    if ((step.metadata as any)?.linkPreview === false) {
+                    if (safeParseStepMetadata(step.metadata).linkPreview === false) {
                         textPayload.skipLinkPreview = true;
                     }
                     await sendMessage(botId, target, textPayload);
@@ -122,8 +123,8 @@ export class StepProcessor {
     }
 
     private static async executeToolStep(step: Step, execution: Execution & { session: Session }) {
-        const metadata = step.metadata as any;
-        const toolName = metadata?.toolName;
+        const metadata = safeParseStepMetadata(step.metadata);
+        const toolName = metadata.toolName;
 
         if (!toolName) {
             console.warn(`[StepProcessor] TOOL step ${step.id} missing toolName in metadata`);
@@ -155,8 +156,8 @@ export class StepProcessor {
     }
 
     private static async executeConditionalTime(botId: string, target: string, step: Step) {
-        const metadata = step.metadata as any;
-        if (!metadata || !Array.isArray(metadata.branches)) {
+        const metadata = safeParseStepMetadata(step.metadata);
+        if (!Array.isArray(metadata.branches)) {
             console.warn(`[StepProcessor] CONDITIONAL_TIME step ${step.id} missing branches in metadata`);
             return;
         }

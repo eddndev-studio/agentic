@@ -1,4 +1,5 @@
 import { prisma } from "./postgres.service";
+import { safeParseMessageMetadata } from "../schemas";
 
 interface ContextMessage {
     content: string | null;
@@ -15,7 +16,7 @@ export function formatContextMessage(m: ContextMessage): string {
     const time = new Date(m.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
     const sender = m.fromMe ? "Bot" : "Cliente";
     const caption = m.content || "";
-    const desc = (m.metadata as any)?.mediaDescription || "";
+    const desc = safeParseMessageMetadata(m.metadata).mediaDescription || "";
 
     let text: string;
     switch (m.type) {

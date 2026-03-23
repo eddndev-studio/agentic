@@ -2,6 +2,7 @@ import { eventBus, type BotEvent } from "./event-bus";
 import { prisma } from "./postgres.service";
 import { BaileysService } from "./baileys.service";
 import { config } from "../config";
+import { safeParseNotificationChannels } from "../schemas";
 
 const EVENT_LABELS: Record<string, string> = {
     "flow:started":       "Flujo iniciado",
@@ -56,8 +57,7 @@ class NotificationService {
             select: { name: true, identifier: true, notificationChannels: true },
         });
 
-        const raw = bot?.notificationChannels;
-        const channels: ChannelConfig[] = Array.isArray(raw) ? raw as ChannelConfig[] : [];
+        const channels: ChannelConfig[] = safeParseNotificationChannels(bot?.notificationChannels);
 
         const cachedConfig: CachedConfig = {
             channels,

@@ -4,6 +4,7 @@ import { BotConfigService, type BotWithTemplate } from "../../services/bot-confi
 import { isBuiltinTool } from "./builtin-tools";
 import { eventBus } from "../../services/event-bus";
 import { flowEngine } from "../flow";
+import { safeParseStepMetadata, safeParseToolActionConfig, safeParseNotificationChannels } from "../../schemas";
 import type { Session } from "@prisma/client";
 
 export interface ToolResult {
@@ -88,7 +89,7 @@ export class ToolExecutor {
         args: Record<string, any>,
         bot: BotWithTemplate
     ): Promise<ToolResult> {
-        const flowId = tool.flowId || (tool.actionConfig as any)?.flowId;
+        const flowId = tool.flowId || safeParseToolActionConfig(tool.actionConfig).flowId;
         if (!flowId) {
             return { success: false, data: "No flowId configured for this tool." };
         }
@@ -142,7 +143,7 @@ export class ToolExecutor {
 
             try {
                 if (step.type === "TOOL") {
-                    const metadata = (step.metadata as any) || {};
+                    const metadata = safeParseStepMetadata(step.metadata);
                     const toolName = metadata.toolName;
                     if (!toolName) {
                         throw new Error("TOOL step missing toolName in metadata");
@@ -234,8 +235,8 @@ export class ToolExecutor {
         args: Record<string, any>,
         session: Session
     ): Promise<ToolResult> {
-        const config = tool.actionConfig as any;
-        if (!config?.url) {
+        const config = safeParseToolActionConfig(tool.actionConfig);
+        if (!config.url) {
             return { success: false, data: "No webhook URL configured." };
         }
 
@@ -269,7 +270,7 @@ export class ToolExecutor {
         args: Record<string, any>,
         sourceFlowId?: string
     ): Promise<ToolResult> {
-        const builtinName = tool.name || (tool.actionConfig as any)?.builtinName;
+        const builtinName = tool.name || safeParseToolActionConfig(tool.actionConfig).builtinName;
 
         switch (builtinName) {
             case "get_current_time": {
@@ -597,8 +598,8 @@ export class ToolExecutor {
                     where: { id: botId },
                     select: { notificationChannels: true },
                 });
-                const channels = Array.isArray(currentBot?.notificationChannels) ? currentBot.notificationChannels as any[] : [];
-                if (!channels.some((ch: any) => ch.sessionId === session.id)) {
+                const channels = safeParseNotificationChannels(currentBot?.notificationChannels);
+                if (!channels.some((ch) => ch.sessionId === session.id)) {
                     channels.push({
                         sessionId: session.id,
                         events: ['flow:completed', 'flow:failed', 'session:created', 'session:labels:add', 'session:labels:remove', 'bot:connected', 'bot:disconnected', 'tool:executed'],
@@ -628,7 +629,7 @@ export class ToolExecutor {
                     select: { notificationChannels: true },
                 });
 
-                const channels = Array.isArray(bot?.notificationChannels) ? bot.notificationChannels as any[] : [];
+                const channels = safeParseNotificationChannels(bot?.notificationChannels);
                 if (channels.length === 0) {
                     return {
                         success: false,

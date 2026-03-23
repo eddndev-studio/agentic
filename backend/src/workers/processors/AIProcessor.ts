@@ -16,6 +16,7 @@ import { BUILTIN_TOOLS } from "../../core/ai/builtin-tools";
 import { sanitizeOutgoing } from "../../core/ai/sanitize";
 import * as fs from "fs";
 import { isRemoteUrl, updateMessageMetadata } from "../../utils/helpers";
+import { safeParseMessageMetadata } from "../../schemas";
 import type { AIMessage, AIToolDefinition, AIProvider, AICompletionRequest, AICompletionResponse } from "../../services/ai";
 
 interface AIJobData {
@@ -113,7 +114,7 @@ export class AIProcessor {
 
             for (const msg of messages) {
                 let partContent = msg.content || "";
-                const metadata = (msg.metadata as any) || {};
+                const metadata = safeParseMessageMetadata(msg.metadata);
                 const mediaUrl = metadata.mediaUrl;
 
                 if (mediaUrl) {

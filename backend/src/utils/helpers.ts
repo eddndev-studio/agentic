@@ -2,6 +2,8 @@
  * Shared utility functions to eliminate code duplication across the backend.
  */
 
+import { safeParseMessageMetadata } from "../schemas";
+
 /** Returns true if `source` is an HTTP or HTTPS URL. */
 export function isRemoteUrl(source: string): boolean {
     return source.startsWith("http://") || source.startsWith("https://");
@@ -16,6 +18,6 @@ export async function updateMessageMetadata(messageId: string, patch: Record<str
     const existing = await prisma.message.findUnique({ where: { id: messageId }, select: { metadata: true } });
     await prisma.message.update({
         where: { id: messageId },
-        data: { metadata: { ...(existing?.metadata as any || {}), ...patch } },
+        data: { metadata: { ...safeParseMessageMetadata(existing?.metadata), ...patch } },
     });
 }
