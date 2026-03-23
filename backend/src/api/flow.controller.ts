@@ -159,6 +159,163 @@ export const flowController = new Elysia({ prefix: "/flows" })
             return { error: "Failed to delete flow" };
         }
     })
+    .get("/export", async ({ query, set }) => {
+        const { botId, templateId, flowId } = query as {
+            botId?: string;
+            templateId?: string;
+            flowId?: string;
+        };
+
+        const where: any = {};
+        if (flowId) {
+            where.id = flowId;
+        } else if (templateId) {
+            where.templateId = templateId;
+        } else if (botId) {
+            where.botId = botId;
+        } else {
+            set.status = 400;
+            return { error: "Provide botId, templateId, or flowId" };
+        }
+
+        const flows = await prisma.flow.findMany({
+            where,
+            include: {
+                steps: { orderBy: { order: "asc" } },
+                triggers: true,
+            },
+        });
+
+        if (flows.length === 0) {
+            set.status = 404;
+            return { error: "No flows found" };
+        }
+
+        // Build ID→name map for excludesFlows resolution
+        const idToName = new Map(flows.map(f => [f.id, f.name]));
+
+        const exported = flows.map(f => ({
+            name: f.name,
+            description: f.description,
+            cooldownMs: f.cooldownMs,
+            usageLimit: f.usageLimit,
+            excludesFlows: (f.excludesFlows || [])
+                .map(id => idToName.get(id))
+                .filter(Boolean),
+            steps: f.steps.map(s => ({
+                type: s.type,
+                content: s.content,
+                mediaUrl: s.mediaUrl,
+                metadata: s.metadata,
+                delayMs: s.delayMs,
+                jitterPct: s.jitterPct,
+                order: s.order,
+                aiOnly: s.aiOnly,
+            })),
+            triggers: f.triggers.map(tr => ({
+                keyword: tr.keyword,
+                matchType: tr.matchType,
+                scope: tr.scope,
+                triggerType: tr.triggerType,
+                labelName: tr.labelName,
+                labelAction: tr.labelAction,
+            })),
+        }));
+
+        return {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            flows: exported,
+        };
+    })
+    .post("/import-json", async ({ body, set }) => {
+        const b = body as any;
+        const { botId, templateId, flows } = b;
+
+        if (!Array.isArray(flows) || flows.length === 0) {
+            set.status = 400;
+            return { error: "Body must include a non-empty flows array" };
+        }
+        if (!botId && !templateId) {
+            set.status = 400;
+            return { error: "Provide botId or templateId as target" };
+        }
+
+        try {
+            const owner = templateId ? { templateId } : { botId };
+            const triggerOwner = templateId ? { templateId } : { botId };
+
+            // First pass: create all flows to get new IDs
+            const nameToId = new Map<string, string>();
+            const created = [];
+
+            for (const f of flows) {
+                const flow = await prisma.flow.create({
+                    data: {
+                        ...owner,
+                        name: f.name,
+                        description: f.description || null,
+                        usageLimit: parseInt(f.usageLimit || 0),
+                        cooldownMs: parseInt(f.cooldownMs || 0),
+                        excludesFlows: [], // resolved in second pass
+                        steps: {
+                            create: (f.steps || []).map((s: any, index: number) => ({
+                                type: s.type as StepType,
+                                content: s.content,
+                                mediaUrl: s.mediaUrl || null,
+                                delayMs: s.delayMs || 1000,
+                                jitterPct: s.jitterPct ?? 10,
+                                order: s.order ?? index,
+                                aiOnly: s.aiOnly ?? false,
+                                metadata: s.metadata ?? undefined,
+                            })),
+                        },
+                        triggers: {
+                            create: (f.triggers || []).map((tr: any) => ({
+                                keyword: tr.keyword || tr.labelName || "",
+                                matchType: tr.matchType || "CONTAINS",
+                                scope: tr.scope || "INCOMING",
+                                triggerType: tr.triggerType || "TEXT",
+                                labelName: tr.labelName || null,
+                                labelAction: tr.labelAction || null,
+                                ...triggerOwner,
+                            })),
+                        },
+                    },
+                    include: { steps: true, triggers: true },
+                });
+                nameToId.set(f.name, flow.id);
+                created.push({ flow, originalExcludes: f.excludesFlows || [] });
+            }
+
+            // Second pass: resolve excludesFlows by name → new ID
+            for (const { flow, originalExcludes } of created) {
+                if (originalExcludes.length > 0) {
+                    const resolvedIds = originalExcludes
+                        .map((name: string) => nameToId.get(name))
+                        .filter(Boolean) as string[];
+                    if (resolvedIds.length > 0) {
+                        await prisma.flow.update({
+                            where: { id: flow.id },
+                            data: { excludesFlows: resolvedIds },
+                        });
+                    }
+                }
+                syncFlowTool(flow).catch(e =>
+                    console.warn("[FlowController] syncFlowTool on import-json failed:", (e as Error).message)
+                );
+            }
+
+            return {
+                success: true,
+                imported: created.length,
+                flows: created.map(c => ({ id: c.flow.id, name: c.flow.name })),
+            };
+        } catch (e: unknown) {
+            set.status = 500;
+            return { error: `Import failed: ${e instanceof Error ? e.message : e}` };
+        }
+    })
     .post("/import", async ({ body, set }) => {
         const { sourceFlowId, targetBotId } = body as { sourceFlowId: string, targetBotId: string };
 

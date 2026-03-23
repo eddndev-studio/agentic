@@ -75,6 +75,23 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						class="px-3 py-1.5 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-wa-text outline-none focus:border-wa-green/50 w-48"
 					/>
 					<span class="text-xs text-wa-text-secondary" x-text="filteredFlows.length + ' / ' + (template.flows?.length || 0)"></span>
+					<button
+						@click="exportFlowsJson()"
+						class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg flex items-center gap-2"
+						title="Export JSON"
+					>
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+						</svg>
+						<span>Export</span>
+					</button>
+					<label class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg flex items-center gap-2 cursor-pointer" title="Import JSON">
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+						</svg>
+						<span>Import</span>
+						<input type="file" accept=".json" class="hidden" @change="importFlowsJson($event)" />
+					</label>
 					<a :href="'/editor?templateId=' + templateId" class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover">+ Nuevo Flujo</a>
 				</div>
 			</div>
@@ -580,6 +597,48 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 					window.__toast.error("Error: " + (e.message || "Unknown"));
 				} finally {
 					this.creatingBot = false;
+				}
+			},
+
+			async exportFlowsJson() {
+				try {
+					const data = await ApiClient.get(`/flows/export?templateId=${this.templateId}`);
+					const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement("a");
+					a.href = url;
+					a.download = `flows-${this.template.name || this.templateId}.json`;
+					a.click();
+					URL.revokeObjectURL(url);
+					window.__toast.success(`${data.flows.length} flujo(s) exportado(s)`);
+				} catch (e: any) {
+					window.__toast.error("Export failed: " + (e.message || "Unknown error"));
+				}
+			},
+
+			async importFlowsJson(event: Event) {
+				const input = event.target as HTMLInputElement;
+				const file = input.files?.[0];
+				if (!file) return;
+				try {
+					const text = await file.text();
+					const data = JSON.parse(text);
+					const flows = data.flows || data;
+					if (!Array.isArray(flows) || flows.length === 0) {
+						window.__toast.error("El archivo no contiene flujos válidos");
+						return;
+					}
+					if (!confirm(`Importar ${flows.length} flujo(s)?`)) return;
+					const result = await ApiClient.post("/flows/import-json", {
+						templateId: this.templateId,
+						flows,
+					});
+					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+					window.__toast.success(`${result.imported} flujo(s) importado(s)`);
+				} catch (e: any) {
+					window.__toast.error("Import failed: " + (e.message || "Unknown error"));
+				} finally {
+					input.value = "";
 				}
 			},
 
