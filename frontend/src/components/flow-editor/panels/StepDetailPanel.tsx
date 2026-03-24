@@ -12,12 +12,14 @@ interface Props {
 }
 
 export function StepDetailPanel({ stepId, onClose }: Props) {
-    const { flow, updateStep, removeStep } = useFlowEditor();
+    const { flow, updateStep, removeStep, moveStep } = useFlowEditor();
 
     const stepIndex = flow.steps.findIndex(s => (s.id || `temp-${s.tempId}`) === stepId);
     if (stepIndex === -1) return null;
 
     const step = flow.steps[stepIndex];
+    const isFirst = stepIndex === 0;
+    const isLast = stepIndex === flow.steps.length - 1;
 
     const onChange = (updates: Partial<Step>) => {
         updateStep(stepIndex, { ...step, ...updates });
@@ -30,9 +32,33 @@ export function StepDetailPanel({ stepId, onClose }: Props) {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 paddingBottom: 10, borderBottom: '1px solid #2a3942',
             }}>
-                <span style={{ color: '#00a884', fontWeight: 700, fontSize: 11, fontFamily: 'ui-monospace, monospace' }}>
-                    {step.type} #{step.order + 1}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#00a884', fontWeight: 700, fontSize: 11, fontFamily: 'ui-monospace, monospace' }}>
+                        {step.type} #{step.order + 1}
+                    </span>
+                    <div style={{ display: 'flex', gap: 2 }}>
+                        <button
+                            onClick={() => moveStep(stepIndex, stepIndex - 1)}
+                            disabled={isFirst}
+                            title="Move up"
+                            style={{
+                                background: 'none', border: '1px solid #2a3942', borderRadius: 4,
+                                color: isFirst ? '#2a3942' : '#8696a0', cursor: isFirst ? 'default' : 'pointer',
+                                fontSize: 11, padding: '1px 5px', lineHeight: 1,
+                            }}
+                        >▲</button>
+                        <button
+                            onClick={() => moveStep(stepIndex, stepIndex + 1)}
+                            disabled={isLast}
+                            title="Move down"
+                            style={{
+                                background: 'none', border: '1px solid #2a3942', borderRadius: 4,
+                                color: isLast ? '#2a3942' : '#8696a0', cursor: isLast ? 'default' : 'pointer',
+                                fontSize: 11, padding: '1px 5px', lineHeight: 1,
+                            }}
+                        >▼</button>
+                    </div>
+                </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => { removeStep(stepIndex); onClose(); }}
                         style={{ color: '#d13b3b', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11 }}>

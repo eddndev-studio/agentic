@@ -36,6 +36,7 @@ interface FlowState {
     updateStep: (index: number, step: Step) => void;
     addStep: (type: string) => void;
     removeStep: (index: number) => void;
+    moveStep: (fromIndex: number, toIndex: number) => void;
     updateTriggers: (triggers: Trigger[]) => void;
     save: () => Promise<void>;
 }
@@ -165,6 +166,24 @@ export function useFlowState(): FlowState {
         });
     }, []);
 
+    const moveStep = useCallback((fromIndex: number, toIndex: number) => {
+        setFlow(f => {
+            if (toIndex < 0 || toIndex >= f.steps.length) return f;
+            const steps = f.steps.map(s => ({ ...s }));
+            // Save slot positions before swap
+            const posFrom = steps[fromIndex].metadata?.position;
+            const posTo = steps[toIndex].metadata?.position;
+            // Swap steps
+            [steps[fromIndex], steps[toIndex]] = [steps[toIndex], steps[fromIndex]];
+            // Each slot keeps its original visual position
+            steps[fromIndex].metadata = { ...steps[fromIndex].metadata, position: posFrom };
+            steps[toIndex].metadata = { ...steps[toIndex].metadata, position: posTo };
+            // Recalculate order
+            steps.forEach((s, i) => { s.order = i; });
+            return { ...f, steps };
+        });
+    }, []);
+
     const updateTriggers = useCallback((triggers: Trigger[]) => {
         setFlow(f => ({ ...f, triggers }));
     }, []);
@@ -204,6 +223,6 @@ export function useFlowState(): FlowState {
     return {
         flow, bot, ready, saving, flowId, botId, templateId,
         availableTools, availableFlows, botLabels, templateVarDefs,
-        setFlow, updateStep, addStep, removeStep, updateTriggers, save,
+        setFlow, updateStep, addStep, removeStep, moveStep, updateTriggers, save,
     };
 }
