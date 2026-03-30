@@ -151,6 +151,7 @@ import { automationController } from "./api/automation.controller";
 import { templateController } from "./api/template.controller";
 import { logsController } from "./api/logs.controller";
 import { emulatorController } from "./api/emulator.controller";
+import { publicController } from "./api/public.controller";
 const ALLOWED_ORIGINS = new Set(config.server.corsOrigins);
 
 const app = new Elysia({ adapter: node() })
@@ -236,6 +237,7 @@ const app = new Elysia({ adapter: node() })
             return { error: e instanceof Error ? e.message : String(e) };
         }
     })
+    .use(publicController)
     .use(webhookController)
     .use(uploadController)
     .use(flowController)

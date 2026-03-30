@@ -1,0 +1,294 @@
+---
+import "../styles/global.css";
+---
+
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width" />
+        <title>Conectar WhatsApp | Agentic</title>
+    </head>
+    <body
+        class="bg-wa-bg-deep min-h-screen flex items-center justify-center font-sans text-wa-text-primary antialiased relative overflow-hidden"
+    >
+        <main class="w-full max-w-lg p-4 sm:p-8 relative z-10" x-data="connectPage">
+
+            <!-- Header -->
+            <div class="mb-8 text-center">
+                <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
+                    Agentic <span class="text-wa-green text-xs tracking-wide align-top">CONNECT</span>
+                </h1>
+            </div>
+
+            <!-- VALIDATING -->
+            <div x-show="state === 'VALIDATING'" class="text-center">
+                <p class="text-sm text-wa-text-secondary animate-pulse" x-text="$t('checking_status')">Verificando...</p>
+            </div>
+
+            <!-- INVALID -->
+            <div x-show="state === 'INVALID'" class="text-center">
+                <div class="p-6 bg-wa-bg-panel border border-red-500/30 rounded-xl">
+                    <svg class="w-12 h-12 mx-auto mb-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <p class="text-red-300 text-sm" x-text="errorMessage"></p>
+                </div>
+            </div>
+
+            <!-- READY -->
+            <div x-show="state === 'READY'" class="text-center">
+                <div class="p-6 bg-wa-bg-panel border border-wa-border rounded-xl space-y-4">
+                    <p class="text-wa-text-secondary text-xs">Conectar WhatsApp Business a</p>
+                    <p class="text-xl font-bold" x-text="botName"></p>
+                    <button
+                        @click="startConnection()"
+                        class="w-full bg-wa-green text-white py-3 text-sm font-semibold rounded-lg hover:bg-wa-green-hover transition-all"
+                    >
+                        <span x-text="$t('start_connection')">Iniciar Conexión</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- CONNECTING -->
+            <div x-show="state === 'CONNECTING'" class="text-center">
+                <div class="p-6 bg-wa-bg-panel border border-wa-border rounded-xl">
+                    <div class="w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p class="text-sm text-wa-text-secondary" x-text="$t('connecting_session')">Iniciando sesión...</p>
+                </div>
+            </div>
+
+            <!-- SCAN_QR -->
+            <div x-show="state === 'SCAN_QR'" class="space-y-4">
+                <!-- QR Section -->
+                <div class="p-6 bg-wa-bg-panel border border-wa-border rounded-xl text-center space-y-4">
+                    <h2 class="text-sm font-semibold" x-text="$t('scan_qr')">Escanear QR</h2>
+                    <div class="flex justify-center">
+                        <template x-if="qr">
+                            <img :src="qr" class="max-w-[14rem] aspect-square rounded-lg" alt="QR Code" />
+                        </template>
+                        <template x-if="!qr">
+                            <div class="w-56 h-56 bg-wa-bg-hover rounded-lg flex items-center justify-center">
+                                <div class="w-6 h-6 border-2 border-wa-green border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        </template>
+                    </div>
+                    <p class="text-xs text-wa-text-secondary" x-text="$t('scan_qr_instruction')"></p>
+                </div>
+
+                <!-- Pairing Code Section -->
+                <div class="p-6 bg-wa-bg-panel border border-wa-border rounded-xl space-y-4">
+                    <h2 class="text-sm font-semibold text-center" x-text="$t('or_use_pairing')">O usa un código de emparejamiento</h2>
+
+                    <!-- Phone input + button -->
+                    <div x-show="!pairingCode">
+                        <div class="flex gap-2">
+                            <input
+                                type="tel"
+                                x-model="phoneNumber"
+                                class="flex-1 bg-wa-bg-hover border border-wa-border text-white p-3 text-sm rounded-lg focus:border-wa-green/50 focus:outline-none focus:ring-1 focus:ring-wa-green/50 transition-all placeholder:text-white/20"
+                                :placeholder="$t('phone_placeholder')"
+                            />
+                            <button
+                                @click="requestPairingCode()"
+                                :disabled="requestingCode || !phoneNumber.trim()"
+                                class="px-4 py-3 bg-wa-green text-white text-sm font-semibold rounded-lg hover:bg-wa-green-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                                <span x-show="!requestingCode" x-text="$t('get_code')">Obtener Código</span>
+                                <span x-show="requestingCode" class="animate-pulse" x-text="$t('requesting_code')">Solicitando...</span>
+                            </button>
+                        </div>
+                        <p x-show="pairingError" class="mt-2 text-xs text-red-400" x-text="pairingError"></p>
+                    </div>
+
+                    <!-- Pairing code display -->
+                    <div x-show="pairingCode" class="text-center space-y-3">
+                        <div class="bg-wa-bg-hover border border-wa-green/30 rounded-xl p-6">
+                            <p class="text-3xl font-mono font-bold tracking-[0.3em] text-wa-green" x-text="pairingCode"></p>
+                        </div>
+                        <p class="text-xs text-wa-text-secondary" x-text="$t('pairing_instruction')"></p>
+                        <p class="text-xs text-wa-text-secondary" x-text="$t('enter_code_in_wa')"></p>
+                        <button
+                            @click="pairingCode = ''; pairingError = ''"
+                            class="text-xs text-wa-info hover:underline"
+                        >
+                            Solicitar nuevo código
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONNECTED -->
+            <div x-show="state === 'CONNECTED'" class="text-center">
+                <div class="p-8 bg-wa-bg-panel border border-wa-green/30 rounded-xl space-y-4">
+                    <div class="w-16 h-16 mx-auto bg-wa-green/20 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <p class="text-lg font-bold text-wa-green" x-text="$t('connection_success')"></p>
+                    <p class="text-xs text-wa-text-secondary" x-text="$t('close_page')"></p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="mt-8 text-center">
+                <p class="text-[10px] text-wa-text-secondary">
+                    Secure Connection &middot; <span class="text-wa-green">Encrypted</span>
+                </p>
+            </div>
+        </main>
+
+        <script>
+            import { i18nPlugin } from "../i18n";
+
+            const API_URL = import.meta.env.PUBLIC_API_URL || (import.meta.env.DEV ? "http://localhost:8080" : "https://agentic-api.w-gateway.cc");
+
+            document.addEventListener("alpine:init", () => {
+                i18nPlugin(Alpine);
+
+                Alpine.data("connectPage", () => ({
+                    state: "VALIDATING" as "VALIDATING" | "INVALID" | "READY" | "CONNECTING" | "SCAN_QR" | "CONNECTED",
+                    token: "",
+                    botName: "",
+                    qr: "",
+                    phoneNumber: "",
+                    pairingCode: "",
+                    pairingError: "",
+                    requestingCode: false,
+                    errorMessage: "",
+                    eventSource: null as EventSource | null,
+
+                    async init() {
+                        const params = new URLSearchParams(window.location.search);
+                        this.token = params.get("token") || "";
+
+                        if (!this.token) {
+                            this.errorMessage = this.$t("link_expired");
+                            this.state = "INVALID";
+                            return;
+                        }
+
+                        try {
+                            const res = await fetch(`${API_URL}/public/connect/validate?token=${encodeURIComponent(this.token)}`);
+                            const data = await res.json();
+                            if (data.valid) {
+                                this.botName = data.botName;
+                                this.state = "READY";
+                            } else {
+                                this.errorMessage = this.$t("link_expired");
+                                this.state = "INVALID";
+                            }
+                        } catch {
+                            this.errorMessage = this.$t("link_expired");
+                            this.state = "INVALID";
+                        }
+                    },
+
+                    connectSSE() {
+                        if (this.eventSource) return;
+                        this.eventSource = new EventSource(
+                            `${API_URL}/public/connect/stream?token=${encodeURIComponent(this.token)}`
+                        );
+
+                        this.eventSource.onmessage = (e) => {
+                            try {
+                                const event = JSON.parse(e.data);
+                                if (event.type === "bot:qr") {
+                                    this.qr = event.qr;
+                                    if (this.state === "CONNECTING") {
+                                        this.state = "SCAN_QR";
+                                    }
+                                } else if (event.type === "bot:connected") {
+                                    this.state = "CONNECTED";
+                                    this.closeSSE();
+                                } else if (event.type === "bot:disconnected") {
+                                    // If we were in SCAN_QR and it disconnected (e.g. QR timeout), go back to READY
+                                    if (this.state === "SCAN_QR" || this.state === "CONNECTING") {
+                                        this.qr = "";
+                                        this.pairingCode = "";
+                                        this.state = "READY";
+                                    }
+                                }
+                            } catch {}
+                        };
+
+                        this.eventSource.onerror = () => {
+                            // SSE connection lost — don't change state, it may auto-reconnect
+                        };
+                    },
+
+                    closeSSE() {
+                        if (this.eventSource) {
+                            this.eventSource.close();
+                            this.eventSource = null;
+                        }
+                    },
+
+                    async startConnection() {
+                        this.state = "CONNECTING";
+                        this.connectSSE();
+
+                        try {
+                            const res = await fetch(`${API_URL}/public/connect/start`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ token: this.token }),
+                            });
+                            const data = await res.json();
+                            if (!res.ok) {
+                                this.errorMessage = data.error || "Connection failed";
+                                this.state = "INVALID";
+                                this.closeSSE();
+                                return;
+                            }
+                            // Check if QR is already available
+                            const statusRes = await fetch(`${API_URL}/public/connect/status?token=${encodeURIComponent(this.token)}`);
+                            const status = await statusRes.json();
+                            if (status.connected) {
+                                this.state = "CONNECTED";
+                                this.closeSSE();
+                            } else if (status.hasQr) {
+                                const qrRes = await fetch(`${API_URL}/public/connect/qr?token=${encodeURIComponent(this.token)}`);
+                                const qrData = await qrRes.json();
+                                if (qrData.qr) this.qr = qrData.qr;
+                                this.state = "SCAN_QR";
+                            }
+                            // Otherwise SSE will deliver the QR when ready
+                        } catch (e) {
+                            this.errorMessage = "Connection error";
+                            this.state = "INVALID";
+                            this.closeSSE();
+                        }
+                    },
+
+                    async requestPairingCode() {
+                        this.requestingCode = true;
+                        this.pairingError = "";
+
+                        try {
+                            const res = await fetch(`${API_URL}/public/connect/pairing-code`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ token: this.token, phoneNumber: this.phoneNumber }),
+                            });
+                            const data = await res.json();
+                            if (!res.ok) {
+                                this.pairingError = data.error || "Failed to get pairing code";
+                            } else {
+                                this.pairingCode = data.code;
+                            }
+                        } catch {
+                            this.pairingError = "Network error";
+                        } finally {
+                            this.requestingCode = false;
+                        }
+                    },
+
+                    destroy() {
+                        this.closeSSE();
+                    },
+                }));
+            });
+        </script>
+    </body>
+</html>

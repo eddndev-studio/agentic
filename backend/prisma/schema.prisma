@@ -51,6 +51,7 @@ model Bot {
   templateId            String?
   template              Template?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
   botVariables          Json?        @default("{}")
+  connectTokens         ConnectToken[]
 }
 
 model Template {
@@ -378,4 +379,17 @@ model Automation {
 
 enum AutomationEvent {
   INACTIVITY
+}
+
+model ConnectToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  botId     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  bot       Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([botId])
 }

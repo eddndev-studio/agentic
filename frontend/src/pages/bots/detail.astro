@@ -94,6 +94,15 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </svg>
                         <span x-text="$t('monitor')">Monitor</span>
                     </a>
+                    <button
+                        @click="generatePublicLink()"
+                        class="px-4 py-2 border border-wa-info/30 text-wa-info font-sans text-xs tracking-normal hover:bg-wa-info/10 transition-colors flex items-center gap-2 rounded-lg"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                        </svg>
+                        <span x-text="$t('public_link')">Enlace Público</span>
+                    </button>
                     <a
                         :href="'/bots/emulator?botId=' + botId"
                         class="px-4 py-2 border border-purple-500/30 text-purple-400 font-sans text-xs tracking-normal hover:bg-purple-500/10 transition-colors flex items-center gap-2 rounded-lg"
@@ -1582,6 +1591,46 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 </form>
             </div>
         </div>
+        <!-- Public Link Modal -->
+        <div
+            x-show="showLinkModal"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style="display: none;"
+        >
+            <div
+                class="absolute inset-0 bg-black/70"
+                @click="showLinkModal = false"
+            >
+            </div>
+            <div class="relative bg-wa-bg-panel border border-wa-border rounded-xl p-6 w-full max-w-md space-y-4">
+                <h3 class="text-lg font-bold" x-text="$t('public_link')">Enlace Público</h3>
+                <p class="text-xs text-wa-text-secondary" x-text="$t('link_expires_in')"></p>
+
+                <div class="flex gap-2">
+                    <input
+                        type="text"
+                        readonly
+                        :value="publicLink"
+                        class="flex-1 bg-wa-bg-hover border border-wa-border text-white p-3 text-sm rounded-lg select-all font-mono text-[11px]"
+                        @click="$el.select()"
+                    />
+                    <button
+                        @click="copyPublicLink()"
+                        class="px-4 py-3 bg-wa-green text-white text-sm font-semibold rounded-lg hover:bg-wa-green-hover transition-all whitespace-nowrap"
+                        x-text="linkCopied ? '✓' : $t('copy_link')"
+                    >
+                    </button>
+                </div>
+
+                <button
+                    @click="showLinkModal = false"
+                    class="w-full px-4 py-2 border border-wa-border text-wa-text-secondary font-sans text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
+                >
+                    Cerrar
+                </button>
+            </div>
+        </div>
     </div>
 </Layout>
 
@@ -1664,6 +1713,11 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 sourceBotId: "",
                 sourceFlowId: "",
             },
+
+            // Public Link State
+            showLinkModal: false,
+            publicLink: "",
+            linkCopied: false,
 
             // Clone Bot State
             showCloneModal: false,
@@ -1966,6 +2020,29 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         </template>
                     </div>
                 `;
+            },
+
+            async generatePublicLink() {
+                try {
+                    const res = await ApiClient.post(`/bots/${this.botId}/generate-link`, {});
+                    const frontendUrl = window.location.origin;
+                    this.publicLink = `${frontendUrl}${res.link}`;
+                    this.linkCopied = false;
+                    this.showLinkModal = true;
+                } catch (e: any) {
+                    window.__toast?.error(e.message || 'Failed to generate link');
+                }
+            },
+
+            async copyPublicLink() {
+                try {
+                    await navigator.clipboard.writeText(this.publicLink);
+                    this.linkCopied = true;
+                    window.__toast?.success(this.$t('link_copied'));
+                    setTimeout(() => { this.linkCopied = false; }, 2000);
+                } catch {
+                    // Fallback: select the input
+                }
             },
 
             cloneBot() {

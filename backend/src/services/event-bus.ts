@@ -14,6 +14,7 @@ export type BotEvent =
     | { type: 'bot:qr';           botId: string; qr: string }
     | { type: 'bot:connected';    botId: string; user: { id: string; name?: string } | undefined }
     | { type: 'bot:disconnected'; botId: string; statusCode: number | undefined }
+    | { type: 'bot:pairing-code'; botId: string; code: string }
     | { type: 'message:received'; botId: string; sessionId: string; message: Message }
     | { type: 'message:sent';     botId: string; sessionId: string; content: string }
     | { type: 'session:created';  botId: string; session: Session }

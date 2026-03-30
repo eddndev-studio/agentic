@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { execSync } from "node:child_process";
+import crypto from "node:crypto";
 import { prisma } from "../services/postgres.service";
 import { Platform, AIProvider } from "@prisma/client";
 import { BaileysService } from "../services/baileys.service";
@@ -108,6 +109,20 @@ export const botController = new Elysia({ prefix: "/bots" })
             set.status = 500;
             return `Failed to disconnect session: ${e instanceof Error ? e.message : e}`;
         }
+    })
+    // Generate a public connect link
+    .post("/:id/generate-link", async ({ params: { id }, set }) => {
+        const bot = await prisma.bot.findUnique({ where: { id } });
+        if (!bot) { set.status = 404; return { error: "Bot not found" }; }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+
+        await prisma.connectToken.create({
+            data: { token, botId: id, expiresAt },
+        });
+
+        return { token, expiresAt: expiresAt.toISOString(), link: `/connect?token=${token}` };
     })
     // Generic /:id routes
     .get("/:id", async ({ params: { id }, set }) => {

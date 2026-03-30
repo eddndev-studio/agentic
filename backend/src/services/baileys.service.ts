@@ -666,6 +666,17 @@ export class BaileysService {
         return sessions.get(botId);
     }
 
+    static async requestPairingCode(botId: string, phoneNumber: string): Promise<string> {
+        const sock = sessions.get(botId);
+        if (!sock) throw new Error('Session not started');
+        const normalized = phoneNumber.replace(/\D/g, '');
+        if (normalized.length < 10 || normalized.length > 15) {
+            throw new Error('Invalid phone number');
+        }
+        const code = await sock.requestPairingCode(normalized);
+        return code;
+    }
+
     static async stopSession(botId: string) {
         const sock = sessions.get(botId);
         if (sock) {
