@@ -47,17 +47,13 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     x-text="bot.name"
                 >
                 </h1>
-                <p
-                    class="text-xs font-sans text-wa-text-secondary mt-1"
-                    x-text="bot.identifier"
-                >
-                </p>
-                <p
-                    x-show="bot.ipv6Address"
-                    class="text-[10px] font-sans text-wa-green/70 mt-2 flex items-center gap-2 min-w-0"
-                >
-                    <span class="tracking-normal flex-shrink-0">IPv6:</span>
-                    <span x-text="bot.ipv6Address" class="break-all"></span>
+                <p class="text-xs font-sans text-wa-text-secondary mt-1 truncate">
+                    <span x-text="bot.identifier"></span>
+                    <template x-if="bot.ipv6Address">
+                        <span class="text-wa-green/70 ml-2">
+                            &middot; <span x-text="bot.ipv6Address"></span>
+                        </span>
+                    </template>
                 </p>
             </div>
 
