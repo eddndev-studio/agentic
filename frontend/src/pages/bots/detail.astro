@@ -14,10 +14,10 @@ import ClientModal from "../../components/clients/ClientModal.astro";
     >
         <!-- Header -->
         <header
-            class="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-wa-border pb-6 relative gap-4"
+            class="border-b border-wa-border pb-6 relative space-y-4"
         >
 
-            <div class="flex-1 min-w-0">
+            <div>
                 <div class="flex items-center gap-3 mb-2">
                     <a
                         href="/bots"
@@ -57,7 +57,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 </p>
             </div>
 
-            <div class="flex gap-3 flex-wrap items-start">
+            <div class="flex gap-3 flex-wrap items-center">
                 <!-- Connection status indicator (from BotConnection) -->
                 <div x-show="botId" x-html="connectionHeaderHtml"></div>
 
