@@ -147,8 +147,15 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 						class="inline-flex items-center gap-2 px-3 py-2 bg-wa-bg-hover rounded-lg border border-wa-border hover:border-wa-green/30 transition-all cursor-pointer group">
 						<span class="text-xs font-mono font-bold text-white group-hover:text-wa-green transition-colors" x-text="v.name || '...'"></span>
 						<span class="text-[9px] px-1.5 py-0.5 rounded"
-							:class="v.type === 'label' ? 'text-purple-400 bg-purple-500/10' : 'text-wa-green bg-wa-green/10'"
-							x-text="v.type === 'label' ? 'etiqueta' : 'texto'"></span>
+							:class="{
+								'text-purple-400 bg-purple-500/10': v.type === 'label',
+								'text-wa-green bg-wa-green/10': v.type === 'text',
+								'text-sky-400 bg-sky-500/10': v.type === 'image',
+								'text-orange-400 bg-orange-500/10': v.type === 'video',
+								'text-teal-400 bg-teal-500/10': v.type === 'audio',
+								'text-yellow-400 bg-yellow-500/10': v.type === 'document',
+							}"
+							x-text="({label:'etiqueta',text:'texto',image:'imagen',video:'video',audio:'audio',document:'documento'})[v.type] || v.type"></span>
 					</button>
 				</template>
 
@@ -188,6 +195,10 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 								class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
 								<option value="text">Texto</option>
 								<option value="label">Etiqueta</option>
+								<option value="image">Imagen</option>
+								<option value="video">Video</option>
+								<option value="audio">Audio</option>
+								<option value="document">Documento</option>
 							</select>
 						</div>
 					</div>

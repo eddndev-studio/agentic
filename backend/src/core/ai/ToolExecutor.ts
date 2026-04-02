@@ -154,6 +154,7 @@ export class ToolExecutor {
 
         // Use pre-loaded bot for variable interpolation (no extra DB query)
         const botVars = BotConfigService.getVariables(bot);
+        const resolvedVars = BotConfigService.getResolvedVariables(bot);
 
         const stepResults: string[] = [];
         let sentCount = 0;
@@ -169,6 +170,9 @@ export class ToolExecutor {
 
             // Interpolate {{VAR}} placeholders from bot environment variables
             content = BotConfigService.interpolate(content, botVars);
+
+            // Resolve media URL (supports {{VAR}} references)
+            const mediaUrl = BotConfigService.interpolateMediaUrl(step.mediaUrl, resolvedVars);
 
             try {
                 if (step.type === "TOOL") {
@@ -190,19 +194,19 @@ export class ToolExecutor {
                     console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (TOOL:${toolName}) done:`, toolResult.data);
                 } else if (step.type === "TEXT" && content) {
                     await BaileysService.sendMessage(botId, session.identifier, { text: content });
-                } else if (step.type === "IMAGE" && step.mediaUrl) {
+                } else if (step.type === "IMAGE" && mediaUrl) {
                     await BaileysService.sendMessage(botId, session.identifier, {
-                        image: { url: step.mediaUrl },
+                        image: { url: mediaUrl },
                         caption: content || undefined,
                     });
-                } else if (step.type === "VIDEO" && step.mediaUrl) {
+                } else if (step.type === "VIDEO" && mediaUrl) {
                     await BaileysService.sendMessage(botId, session.identifier, {
-                        video: { url: step.mediaUrl },
+                        video: { url: mediaUrl },
                         caption: content || undefined,
                     });
-                } else if ((step.type === "AUDIO" || step.type === "PTT") && step.mediaUrl) {
+                } else if ((step.type === "AUDIO" || step.type === "PTT") && mediaUrl) {
                     await BaileysService.sendMessage(botId, session.identifier, {
-                        audio: { url: step.mediaUrl },
+                        audio: { url: mediaUrl },
                         ptt: step.type === "PTT",
                     });
                 }

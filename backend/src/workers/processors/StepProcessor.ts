@@ -75,7 +75,9 @@ export class StepProcessor {
         // Load bot variables for interpolation
         const bot = await BotConfigService.loadBot(botId);
         const botVars = bot ? BotConfigService.getVariables(bot) : {};
+        const resolvedVars = bot ? BotConfigService.getResolvedVariables(bot) : {};
         const interpolate = (text: string) => BotConfigService.interpolate(text, botVars);
+        const resolveMedia = (url: string | null) => BotConfigService.interpolateMediaUrl(url, resolvedVars);
 
         log.info(`Executing step type ${step.type} for ${target} on ${platform}`);
 
@@ -89,31 +91,37 @@ export class StepProcessor {
                     await sendMessage(botId, target, textPayload);
                     break;
                 }
-                case 'IMAGE':
-                    if (step.mediaUrl) {
-                        await sendMessage(botId, target, { image: { url: step.mediaUrl }, caption: interpolate(step.content || "") });
+                case 'IMAGE': {
+                    const imageUrl = resolveMedia(step.mediaUrl);
+                    if (imageUrl) {
+                        await sendMessage(botId, target, { image: { url: imageUrl }, caption: interpolate(step.content || "") });
                     } else {
-                        log.warn(`IMAGE step ${step.id} has no mediaUrl, skipping`);
+                        log.warn(`IMAGE step ${step.id} has no mediaUrl after interpolation, skipping`);
                     }
                     break;
-                case 'VIDEO':
-                    if (step.mediaUrl) {
-                        await sendMessage(botId, target, { video: { url: step.mediaUrl }, caption: interpolate(step.content || "") });
+                }
+                case 'VIDEO': {
+                    const videoUrl = resolveMedia(step.mediaUrl);
+                    if (videoUrl) {
+                        await sendMessage(botId, target, { video: { url: videoUrl }, caption: interpolate(step.content || "") });
                     } else {
-                        log.warn(`VIDEO step ${step.id} has no mediaUrl, skipping`);
+                        log.warn(`VIDEO step ${step.id} has no mediaUrl after interpolation, skipping`);
                     }
                     break;
+                }
                 case 'AUDIO':
-                case 'PTT':
-                    if (step.mediaUrl) {
-                        await sendMessage(botId, target, { audio: { url: step.mediaUrl }, ptt: step.type === 'PTT' });
+                case 'PTT': {
+                    const audioUrl = resolveMedia(step.mediaUrl);
+                    if (audioUrl) {
+                        await sendMessage(botId, target, { audio: { url: audioUrl }, ptt: step.type === 'PTT' });
                     } else {
-                        log.warn(`${step.type} step ${step.id} has no mediaUrl, skipping`);
+                        log.warn(`${step.type} step ${step.id} has no mediaUrl after interpolation, skipping`);
                     }
                     break;
+                }
                 
                 case 'CONDITIONAL_TIME':
-                    await this.executeConditionalTime(botId, target, step);
+                    await this.executeConditionalTime(botId, target, step, botVars, resolvedVars);
                     break;
 
                 default:
@@ -158,7 +166,7 @@ export class StepProcessor {
         log.info(`Tool '${toolName}' result:`, result);
     }
 
-    private static async executeConditionalTime(botId: string, target: string, step: Step) {
+    private static async executeConditionalTime(botId: string, target: string, step: Step, botVars?: Record<string, string>, resolvedVars?: Record<string, import("../../services/bot-config.service").ResolvedVariable>) {
         const metadata = safeParseStepMetadata(step.metadata);
         if (!Array.isArray(metadata.branches)) {
             log.warn(`CONDITIONAL_TIME step ${step.id} missing branches in metadata`);
@@ -183,6 +191,12 @@ export class StepProcessor {
         const currentMinutes = toMinutes(timeString);
         let matchFound = false;
 
+        // Helpers for variable interpolation in branch content/media
+        const interpolate = (text: string) =>
+            botVars ? BotConfigService.interpolate(text, botVars) : text;
+        const resolveMedia = (url: string | null | undefined) =>
+            resolvedVars ? BotConfigService.interpolateMediaUrl(url, resolvedVars) : (url || null);
+
         log.info(`Conditional Time Check: Current ${timeString} (${currentMinutes}m)`);
 
         for (const branch of metadata.branches) {
@@ -206,19 +220,20 @@ export class StepProcessor {
             if (isMatch) {
                 log.info(`Matched Branch: ${branch.startTime} - ${branch.endTime}`);
                 matchFound = true;
-                
+
                 // Execute the content of the branch
                 const payload: Record<string, unknown> = {};
+                const branchMediaUrl = resolveMedia(branch.mediaUrl);
                 if (branch.type === 'TEXT') {
-                    payload.text = branch.content || "";
-                } else if (branch.type === 'IMAGE' && branch.mediaUrl) {
-                    payload.image = { url: branch.mediaUrl };
-                    payload.caption = branch.content || "";
-                } else if (branch.type === 'VIDEO' && branch.mediaUrl) {
-                    payload.video = { url: branch.mediaUrl };
-                    payload.caption = branch.content || "";
-                } else if (branch.type === 'AUDIO' && branch.mediaUrl) {
-                    payload.audio = { url: branch.mediaUrl };
+                    payload.text = interpolate(branch.content || "");
+                } else if (branch.type === 'IMAGE' && branchMediaUrl) {
+                    payload.image = { url: branchMediaUrl };
+                    payload.caption = interpolate(branch.content || "");
+                } else if (branch.type === 'VIDEO' && branchMediaUrl) {
+                    payload.video = { url: branchMediaUrl };
+                    payload.caption = interpolate(branch.content || "");
+                } else if (branch.type === 'AUDIO' && branchMediaUrl) {
+                    payload.audio = { url: branchMediaUrl };
                     payload.ptt = true; // Default to PTT for audio in conditional for now
                 }
 
@@ -233,17 +248,18 @@ export class StepProcessor {
             log.info('No time match found, executing fallback');
             const fb = metadata.fallback;
             const payload: Record<string, unknown> = {};
+            const fbMediaUrl = resolveMedia(fb.mediaUrl);
 
             if (fb.type === 'TEXT') {
-                payload.text = fb.content || "";
-            } else if (fb.type === 'IMAGE' && fb.mediaUrl) {
-                payload.image = { url: fb.mediaUrl };
-                payload.caption = fb.content || "";
-            } else if (fb.type === 'VIDEO' && fb.mediaUrl) {
-                payload.video = { url: fb.mediaUrl };
-                payload.caption = fb.content || "";
-            } else if (fb.type === 'AUDIO' && fb.mediaUrl) {
-                payload.audio = { url: fb.mediaUrl };
+                payload.text = interpolate(fb.content || "");
+            } else if (fb.type === 'IMAGE' && fbMediaUrl) {
+                payload.image = { url: fbMediaUrl };
+                payload.caption = interpolate(fb.content || "");
+            } else if (fb.type === 'VIDEO' && fbMediaUrl) {
+                payload.video = { url: fbMediaUrl };
+                payload.caption = interpolate(fb.content || "");
+            } else if (fb.type === 'AUDIO' && fbMediaUrl) {
+                payload.audio = { url: fbMediaUrl };
                 payload.ptt = true;
             }
 

@@ -17,24 +17,40 @@ const mediaColors: Record<string, string> = {
     DOCUMENT: '#e8b830',
 };
 
+const isVariableRef = (value: string | undefined | null): boolean =>
+    !!value && /^\{\{\w+\}\}$/.test(value.trim());
+
 export function MediaNode({ data, selected }: NodeProps) {
     const nodeData = data as unknown as StepNodeData;
     const { step } = nodeData;
     const color = mediaColors[step.type] || '#53bdeb';
+    const mediaUrlIsVariable = isVariableRef(step.mediaUrl);
 
     return (
         <BaseStepNode data={nodeData} selected={selected} typeLabel={step.type} typeColor={color} icon={mediaIcons[step.type]}>
             {step.mediaUrl ? (
                 <div>
-                    {step.type === 'IMAGE' && (
-                        <img src={step.mediaUrl} alt="" style={{
-                            width: '100%', height: 48, objectFit: 'cover', borderRadius: 6,
-                            opacity: 0.7, marginBottom: 4,
-                        }} />
+                    {mediaUrlIsVariable ? (
+                        <div style={{
+                            display: 'inline-block', padding: '2px 6px', marginBottom: 4,
+                            background: '#7f66ff20', color: '#a78bfa', borderRadius: 4,
+                            fontSize: 9, fontFamily: 'ui-monospace, monospace',
+                        }}>
+                            {step.mediaUrl.replace(/[{}]/g, '')}
+                        </div>
+                    ) : (
+                        <>
+                            {step.type === 'IMAGE' && (
+                                <img src={step.mediaUrl} alt="" style={{
+                                    width: '100%', height: 48, objectFit: 'cover', borderRadius: 6,
+                                    opacity: 0.7, marginBottom: 4,
+                                }} />
+                            )}
+                            <div style={{ color: '#8696a0', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {step.mediaUrl.split('/').pop()}
+                            </div>
+                        </>
                     )}
-                    <div style={{ color: '#8696a0', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {step.mediaUrl.split('/').pop()}
-                    </div>
                     {step.content && (
                         <div style={{ color: '#e9edef', marginTop: 4, fontSize: 10 }}>
                             {step.content.length > 40 ? step.content.slice(0, 40) + '...' : step.content}

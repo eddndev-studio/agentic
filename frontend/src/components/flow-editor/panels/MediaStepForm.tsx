@@ -6,6 +6,9 @@ interface Props {
     onChange: (updates: Partial<Step>) => void;
 }
 
+const isVariableRef = (value: string | undefined | null): boolean =>
+    !!value && /^\{\{\w+\}\}$/.test(value.trim());
+
 export function MediaStepForm({ step, onChange }: Props) {
     const openMediaPicker = () => {
         window.dispatchEvent(new CustomEvent('open-media-picker', {
@@ -14,6 +17,8 @@ export function MediaStepForm({ step, onChange }: Props) {
             },
         }));
     };
+
+    const mediaUrlIsVariable = isVariableRef(step.mediaUrl);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -29,7 +34,7 @@ export function MediaStepForm({ step, onChange }: Props) {
                             color: '#e9edef', padding: '6px 8px', borderRadius: 8, fontSize: 10,
                             fontFamily: 'ui-monospace, monospace', outline: 'none',
                         }}
-                        placeholder="https://..."
+                        placeholder="https://... o {{VARIABLE}}"
                     />
                     <button onClick={openMediaPicker} style={{
                         background: '#202c33', border: '1px solid #2a3942', color: '#8696a0',
@@ -38,9 +43,18 @@ export function MediaStepForm({ step, onChange }: Props) {
                         Pick
                     </button>
                 </div>
+                {mediaUrlIsVariable && (
+                    <span style={{
+                        display: 'inline-block', marginTop: 4, padding: '2px 6px',
+                        background: '#7f66ff20', color: '#a78bfa', borderRadius: 4,
+                        fontSize: 9, fontFamily: 'ui-monospace, monospace',
+                    }}>
+                        Variable: {step.mediaUrl!.replace(/[{}]/g, '')}
+                    </span>
+                )}
             </label>
 
-            {step.type === 'IMAGE' && step.mediaUrl && (
+            {step.type === 'IMAGE' && step.mediaUrl && !mediaUrlIsVariable && (
                 <img src={step.mediaUrl} alt="" style={{
                     height: 80, objectFit: 'cover', borderRadius: 8, opacity: 0.7,
                     border: '1px solid #2a3942',

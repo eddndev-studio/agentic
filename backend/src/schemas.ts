@@ -101,8 +101,20 @@ export type BotCredentials = z.infer<typeof BotCredentialsSchema>;
 
 // ─── Bot.botVariables ────────────────────────────────────────────────────────
 
-export const BotVariablesSchema = z.record(z.string(), z.string());
+export const MediaVariableValueSchema = z.object({
+    type: z.literal('media'),
+    value: z.string(),
+    mediaType: z.enum(['image', 'video', 'audio', 'document']),
+});
 
+export const BotVariableValueSchema = z.union([
+    z.string(),
+    MediaVariableValueSchema,
+]);
+
+export const BotVariablesSchema = z.record(z.string(), BotVariableValueSchema);
+
+export type BotVariableValue = z.infer<typeof BotVariableValueSchema>;
 export type BotVariables = z.infer<typeof BotVariablesSchema>;
 
 // ─── Template.variables ──────────────────────────────────────────────────────
@@ -110,6 +122,7 @@ export type BotVariables = z.infer<typeof BotVariablesSchema>;
 export const TemplateVariableSchema = z.object({
     key: z.string(),
     value: z.string(),
+    type: z.enum(['text', 'label', 'image', 'video', 'audio', 'document']).optional().default('text'),
 });
 
 export const TemplateVariablesSchema = z.array(TemplateVariableSchema);

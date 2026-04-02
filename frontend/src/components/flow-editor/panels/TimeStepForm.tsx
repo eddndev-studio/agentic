@@ -61,7 +61,7 @@ export function TimeStepForm({ step, onChange }: Props) {
                         rows={2} style={textareaStyle} placeholder="Branch content..." />
                     {branch.type !== 'TEXT' && (
                         <input type="text" value={branch.mediaUrl || ''} onChange={e => updateBranch(i, { mediaUrl: e.target.value })}
-                            style={{ ...inputStyle, marginTop: 4 }} placeholder="Media URL" />
+                            style={{ ...inputStyle, marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
                     )}
                 </div>
             ))}
@@ -85,6 +85,10 @@ export function TimeStepForm({ step, onChange }: Props) {
                 </select>
                 <textarea value={fallback.content || ''} onChange={e => setMeta({ fallback: { ...fallback, content: e.target.value } })}
                     rows={2} style={textareaStyle} placeholder="Fallback content..." />
+                {fallback.type && fallback.type !== 'TEXT' && (
+                    <input type="text" value={fallback.mediaUrl || ''} onChange={e => setMeta({ fallback: { ...fallback, mediaUrl: e.target.value } })}
+                        style={{ ...inputStyle, marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
+                )}
             </div>
         </div>
     );

@@ -4,6 +4,12 @@ import type { Bot, Template, Tool, Trigger, TriggerScope, Flow } from "@prisma/c
 type BotWithTemplate = Bot & { template: Template | null };
 type ThinkingLevel = "LOW" | "MEDIUM" | "HIGH";
 
+export interface ResolvedVariable {
+    type: 'text' | 'media';
+    value: string;
+    mediaType?: 'image' | 'video' | 'audio' | 'document';
+}
+
 interface AIConfig {
     aiEnabled: boolean;
     aiModel: string;
@@ -138,9 +144,51 @@ export class BotConfigService {
 
     /**
      * Returns the bot's variables dictionary for interpolation.
+     * Normalizes both old (plain string) and new (structured media) formats.
      */
     static getVariables(bot: Bot): Record<string, string> {
-        return (bot.botVariables as Record<string, string>) ?? {};
+        const raw = (bot.botVariables as Record<string, unknown>) ?? {};
+        const result: Record<string, string> = {};
+        for (const [key, val] of Object.entries(raw)) {
+            if (typeof val === 'string') {
+                result[key] = val;
+            } else if (val && typeof val === 'object' && 'value' in val) {
+                result[key] = (val as { value: string }).value ?? '';
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns resolved variables with type information (text vs media).
+     */
+    static getResolvedVariables(bot: Bot): Record<string, ResolvedVariable> {
+        const raw = (bot.botVariables as Record<string, unknown>) ?? {};
+        const result: Record<string, ResolvedVariable> = {};
+        for (const [key, val] of Object.entries(raw)) {
+            if (typeof val === 'string') {
+                result[key] = { type: 'text', value: val };
+            } else if (val && typeof val === 'object' && (val as Record<string, unknown>).type === 'media') {
+                const v = val as { value: string; mediaType: string };
+                result[key] = { type: 'media', value: v.value, mediaType: v.mediaType as ResolvedVariable['mediaType'] };
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Resolves a mediaUrl that may contain a {{VARIABLE}} reference.
+     * Returns the resolved URL or null if variable not found.
+     */
+    static interpolateMediaUrl(
+        mediaUrl: string | null | undefined,
+        resolvedVars: Record<string, ResolvedVariable>
+    ): string | null {
+        if (!mediaUrl) return null;
+        const match = mediaUrl.trim().match(/^\{\{(\w+)\}\}$/);
+        if (!match) return mediaUrl; // Literal URL, no change
+        const varDef = resolvedVars[match[1]];
+        return varDef?.value || null;
     }
 
     /**

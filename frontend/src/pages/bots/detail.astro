@@ -396,8 +396,15 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                                     <div class="flex items-center gap-2 mb-2">
                                         <span class="text-xs font-mono text-purple-400" x-text="def.name"></span>
                                         <span class="text-[9px] px-1.5 py-0.5 rounded"
-                                            :class="def.type === 'label' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'"
-                                            x-text="def.type === 'label' ? 'Etiqueta' : 'Texto'"></span>
+                                            :class="{
+                                                'bg-purple-500/10 text-purple-400': def.type === 'label',
+                                                'bg-blue-500/10 text-blue-400': def.type === 'text',
+                                                'bg-sky-500/10 text-sky-400': def.type === 'image',
+                                                'bg-orange-500/10 text-orange-400': def.type === 'video',
+                                                'bg-teal-500/10 text-teal-400': def.type === 'audio',
+                                                'bg-yellow-500/10 text-yellow-400': def.type === 'document',
+                                            }"
+                                            x-text="({label:'Etiqueta',text:'Texto',image:'Imagen',video:'Video',audio:'Audio',document:'Documento'})[def.type] || def.type"></span>
                                     </div>
                                     <!-- Text type: textarea for multiline support -->
                                     <template x-if="def.type === 'text'">
@@ -426,6 +433,26 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                                             <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No hay etiquetas sincronizadas</span>
                                         </div>
                                     </template>
+                                    <!-- Media types: URL input + Pick button + preview -->
+                                    <template x-if="['image','video','audio','document'].includes(def.type)">
+                                        <div class="space-y-2">
+                                            <div class="flex gap-2">
+                                                <input type="text"
+                                                    :value="getVarValue(def.name)"
+                                                    @input="setVarValue(def.name, $event.target.value)"
+                                                    placeholder="https://..."
+                                                    class="flex-1 bg-wa-bg-deep/50 border border-wa-border rounded-lg p-2.5 text-sm font-mono focus:border-wa-green focus:outline-none text-white" />
+                                                <button type="button"
+                                                    @click="window.dispatchEvent(new CustomEvent('open-media-picker', { detail: { callback: (url) => setVarValue(def.name, url) } }))"
+                                                    class="px-3 py-2 bg-wa-bg-hover border border-wa-border rounded-lg text-xs text-wa-text-secondary hover:border-wa-green hover:text-wa-green transition-colors shrink-0">
+                                                    Pick
+                                                </button>
+                                            </div>
+                                            <template x-if="def.type === 'image' && getVarValue(def.name)">
+                                                <img :src="getVarValue(def.name)" alt="" class="h-20 object-cover rounded-lg opacity-70 border border-wa-border" />
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
@@ -438,20 +465,49 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         <p class="text-[10px] text-wa-text-secondary mb-4" x-text="$t('bot_variables_desc')"></p>
                         <div class="space-y-3 mb-4">
                             <template x-for="(variable, index) in variablesList" :key="index">
-                                <div class="flex gap-2">
-                                    <input type="text" x-model="variable.key" :placeholder="$t('variable_key')" class="w-40 shrink-0 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono self-start" />
-                                    <span class="text-wa-text-secondary self-start mt-2.5">=</span>
-                                    <textarea x-model="variable.value" :placeholder="$t('variable_value')" rows="3" class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-y min-h-[2.5rem]"></textarea>
-                                    <button @click="variablesList.splice(index, 1)" class="p-2 text-red-400 hover:text-red-300 transition-colors self-start">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                    </button>
+                                <div class="space-y-2 bg-wa-bg-hover/30 p-3 rounded-lg border border-wa-border">
+                                    <div class="flex gap-2 items-start">
+                                        <input type="text" x-model="variable.key" :placeholder="$t('variable_key')" class="w-36 shrink-0 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white font-mono" />
+                                        <select x-model="variable.type"
+                                            class="w-28 shrink-0 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                                            <option value="text">Texto</option>
+                                            <option value="image">Imagen</option>
+                                            <option value="video">Video</option>
+                                            <option value="audio">Audio</option>
+                                            <option value="document">Documento</option>
+                                        </select>
+                                        <button @click="variablesList.splice(index, 1)" class="p-2 text-red-400 hover:text-red-300 transition-colors shrink-0">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                    </div>
+                                    <!-- Text type: textarea -->
+                                    <template x-if="!variable.type || variable.type === 'text'">
+                                        <textarea x-model="variable.value" :placeholder="$t('variable_value')" rows="3" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-y min-h-[2.5rem]"></textarea>
+                                    </template>
+                                    <!-- Media types: URL input + Pick -->
+                                    <template x-if="variable.type && variable.type !== 'text'">
+                                        <div class="space-y-2">
+                                            <div class="flex gap-2">
+                                                <input type="text" x-model="variable.value" placeholder="https://..."
+                                                    class="flex-1 bg-wa-bg-hover border border-wa-border rounded-lg p-2.5 text-sm font-mono focus:border-wa-green focus:outline-none text-white" />
+                                                <button type="button"
+                                                    @click="window.dispatchEvent(new CustomEvent('open-media-picker', { detail: { callback: (url) => { variable.value = url } } }))"
+                                                    class="px-3 py-2 bg-wa-bg-hover border border-wa-border rounded-lg text-xs text-wa-text-secondary hover:border-wa-green hover:text-wa-green transition-colors shrink-0">
+                                                    Pick
+                                                </button>
+                                            </div>
+                                            <template x-if="variable.type === 'image' && variable.value">
+                                                <img :src="variable.value" alt="" class="h-20 object-cover rounded-lg opacity-70 border border-wa-border" />
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
                         <div x-show="variablesList.length === 0" class="p-6 border border-dashed border-wa-border rounded-lg text-center text-wa-text-secondary text-xs mb-4">
                             <span x-text="$t('no_variables')">No variables defined</span>
                         </div>
-                        <button @click="variablesList.push({ key: '', value: '' })" class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors mr-3">
+                        <button @click="variablesList.push({ key: '', value: '', type: 'text' })" class="px-4 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors mr-3">
                             + <span x-text="$t('add_variable')">Add Variable</span>
                         </button>
                     </div>
@@ -1769,7 +1825,7 @@ import ClientModal from "../../components/clients/ClientModal.astro";
             },
 
             // Variables & Template State
-            variablesList: [] as { key: string; value: string }[],
+            variablesList: [] as { key: string; value: string; type: string }[],
             templateVarDefs: [] as { name: string; type: string }[],
             savingVariables: false,
             variablesSaved: false,
@@ -1877,11 +1933,12 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                         }
                     }
 
-                    // Initialize bot variables from bot data
+                    // Initialize bot variables from bot data (supports both plain string and structured media format)
                     const rawVars = this.bot.botVariables || {};
-                    this.variablesList = Object.entries(rawVars).map(([key, value]) => ({
+                    this.variablesList = Object.entries(rawVars).map(([key, value]: [string, any]) => ({
                         key,
-                        value: String(value),
+                        value: typeof value === 'string' ? value : value?.value ?? '',
+                        type: typeof value === 'object' && value?.type === 'media' ? (value.mediaType || 'text') : 'text',
                     }));
 
                     // Load available templates for selector
@@ -2420,7 +2477,10 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 if (found) {
                     found.value = value;
                 } else {
-                    this.variablesList.push({ key: name, value });
+                    // Infer type from template variable definition if available
+                    const def = this.templateVarDefs.find((d: any) => d.name === name);
+                    const type = def && ['image','video','audio','document'].includes(def.type) ? def.type : 'text';
+                    this.variablesList.push({ key: name, value, type });
                 }
             },
 
@@ -2433,10 +2493,14 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 this.savingVariables = true;
                 this.variablesSaved = false;
                 try {
-                    const vars: Record<string, string> = {};
+                    const vars: Record<string, any> = {};
                     for (const v of this.variablesList) {
                         if (v.key.trim()) {
-                            vars[v.key.trim()] = v.value;
+                            if (v.type && v.type !== 'text') {
+                                vars[v.key.trim()] = { type: 'media', value: v.value, mediaType: v.type };
+                            } else {
+                                vars[v.key.trim()] = v.value;
+                            }
                         }
                     }
                     const updated = await ApiClient.put(`/bots/${this.botId}`, {
