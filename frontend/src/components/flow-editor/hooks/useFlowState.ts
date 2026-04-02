@@ -7,6 +7,12 @@ interface Bot {
     id: string | null;
     platform?: string;
     identifier?: string;
+    botVariables?: Record<string, any>;
+}
+
+export interface VarDef {
+    name: string;
+    type: string; // 'text' | 'label' | 'image' | 'video' | 'audio' | 'document'
 }
 
 interface AvailableFlow {
@@ -32,6 +38,7 @@ interface FlowState {
     availableFlows: AvailableFlow[];
     botLabels: Label[];
     templateVarDefs: { name: string; type: string }[];
+    varDefs: VarDef[];
     setFlow: (flow: Flow) => void;
     updateStep: (index: number, step: Step) => void;
     addStep: (type: string) => void;
@@ -39,6 +46,15 @@ interface FlowState {
     moveStep: (fromIndex: number, toIndex: number) => void;
     updateTriggers: (triggers: Trigger[]) => void;
     save: () => Promise<void>;
+}
+
+/** Extract variable definitions from bot.botVariables (supports old string and new structured format) */
+function extractBotVarDefs(botVars: Record<string, any> | undefined): VarDef[] {
+    if (!botVars) return [];
+    return Object.entries(botVars).map(([name, val]) => ({
+        name,
+        type: typeof val === 'object' && val?.type === 'media' ? (val.mediaType || 'text') : 'text',
+    }));
 }
 
 export function useFlowState(): FlowState {
@@ -220,9 +236,14 @@ export function useFlowState(): FlowState {
         }
     }, [flow, flowId, botId, templateId]);
 
+    // Combine variable definitions: template defs take priority, fallback to bot vars
+    const varDefs: VarDef[] = templateVarDefs.length > 0
+        ? templateVarDefs.map(v => ({ name: v.name || (v as any).key, type: v.type || 'text' }))
+        : extractBotVarDefs(bot.botVariables);
+
     return {
         flow, bot, ready, saving, flowId, botId, templateId,
-        availableTools, availableFlows, botLabels, templateVarDefs,
+        availableTools, availableFlows, botLabels, templateVarDefs, varDefs,
         setFlow, updateStep, addStep, removeStep, moveStep, updateTriggers, save,
     };
 }

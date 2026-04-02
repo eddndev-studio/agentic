@@ -1,5 +1,11 @@
 import React from 'react';
 import type { Step } from '../lib/types';
+import { useFlowEditor } from '../FlowEditorProvider';
+
+const MEDIA_TYPES = ['image', 'video', 'audio', 'document'];
+const mediaTypeColors: Record<string, string> = {
+    image: '#53bdeb', video: '#ff9a00', audio: '#5bc5d1', document: '#e8b830',
+};
 
 interface Props {
     step: Step;
@@ -7,6 +13,8 @@ interface Props {
 }
 
 export function TimeStepForm({ step, onChange }: Props) {
+    const { varDefs } = useFlowEditor();
+    const mediaVars = varDefs.filter(v => MEDIA_TYPES.includes(v.type));
     const metadata = step.metadata || { branches: [], fallback: { type: 'TEXT', content: '' } };
     const branches = metadata.branches || [];
     const fallback = metadata.fallback || { type: 'TEXT', content: '' };
@@ -60,8 +68,26 @@ export function TimeStepForm({ step, onChange }: Props) {
                     <textarea value={branch.content || ''} onChange={e => updateBranch(i, { content: e.target.value })}
                         rows={2} style={textareaStyle} placeholder="Branch content..." />
                     {branch.type !== 'TEXT' && (
-                        <input type="text" value={branch.mediaUrl || ''} onChange={e => updateBranch(i, { mediaUrl: e.target.value })}
-                            style={{ ...inputStyle, marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
+                        <div>
+                            <input type="text" value={branch.mediaUrl || ''} onChange={e => updateBranch(i, { mediaUrl: e.target.value })}
+                                style={{ ...inputStyle, marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
+                            {mediaVars.length > 0 && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
+                                    {mediaVars.map((v: any) => (
+                                        <button key={v.name} type="button"
+                                            onClick={() => updateBranch(i, { mediaUrl: `{{${v.name}}}` })}
+                                            style={{
+                                                padding: '1px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer',
+                                                fontFamily: 'ui-monospace, monospace', border: 'none',
+                                                background: (mediaTypeColors[v.type] || '#7f66ff') + '20',
+                                                color: mediaTypeColors[v.type] || '#a78bfa',
+                                            }}>
+                                            {'{{' + v.name + '}}'}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
             ))}
@@ -86,8 +112,26 @@ export function TimeStepForm({ step, onChange }: Props) {
                 <textarea value={fallback.content || ''} onChange={e => setMeta({ fallback: { ...fallback, content: e.target.value } })}
                     rows={2} style={textareaStyle} placeholder="Fallback content..." />
                 {fallback.type && fallback.type !== 'TEXT' && (
-                    <input type="text" value={fallback.mediaUrl || ''} onChange={e => setMeta({ fallback: { ...fallback, mediaUrl: e.target.value } })}
-                        style={{ ...inputStyle, marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
+                    <div>
+                        <input type="text" value={fallback.mediaUrl || ''} onChange={e => setMeta({ fallback: { ...fallback, mediaUrl: e.target.value } })}
+                            style={{ ...inputStyle, marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
+                        {mediaVars.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
+                                {mediaVars.map((v: any) => (
+                                    <button key={v.name} type="button"
+                                        onClick={() => setMeta({ fallback: { ...fallback, mediaUrl: `{{${v.name}}}` } })}
+                                        style={{
+                                            padding: '1px 6px', borderRadius: 3, fontSize: 8, cursor: 'pointer',
+                                            fontFamily: 'ui-monospace, monospace', border: 'none',
+                                            background: (mediaTypeColors[v.type] || '#7f66ff') + '20',
+                                            color: mediaTypeColors[v.type] || '#a78bfa',
+                                        }}>
+                                        {'{{' + v.name + '}}'}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
         </div>

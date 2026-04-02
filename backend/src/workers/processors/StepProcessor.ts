@@ -119,7 +119,16 @@ export class StepProcessor {
                     }
                     break;
                 }
-                
+                case 'DOCUMENT': {
+                    const docUrl = resolveMedia(step.mediaUrl);
+                    if (docUrl) {
+                        await sendMessage(botId, target, { document: { url: docUrl }, caption: interpolate(step.content || "") });
+                    } else {
+                        log.warn(`DOCUMENT step ${step.id} has no mediaUrl after interpolation, skipping`);
+                    }
+                    break;
+                }
+
                 case 'CONDITIONAL_TIME':
                     await this.executeConditionalTime(botId, target, step, botVars, resolvedVars);
                     break;

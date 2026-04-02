@@ -209,6 +209,11 @@ export class ToolExecutor {
                         audio: { url: mediaUrl },
                         ptt: step.type === "PTT",
                     });
+                } else if (step.type === "DOCUMENT" && mediaUrl) {
+                    await BaileysService.sendMessage(botId, session.identifier, {
+                        document: { url: mediaUrl },
+                        caption: content || undefined,
+                    });
                 }
                 sentCount++;
                 await prisma.execution.update({

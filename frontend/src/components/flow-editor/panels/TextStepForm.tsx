@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import type { Step } from '../lib/types';
+import { useFlowEditor } from '../FlowEditorProvider';
 
 const URL_RE = /https?:\/\/[^\s]+/i;
 
@@ -9,6 +10,27 @@ interface Props {
 }
 
 export function TextStepForm({ step, onChange }: Props) {
+    const { varDefs } = useFlowEditor();
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const insertVariable = (varName: string) => {
+        const el = textareaRef.current;
+        const tag = `{{${varName}}}`;
+        if (el) {
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            const text = step.content || '';
+            const newText = text.substring(0, start) + tag + text.substring(end);
+            onChange({ content: newText });
+            // Restore cursor after the inserted variable
+            requestAnimationFrame(() => {
+                el.selectionStart = el.selectionEnd = start + tag.length;
+                el.focus();
+            });
+        } else {
+            onChange({ content: (step.content || '') + tag });
+        }
+    };
     const hasLink = useMemo(() => URL_RE.test(step.content || ''), [step.content]);
     const linkPreview = step.metadata?.linkPreview !== false; // default true
 
@@ -21,6 +43,7 @@ export function TextStepForm({ step, onChange }: Props) {
             <label>
                 <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Message content</span>
                 <textarea
+                    ref={textareaRef}
                     value={step.content || ''}
                     onChange={e => onChange({ content: e.target.value })}
                     rows={6}
@@ -32,6 +55,30 @@ export function TextStepForm({ step, onChange }: Props) {
                     placeholder="Enter message content..."
                 />
             </label>
+
+            {varDefs.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+                    <span style={{ color: '#8696a0', fontSize: 9 }}>Insertar variable:</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {varDefs.map(v => (
+                            <button
+                                key={v.name}
+                                type="button"
+                                onClick={() => insertVariable(v.name)}
+                                style={{
+                                    padding: '2px 8px', borderRadius: 4, fontSize: 9, cursor: 'pointer',
+                                    fontFamily: 'ui-monospace, monospace', border: 'none',
+                                    background: v.type === 'text' ? '#7f66ff20' : '#53bdeb20',
+                                    color: v.type === 'text' ? '#a78bfa' : '#53bdeb',
+                                }}
+                                title={`{{${v.name}}} (${v.type})`}
+                            >
+                                {v.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {hasLink && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, cursor: 'pointer' }}>

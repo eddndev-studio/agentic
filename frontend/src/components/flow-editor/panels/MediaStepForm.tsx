@@ -1,5 +1,7 @@
 import React from 'react';
 import type { Step } from '../lib/types';
+import { useFlowEditor } from '../FlowEditorProvider';
+import type { VarDef } from '../hooks/useFlowState';
 
 interface Props {
     step: Step;
@@ -9,7 +11,18 @@ interface Props {
 const isVariableRef = (value: string | undefined | null): boolean =>
     !!value && /^\{\{\w+\}\}$/.test(value.trim());
 
+const MEDIA_TYPES = ['image', 'video', 'audio', 'document'];
+
+const mediaTypeColors: Record<string, string> = {
+    image: '#53bdeb',
+    video: '#ff9a00',
+    audio: '#5bc5d1',
+    document: '#e8b830',
+};
+
 export function MediaStepForm({ step, onChange }: Props) {
+    const { varDefs } = useFlowEditor();
+    const mediaVars = varDefs.filter(v => MEDIA_TYPES.includes(v.type));
     const openMediaPicker = () => {
         window.dispatchEvent(new CustomEvent('open-media-picker', {
             detail: {
@@ -53,6 +66,38 @@ export function MediaStepForm({ step, onChange }: Props) {
                     </span>
                 )}
             </label>
+
+            {/* Available media variables */}
+            {mediaVars.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ color: '#8696a0', fontSize: 9 }}>Variables multimedia disponibles:</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {mediaVars.map(v => (
+                            <button
+                                key={v.name}
+                                type="button"
+                                onClick={() => onChange({ mediaUrl: `{{${v.name}}}` })}
+                                style={{
+                                    padding: '2px 8px', borderRadius: 4, fontSize: 9, cursor: 'pointer',
+                                    fontFamily: 'ui-monospace, monospace', border: 'none',
+                                    background: (mediaTypeColors[v.type] || '#7f66ff') + '20',
+                                    color: mediaTypeColors[v.type] || '#a78bfa',
+                                }}
+                                title={`Insertar {{${v.name}}} (${v.type})`}
+                            >
+                                {'{{' + v.name + '}}'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Hint when no variables and no URL set */}
+            {mediaVars.length === 0 && !step.mediaUrl && (
+                <span style={{ color: '#8696a040', fontSize: 9, fontStyle: 'italic' }}>
+                    Usa {'{{VARIABLE}}'} para referenciar una variable multimedia del bot
+                </span>
+            )}
 
             {step.type === 'IMAGE' && step.mediaUrl && !mediaUrlIsVariable && (
                 <img src={step.mediaUrl} alt="" style={{
