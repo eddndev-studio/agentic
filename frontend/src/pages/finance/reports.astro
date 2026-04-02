@@ -1,0 +1,184 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FinanceNav from "../../components/FinanceNav.astro";
+---
+
+<Layout title="Finance - Reportes">
+    <FinanceNav currentPath="/finance/reports" />
+    <main class="space-y-6" x-data="financeReports">
+
+        <!-- Loading -->
+        <div x-show="loading" class="flex items-center justify-center py-24">
+            <div class="animate-spin w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full"></div>
+        </div>
+
+        <div x-show="!loading" style="display:none;">
+
+            <!-- Header -->
+            <div class="flex flex-wrap items-center gap-4 mb-6">
+                <h2 class="text-lg font-bold" x-text="$t('fin_reports_title')">Reportes</h2>
+                <select
+                    x-model="selectedPeriodId"
+                    @change="loadReports()"
+                    class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green"
+                >
+                    <option value="">-- Periodo --</option>
+                    <template x-for="p in periods" :key="p.id">
+                        <option :value="p.id" x-text="p.type + ': ' + p.startDate?.split('T')[0] + ' → ' + p.endDate?.split('T')[0]"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- No period -->
+            <div x-show="!selectedPeriodId" class="text-center py-16 text-wa-text-secondary text-sm" style="display:none;">
+                <p x-text="$t('fin_select_period')">Selecciona un periodo para ver reportes</p>
+            </div>
+
+            <!-- Loading reports -->
+            <div x-show="loadingReports" class="flex items-center gap-3 text-wa-text-secondary text-sm py-12 justify-center" style="display:none;">
+                <div class="animate-spin w-5 h-5 border-2 border-wa-green border-t-transparent rounded-full"></div>
+            </div>
+
+            <div x-show="selectedPeriodId && !loadingReports && summary" style="display:none;">
+
+                <!-- P&L Summary -->
+                <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5 mb-6">
+                    <h3 class="text-sm font-medium text-wa-text-secondary mb-4" x-text="$t('fin_pl_summary')">Resumen P&L</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <div class="text-xs text-wa-text-secondary mb-1">Ingresos</div>
+                            <div class="text-lg font-medium text-emerald-400" x-text="fmt(summary.totalIncome)"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-wa-text-secondary mb-1">Costos Totales</div>
+                            <div class="text-lg font-medium text-red-400" x-text="fmt(summary.totalCosts)"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-wa-text-secondary mb-1">Gastos Fijos</div>
+                            <div class="text-lg font-medium text-orange-400" x-text="fmt(summary.totalExpenses)"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-wa-text-secondary mb-1">Ganancia Neta</div>
+                            <div
+                                class="text-lg font-bold"
+                                :class="summary.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                                x-text="fmt(summary.netProfit)"
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Per-worker table -->
+                <div x-show="workerReports.length > 0" class="border border-wa-border rounded-xl overflow-hidden" style="display:none;">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                    <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_worker')">Trabajador</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_income')">Ingreso</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_ad_spend')">Gasto Ads</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_salary')">Salario</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_debt_carry')">Deuda</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_total_cost')">Costo Total</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_balance')">Balance</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_licenses')">Licencias</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_bonus')">Bono</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="r in workerReports" :key="r.workerId">
+                                    <tr
+                                        class="border-t border-wa-border transition-colors"
+                                        :class="r.balance >= 0 ? 'hover:bg-emerald-500/5' : 'hover:bg-red-500/5'"
+                                    >
+                                        <td class="px-4 py-3 font-medium text-white" x-text="r.workerName"></td>
+                                        <td class="px-4 py-3 text-right text-emerald-400" x-text="fmt(r.income)"></td>
+                                        <td class="px-4 py-3 text-right text-purple-400" x-text="fmt(r.adSpend)"></td>
+                                        <td class="px-4 py-3 text-right text-blue-400" x-text="fmt(r.salary)"></td>
+                                        <td class="px-4 py-3 text-right"
+                                            :class="r.debtCarry > 0 ? 'text-red-400' : 'text-wa-text-secondary'"
+                                            x-text="fmt(r.debtCarry)"
+                                        ></td>
+                                        <td class="px-4 py-3 text-right text-wa-text-secondary" x-text="fmt(r.totalCost)"></td>
+                                        <td class="px-4 py-3 text-right font-bold"
+                                            :class="r.balance >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                                            x-text="fmt(r.balance)"
+                                        ></td>
+                                        <td class="px-4 py-3 text-right text-wa-text-secondary" x-text="r.licenses ?? '—'"></td>
+                                        <td class="px-4 py-3 text-right"
+                                            :class="r.bonus > 0 ? 'text-yellow-400' : 'text-wa-text-secondary'"
+                                            x-text="fmt(r.bonus)"
+                                        ></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Empty workers -->
+                <div x-show="workerReports.length === 0" class="text-center py-12 text-wa-text-secondary text-sm" style="display:none;">
+                    <p x-text="$t('fin_no_worker_data')">No hay datos de trabajadores para este periodo</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</Layout>
+
+<script>
+    document.addEventListener("alpine:init", () => {
+        const Alpine = (window as any).Alpine;
+        const ApiClient = (window as any).ApiClient;
+
+        Alpine.data("financeReports", () => ({
+            loading: true,
+            loadingReports: false,
+            periods: [] as any[],
+            selectedPeriodId: "",
+            summary: null as any,
+            workerReports: [] as any[],
+
+            fmt(n: number): string {
+                if (n == null) return "$0.00";
+                return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+
+            async init() {
+                try {
+                    this.periods = await ApiClient.get("/finance/periods");
+                    const open = this.periods.find((p: any) => p.status === "OPEN");
+                    if (open) {
+                        this.selectedPeriodId = open.id;
+                        await this.loadReports();
+                    }
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async loadReports() {
+                if (!this.selectedPeriodId) {
+                    this.summary = null;
+                    this.workerReports = [];
+                    return;
+                }
+                this.loadingReports = true;
+                try {
+                    const [summary, workers] = await Promise.all([
+                        ApiClient.get(`/finance/dashboard/reports/summary?periodId=${this.selectedPeriodId}`),
+                        ApiClient.get(`/finance/dashboard/reports/workers?periodId=${this.selectedPeriodId}`),
+                    ]);
+                    this.summary = summary;
+                    this.workerReports = workers;
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loadingReports = false;
+                }
+            },
+        }));
+    });
+</script>

@@ -24,14 +24,16 @@ import { queueService } from "./services/queue.service";
 
 let isShuttingDown = false;
 let automationTimer: ReturnType<typeof setInterval> | null = null;
+let fbSyncTimer: ReturnType<typeof setInterval> | null = null;
 
 async function gracefulShutdown(signal: string) {
     if (isShuttingDown) return;
     isShuttingDown = true;
     console.log(`[Shutdown] Received ${signal}, starting graceful shutdown...`);
 
-    // 1. Stop automation timer
+    // 1. Stop timers
     if (automationTimer) clearInterval(automationTimer);
+    if (fbSyncTimer) clearInterval(fbSyncTimer);
 
     // 2. Stop accepting new WhatsApp messages + cancel reconnect timers
     try {
@@ -135,6 +137,19 @@ automationTimer = setInterval(() => {
 
 console.log(`[Init] Automation check scheduled (every ${config.server.automationInterval / 60000} min)`);
 
+// --- Facebook Ads Sync ---
+if (config.facebook.appId && config.facebook.appSecret) {
+    const { FacebookService } = require("./services/facebook.service");
+    fbSyncTimer = setInterval(() => {
+        if (isShuttingDown) return;
+        console.log("[FbSync] Running scheduled Facebook Ads sync...");
+        FacebookService.syncAll().catch((err: Error) => {
+            console.error("[FbSync] Error in scheduled sync:", err.message);
+        });
+    }, config.facebook.syncIntervalMs);
+    console.log(`[Init] Facebook Ads sync scheduled (every ${config.facebook.syncIntervalMs / 3600000}h)`);
+}
+
 // --- API ---
 import { webhookController } from "./api/webhook.controller";
 import { uploadController } from "./api/upload.controller";
@@ -152,6 +167,7 @@ import { templateController } from "./api/template.controller";
 import { logsController } from "./api/logs.controller";
 import { emulatorController } from "./api/emulator.controller";
 import { publicController } from "./api/public.controller";
+import { financeController } from "./api/finance.controller";
 const ALLOWED_ORIGINS = new Set(config.server.corsOrigins);
 
 const app = new Elysia({ adapter: node() })
@@ -253,6 +269,7 @@ const app = new Elysia({ adapter: node() })
     .use(templateController)
     .use(logsController)
     .use(emulatorController)
+    .use(financeController)
     .get("/", () => "Agentic Orchestrator Active")
     .get("/health", () => ({ status: "ok", timestamp: new Date().toISOString() }))
     .get("/info", () => ({

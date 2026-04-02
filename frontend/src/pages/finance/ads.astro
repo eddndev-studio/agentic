@@ -1,0 +1,616 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FinanceNav from "../../components/FinanceNav.astro";
+---
+
+<Layout title="Finance - Ads">
+    <FinanceNav currentPath="/finance/ads" />
+    <main class="space-y-6" x-data="financeAds">
+
+        <!-- Loading -->
+        <div x-show="loading" class="flex items-center justify-center py-24">
+            <div class="animate-spin w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full"></div>
+        </div>
+
+        <div x-show="!loading" style="display:none;">
+
+            <!-- ========================================================== -->
+            <!-- SECTION 1: Facebook Connection                             -->
+            <!-- ========================================================== -->
+            <section class="bg-wa-bg-panel border border-wa-border rounded-xl p-5">
+                <h3 class="text-sm font-bold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    <span x-text="$t('fin_fb_connection')">Conexion Facebook</span>
+                </h3>
+
+                <!-- SDK loading -->
+                <div x-show="!fbReady && !connection" class="flex items-center gap-3 text-wa-text-secondary text-sm py-4">
+                    <div class="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    <span>Cargando SDK de Facebook...</span>
+                </div>
+
+                <!-- Not connected -->
+                <div x-show="fbReady && !connection" class="flex flex-col sm:flex-row items-center gap-4" style="display:none;">
+                    <p class="text-sm text-wa-text-secondary" x-text="$t('fin_fb_not_connected')">No conectado. Inicia sesion con Facebook para sincronizar gastos de ads.</p>
+                    <button
+                        @click="fbLogin()"
+                        class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shrink-0"
+                    >
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        <span x-text="$t('fin_fb_login')">Conectar Facebook</span>
+                    </button>
+                </div>
+
+                <!-- Connected -->
+                <div x-show="connection" class="space-y-3" style="display:none;">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                                <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="text-sm font-medium text-white" x-text="connection?.fbUserName"></span>
+                                <div class="text-[10px] text-wa-text-secondary" x-text="'Token expira: ' + (connection?.tokenExpiresAt ? new Date(connection.tokenExpiresAt).toLocaleDateString() : '—')"></div>
+                            </div>
+                        </div>
+
+                        <!-- Sync status badge -->
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                            :class="connection?.syncStatus === 'SYNCED' ? 'bg-emerald-500/10 text-emerald-400' : connection?.syncStatus === 'SYNCING' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-wa-bg-hover text-wa-text-secondary'"
+                            x-text="connection?.syncStatus || 'PENDING'"
+                        ></span>
+
+                        <span class="text-xs text-wa-text-secondary" x-show="connection?.lastSyncAt" x-text="'Ultimo sync: ' + (connection?.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString() : '')"></span>
+
+                        <div class="flex items-center gap-2 ml-auto">
+                            <button
+                                @click="syncFacebook()"
+                                class="px-3 py-1.5 bg-wa-green hover:bg-wa-green-hover text-white text-xs rounded-lg transition-colors flex items-center gap-1.5"
+                                :disabled="syncing"
+                            >
+                                <svg class="w-3.5 h-3.5" :class="syncing && 'animate-spin'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <span x-text="syncing ? 'Sincronizando...' : $t('fin_fb_sync')">Sincronizar</span>
+                            </button>
+                            <button
+                                @click="disconnectFacebook()"
+                                class="px-3 py-1.5 border border-red-500/30 text-red-400 text-xs rounded-lg hover:bg-red-500/10 transition-colors"
+                                x-text="$t('fin_fb_disconnect')"
+                            >Desconectar</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================== -->
+            <!-- SECTION 2: Ad Account Assignment                           -->
+            <!-- ========================================================== -->
+            <section class="bg-wa-bg-panel border border-wa-border rounded-xl p-5" x-show="connection" style="display:none;">
+                <h3 class="text-sm font-bold mb-4" x-text="$t('fin_ad_accounts')">Cuentas de Anuncios</h3>
+
+                <!-- Loading ad accounts -->
+                <div x-show="loadingAdAccounts" class="flex items-center gap-3 text-wa-text-secondary text-sm py-4" style="display:none;">
+                    <div class="animate-spin w-5 h-5 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                </div>
+
+                <!-- Empty -->
+                <div x-show="!loadingAdAccounts && adAccounts.length === 0" class="text-center py-8 text-wa-text-secondary text-sm" style="display:none;">
+                    <p x-text="$t('fin_no_ad_accounts')">No se encontraron cuentas de anuncios. Sincroniza primero.</p>
+                </div>
+
+                <!-- Ad accounts table -->
+                <div x-show="!loadingAdAccounts && adAccounts.length > 0" class="border border-wa-border rounded-xl overflow-hidden" style="display:none;">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                    <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_account_name')">Nombre Cuenta</th>
+                                    <th class="text-left px-4 py-3 font-medium">FB Account ID</th>
+                                    <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_assigned_worker')">Trabajador Asignado</th>
+                                    <th class="px-4 py-3 font-medium w-32"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="acc in adAccounts" :key="acc.id">
+                                    <tr class="border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors">
+                                        <td class="px-4 py-3 font-medium text-white" x-text="acc.name"></td>
+                                        <td class="px-4 py-3 text-xs text-wa-text-secondary font-mono" x-text="acc.fbAccountId"></td>
+                                        <td class="px-4 py-3">
+                                            <select
+                                                :value="acc.workerId || ''"
+                                                @change="assignWorker(acc.id, $event.target.value)"
+                                                class="bg-wa-bg-deep border border-wa-border rounded-lg px-2 py-1.5 text-xs focus:border-wa-green focus:outline-none text-white w-full max-w-[180px]"
+                                            >
+                                                <option value="">— Sin asignar —</option>
+                                                <template x-for="w in activeWorkers" :key="w.id">
+                                                    <option :value="w.id" x-text="w.name" :selected="w.id === acc.workerId"></option>
+                                                </template>
+                                            </select>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <button
+                                                x-show="acc.workerId"
+                                                @click="unassignWorker(acc.id)"
+                                                class="px-2 py-1 text-[10px] border border-red-500/30 text-red-400 rounded hover:bg-red-500/10 transition-colors"
+                                            >Desasignar</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================== -->
+            <!-- SECTION 3: Campaign Browser                                -->
+            <!-- ========================================================== -->
+            <section class="bg-wa-bg-panel border border-wa-border rounded-xl p-5" x-show="connection" style="display:none;">
+                <h3 class="text-sm font-bold mb-4" x-text="$t('fin_campaign_browser')">Explorador de Campanas</h3>
+
+                <!-- Controls -->
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <!-- Ad account selector -->
+                    <select
+                        x-model="selectedAdAccountId"
+                        @change="loadCampaigns()"
+                        class="bg-wa-bg-deep border border-wa-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green"
+                    >
+                        <option value="">-- Cuenta --</option>
+                        <template x-for="acc in adAccounts" :key="acc.id">
+                            <option :value="acc.id" x-text="acc.name"></option>
+                        </template>
+                    </select>
+
+                    <!-- Date range presets -->
+                    <div class="flex bg-wa-bg-deep border border-wa-border rounded-lg overflow-hidden">
+                        <button
+                            @click="setDatePreset('last_7d')"
+                            class="px-3 py-2 text-xs transition-colors"
+                            :class="datePreset === 'last_7d' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
+                        >7d</button>
+                        <button
+                            @click="setDatePreset('last_30d')"
+                            class="px-3 py-2 text-xs transition-colors"
+                            :class="datePreset === 'last_30d' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
+                        >30d</button>
+                        <button
+                            @click="datePreset = 'custom'; showCustomRange = true"
+                            class="px-3 py-2 text-xs transition-colors"
+                            :class="datePreset === 'custom' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
+                            x-text="$t('fin_custom')"
+                        >Custom</button>
+                    </div>
+
+                    <!-- Custom range -->
+                    <div x-show="showCustomRange" class="flex items-center gap-2" style="display:none;">
+                        <input type="date" x-model="customFrom" class="bg-wa-bg-deep border border-wa-border rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-wa-green" />
+                        <span class="text-wa-text-secondary text-xs">-</span>
+                        <input type="date" x-model="customTo" class="bg-wa-bg-deep border border-wa-border rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-wa-green" />
+                        <button @click="loadCampaigns()" class="px-3 py-1.5 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover transition-colors">OK</button>
+                    </div>
+                </div>
+
+                <!-- Worker Spend Summary -->
+                <div x-show="workerSpend.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" style="display:none;">
+                    <template x-for="ws in workerSpend" :key="ws.workerName">
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3">
+                            <div class="text-xs text-wa-text-secondary mb-1" x-text="ws.workerName"></div>
+                            <div class="text-sm font-medium text-purple-400" x-text="'$' + Number(ws.spend).toFixed(2)"></div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Loading campaigns -->
+                <div x-show="loadingCampaigns" class="flex items-center gap-3 text-wa-text-secondary text-sm py-8 justify-center" style="display:none;">
+                    <div class="animate-spin w-5 h-5 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                </div>
+
+                <!-- No selection -->
+                <div x-show="!selectedAdAccountId && !loadingCampaigns" class="text-center py-8 text-wa-text-secondary text-sm" style="display:none;">
+                    <p>Selecciona una cuenta de anuncios</p>
+                </div>
+
+                <!-- Empty campaigns -->
+                <div x-show="selectedAdAccountId && !loadingCampaigns && campaigns.length === 0" class="text-center py-8 text-wa-text-secondary text-sm" style="display:none;">
+                    <p x-text="$t('fin_no_campaigns')">No se encontraron campanas</p>
+                </div>
+
+                <!-- Campaigns table with expandable rows -->
+                <div x-show="!loadingCampaigns && campaigns.length > 0" class="border border-wa-border rounded-xl overflow-hidden" style="display:none;">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                    <th class="px-4 py-3 w-8"></th>
+                                    <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_campaign_name')">Campana</th>
+                                    <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_status')">Estado</th>
+                                    <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_spend')">Gasto</th>
+                                    <th class="text-right px-4 py-3 font-medium">Impressions</th>
+                                    <th class="text-right px-4 py-3 font-medium">Clicks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="c in campaigns" :key="c.id">
+                                    <tr>
+                                        <!-- Campaign row -->
+                                        <td colspan="6" class="p-0">
+                                            <div
+                                                class="flex items-center border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors cursor-pointer"
+                                                @click="toggleCampaign(c)"
+                                            >
+                                                <div class="px-4 py-3 w-8 shrink-0">
+                                                    <svg
+                                                        class="w-4 h-4 text-wa-text-secondary transition-transform"
+                                                        :class="expandedCampaigns[c.id] && 'rotate-90'"
+                                                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                    >
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </div>
+                                                <div class="flex-1 px-4 py-3 font-medium text-white" x-text="c.name"></div>
+                                                <div class="px-4 py-3">
+                                                    <span
+                                                        class="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                                        :class="c.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-wa-bg-hover text-wa-text-secondary'"
+                                                        x-text="c.status"
+                                                    ></span>
+                                                </div>
+                                                <div class="px-4 py-3 text-right text-white font-medium w-28" x-text="'$' + Number(c.spend || 0).toFixed(2)"></div>
+                                                <div class="px-4 py-3 text-right text-wa-text-secondary w-28" x-text="Number(c.impressions || 0).toLocaleString()"></div>
+                                                <div class="px-4 py-3 text-right text-wa-text-secondary w-24" x-text="Number(c.clicks || 0).toLocaleString()"></div>
+                                            </div>
+
+                                            <!-- Expanded: AdSets -->
+                                            <div x-show="expandedCampaigns[c.id]" class="bg-wa-bg-deep/50" style="display:none;">
+                                                <!-- Loading adsets -->
+                                                <div x-show="loadingAdSets[c.id]" class="flex items-center gap-2 text-wa-text-secondary text-xs py-4 px-8" style="display:none;">
+                                                    <div class="animate-spin w-4 h-4 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                                                </div>
+
+                                                <!-- AdSets -->
+                                                <template x-for="adset in (adSets[c.id] || [])" :key="adset.id">
+                                                    <div>
+                                                        <div
+                                                            class="flex items-center pl-10 pr-4 py-2 border-t border-wa-border/50 hover:bg-wa-bg-hover/30 cursor-pointer"
+                                                            @click="toggleAdSet(adset)"
+                                                        >
+                                                            <svg
+                                                                class="w-3.5 h-3.5 text-wa-text-secondary transition-transform mr-2"
+                                                                :class="expandedAdSets[adset.id] && 'rotate-90'"
+                                                                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                            >
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                            </svg>
+                                                            <div class="flex-1 text-xs text-blue-300" x-text="adset.name"></div>
+                                                            <span
+                                                                class="px-1.5 py-0.5 rounded text-[9px]"
+                                                                :class="adset.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-wa-bg-hover text-wa-text-secondary'"
+                                                                x-text="adset.status"
+                                                            ></span>
+                                                            <div class="text-right text-xs text-white w-24 ml-4" x-text="'$' + Number(adset.spend || 0).toFixed(2)"></div>
+                                                        </div>
+
+                                                        <!-- Expanded: Ads -->
+                                                        <div x-show="expandedAdSets[adset.id]" class="bg-wa-bg-deep/30" style="display:none;">
+                                                            <div x-show="loadingAds[adset.id]" class="flex items-center gap-2 text-wa-text-secondary text-xs py-3 px-14" style="display:none;">
+                                                                <div class="animate-spin w-3 h-3 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                                                            </div>
+                                                            <template x-for="ad in (ads[adset.id] || [])" :key="ad.id">
+                                                                <div class="flex items-center pl-16 pr-4 py-1.5 border-t border-wa-border/30 text-xs">
+                                                                    <div class="flex-1 text-wa-text-secondary" x-text="ad.name"></div>
+                                                                    <span
+                                                                        class="px-1.5 py-0.5 rounded text-[9px] mr-4"
+                                                                        :class="ad.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-wa-bg-hover text-wa-text-secondary'"
+                                                                        x-text="ad.status"
+                                                                    ></span>
+                                                                    <div class="text-right text-white w-24" x-text="'$' + Number(ad.spend || 0).toFixed(2)"></div>
+                                                                </div>
+                                                            </template>
+                                                            <div x-show="!loadingAds[adset.id] && (!ads[adset.id] || ads[adset.id].length === 0)" class="pl-16 pr-4 py-2 text-xs text-wa-text-secondary" style="display:none;">
+                                                                Sin anuncios
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+
+                                                <div x-show="!loadingAdSets[c.id] && (!adSets[c.id] || adSets[c.id].length === 0)" class="pl-10 pr-4 py-3 text-xs text-wa-text-secondary" style="display:none;">
+                                                    Sin ad sets
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+</Layout>
+
+<script>
+    const FB_APP_ID = (import.meta as any).env?.PUBLIC_FB_APP_ID || "1184660606783733";
+
+    document.addEventListener("alpine:init", () => {
+        const Alpine = (window as any).Alpine;
+        const ApiClient = (window as any).ApiClient;
+
+        Alpine.data("financeAds", () => ({
+            loading: true,
+            fbReady: false,
+            connection: null as any,
+            syncing: false,
+
+            // Ad accounts
+            adAccounts: [] as any[],
+            activeWorkers: [] as any[],
+            loadingAdAccounts: false,
+
+            // Campaign browser
+            selectedAdAccountId: "",
+            datePreset: "last_7d" as "last_7d" | "last_30d" | "custom",
+            customFrom: "",
+            customTo: "",
+            showCustomRange: false,
+            campaigns: [] as any[],
+            loadingCampaigns: false,
+            workerSpend: [] as any[],
+
+            // Expandable state
+            expandedCampaigns: {} as Record<string, boolean>,
+            adSets: {} as Record<string, any[]>,
+            loadingAdSets: {} as Record<string, boolean>,
+            expandedAdSets: {} as Record<string, boolean>,
+            ads: {} as Record<string, any[]>,
+            loadingAds: {} as Record<string, boolean>,
+
+            async init() {
+                try {
+                    const [conn, workers] = await Promise.all([
+                        ApiClient.get("/finance/facebook/connection").catch(() => null),
+                        ApiClient.get("/finance/workers?active=true"),
+                    ]);
+                    this.connection = conn;
+                    this.activeWorkers = workers;
+
+                    if (this.connection) {
+                        await this.loadAdAccounts();
+                    }
+
+                    // Init Facebook SDK in background
+                    this.initFbSdk().then(() => { this.fbReady = true; }).catch(() => { this.fbReady = true; });
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            // ── Facebook SDK ────────────────────────────────────
+            initFbSdk(): Promise<void> {
+                return new Promise((resolve, reject) => {
+                    if ((window as any).FB) {
+                        (window as any).FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: "v21.0" });
+                        resolve();
+                        return;
+                    }
+
+                    const timeout = setTimeout(() => reject(new Error("Facebook SDK timeout")), 15000);
+
+                    (window as any).fbAsyncInit = function () {
+                        clearTimeout(timeout);
+                        (window as any).FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: "v21.0" });
+                        resolve();
+                    };
+
+                    if (document.querySelector('script[src*="connect.facebook.net"]')) return;
+
+                    const script = document.createElement("script");
+                    script.src = "https://connect.facebook.net/en_US/sdk.js";
+                    script.async = true;
+                    script.onerror = () => { clearTimeout(timeout); reject(new Error("FB SDK load error")); };
+                    document.head.appendChild(script);
+                });
+            },
+
+            fbLogin() {
+                const FB = (window as any).FB;
+                if (!FB) return;
+                FB.login(
+                    async (response: any) => {
+                        if (response.authResponse) {
+                            const { accessToken, userID } = response.authResponse;
+                            // Get user name from Graph
+                            let userName = "";
+                            try {
+                                const res = await fetch(`https://graph.facebook.com/v21.0/me?fields=name&access_token=${accessToken}`);
+                                const data = await res.json();
+                                userName = data.name || "";
+                            } catch {}
+
+                            try {
+                                this.connection = await ApiClient.post("/finance/facebook/connect", {
+                                    shortLivedToken: accessToken,
+                                    fbUserId: userID,
+                                    fbUserName: userName,
+                                });
+                                (window as any).__toast.success("Facebook conectado");
+                                await this.loadAdAccounts();
+                            } catch (e: any) {
+                                (window as any).__toast.error(e.message);
+                            }
+                        }
+                    },
+                    { scope: "ads_read,ads_management" }
+                );
+            },
+
+            async disconnectFacebook() {
+                if (!confirm("Desconectar Facebook?")) return;
+                try {
+                    await ApiClient.post("/finance/facebook/disconnect", {});
+                    this.connection = null;
+                    this.adAccounts = [];
+                    this.campaigns = [];
+                    this.workerSpend = [];
+                    (window as any).__toast.success("Facebook desconectado");
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                }
+            },
+
+            async syncFacebook() {
+                this.syncing = true;
+                try {
+                    const result = await ApiClient.post("/finance/facebook/sync", {});
+                    this.connection = { ...this.connection, ...result };
+                    (window as any).__toast.success("Sincronizacion completada");
+                    await this.loadAdAccounts();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.syncing = false;
+                }
+            },
+
+            // ── Ad Accounts ─────────────────────────────────────
+            async loadAdAccounts() {
+                this.loadingAdAccounts = true;
+                try {
+                    this.adAccounts = await ApiClient.get("/finance/facebook/ad-accounts");
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loadingAdAccounts = false;
+                }
+            },
+
+            async assignWorker(adAccountId: string, workerId: string) {
+                try {
+                    if (workerId) {
+                        await ApiClient.put(`/finance/facebook/ad-accounts/${adAccountId}/assign`, { workerId });
+                        (window as any).__toast.success("Worker asignado");
+                    } else {
+                        await ApiClient.put(`/finance/facebook/ad-accounts/${adAccountId}/unassign`, {});
+                        (window as any).__toast.success("Worker desasignado");
+                    }
+                    await this.loadAdAccounts();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                }
+            },
+
+            async unassignWorker(adAccountId: string) {
+                try {
+                    await ApiClient.put(`/finance/facebook/ad-accounts/${adAccountId}/unassign`, {});
+                    (window as any).__toast.success("Worker desasignado");
+                    await this.loadAdAccounts();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                }
+            },
+
+            // ── Campaign Browser ────────────────────────────────
+            setDatePreset(preset: "last_7d" | "last_30d") {
+                this.datePreset = preset;
+                this.showCustomRange = false;
+                this.loadCampaigns();
+            },
+
+            buildDateRange(): { since: string; until: string } {
+                const today = new Date();
+                const fmt = (d: Date) => d.toISOString().split("T")[0];
+                if (this.datePreset === "custom" && this.customFrom && this.customTo) {
+                    return { since: this.customFrom, until: this.customTo };
+                }
+                const days = this.datePreset === "last_30d" ? 30 : 7;
+                const since = new Date(today);
+                since.setDate(since.getDate() - days);
+                return { since: fmt(since), until: fmt(today) };
+            },
+
+            async loadCampaigns() {
+                if (!this.selectedAdAccountId) return;
+                this.loadingCampaigns = true;
+                this.campaigns = [];
+                this.expandedCampaigns = {};
+                this.adSets = {};
+                this.ads = {};
+                this.workerSpend = [];
+
+                const { since, until } = this.buildDateRange();
+                try {
+                    const [campaigns, insights, spend] = await Promise.all([
+                        ApiClient.get(`/finance/facebook/campaigns?adAccountId=${this.selectedAdAccountId}`),
+                        ApiClient.get(`/finance/facebook/insights?adAccountId=${this.selectedAdAccountId}&since=${since}&until=${until}&level=CAMPAIGN`).catch(() => []),
+                        ApiClient.get(`/finance/facebook/worker-spend?since=${since}&until=${until}`).catch(() => []),
+                    ]);
+
+                    // Merge insights into campaigns
+                    const insightMap: Record<string, any> = {};
+                    (insights || []).forEach((i: any) => { insightMap[i.campaignId || i.id] = i; });
+
+                    this.campaigns = (campaigns || []).map((c: any) => {
+                        const ins = insightMap[c.id] || {};
+                        return { ...c, spend: ins.spend || 0, impressions: ins.impressions || 0, clicks: ins.clicks || 0 };
+                    });
+
+                    this.workerSpend = spend || [];
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loadingCampaigns = false;
+                }
+            },
+
+            async toggleCampaign(campaign: any) {
+                if (this.expandedCampaigns[campaign.id]) {
+                    this.expandedCampaigns[campaign.id] = false;
+                    return;
+                }
+                this.expandedCampaigns[campaign.id] = true;
+
+                if (this.adSets[campaign.id]) return; // already loaded
+                this.loadingAdSets[campaign.id] = true;
+                try {
+                    this.adSets[campaign.id] = await ApiClient.get(`/finance/facebook/campaigns/${campaign.id}/adsets`);
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                    this.adSets[campaign.id] = [];
+                } finally {
+                    this.loadingAdSets[campaign.id] = false;
+                }
+            },
+
+            async toggleAdSet(adset: any) {
+                if (this.expandedAdSets[adset.id]) {
+                    this.expandedAdSets[adset.id] = false;
+                    return;
+                }
+                this.expandedAdSets[adset.id] = true;
+
+                if (this.ads[adset.id]) return;
+                this.loadingAds[adset.id] = true;
+                try {
+                    this.ads[adset.id] = await ApiClient.get(`/finance/facebook/adsets/${adset.id}/ads`);
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                    this.ads[adset.id] = [];
+                } finally {
+                    this.loadingAds[adset.id] = false;
+                }
+            },
+        }));
+    });
+</script>

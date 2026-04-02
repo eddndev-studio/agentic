@@ -393,3 +393,230 @@ model ConnectToken {
   @@index([token])
   @@index([botId])
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Financial Management + Facebook Ads Tracking
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum PeriodType {
+  WEEKLY
+  MONTHLY
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+}
+
+enum FbSyncStatus {
+  OK
+  TOKEN_EXPIRING
+  TOKEN_EXPIRED
+  ERROR
+}
+
+enum AdInsightLevel {
+  CAMPAIGN
+  ADSET
+  AD
+}
+
+// ─── Finance Core ────────────────────────────────────────────────────────────
+
+model Worker {
+  id               String         @id @default(uuid())
+  name             String
+  baseSalary       Float
+  bonusPercent     Float          @default(0)
+  bonusMinLicenses Int            @default(0)
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  incomes          Income[]
+  workerPeriods    WorkerPeriod[]
+  adAccount        AdAccount?
+}
+
+model BankAccount {
+  id         String   @id @default(uuid())
+  name       String
+  bankName   String
+  identifier String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  incomes    Income[]
+}
+
+model FinancialPeriod {
+  id            String         @id @default(uuid())
+  type          PeriodType
+  startDate     DateTime
+  endDate       DateTime
+  status        PeriodStatus   @default(OPEN)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  incomes       Income[]
+  expenses      Expense[]
+  workerPeriods WorkerPeriod[]
+
+  @@index([startDate, endDate])
+  @@index([status])
+}
+
+model Income {
+  id            String          @id @default(uuid())
+  amount        Float
+  bankAccountId String
+  workerId      String
+  periodId      String
+  date          DateTime
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  bankAccount   BankAccount     @relation(fields: [bankAccountId], references: [id])
+  worker        Worker          @relation(fields: [workerId], references: [id])
+  period        FinancialPeriod @relation(fields: [periodId], references: [id])
+
+  @@index([periodId])
+  @@index([workerId])
+  @@index([bankAccountId])
+  @@index([date])
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  description String
+  amount      Float
+  periodId    String
+  date        DateTime
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  period      FinancialPeriod @relation(fields: [periodId], references: [id])
+
+  @@index([periodId])
+}
+
+model WorkerPeriod {
+  id            String          @id @default(uuid())
+  workerId      String
+  periodId      String
+  licenseSales  Int             @default(0)
+  debtCarryOver Float           @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  worker        Worker          @relation(fields: [workerId], references: [id])
+  period        FinancialPeriod @relation(fields: [periodId], references: [id])
+
+  @@unique([workerId, periodId])
+  @@index([periodId])
+  @@index([workerId])
+}
+
+// ─── Facebook Ads ────────────────────────────────────────────────────────────
+
+model FacebookConnection {
+  id            String       @id @default(uuid())
+  accessToken   String
+  tokenExpiry   DateTime
+  fbUserId      String       @unique
+  fbUserName    String
+  syncStatus    FbSyncStatus @default(OK)
+  lastSyncAt    DateTime?
+  lastSyncError String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  adAccounts    AdAccount[]
+}
+
+model AdAccount {
+  id            String             @id @default(uuid())
+  fbAccountId   String             @unique
+  name          String
+  accountStatus Int                @default(1)
+  workerId      String?            @unique
+  connectionId  String
+  lastSyncAt    DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  worker        Worker?            @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  connection    FacebookConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  campaigns     Campaign[]
+
+  @@index([connectionId])
+  @@index([workerId])
+}
+
+model Campaign {
+  id           String      @id @default(uuid())
+  fbCampaignId String      @unique
+  name         String
+  status       String
+  objective    String?
+  adAccountId  String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  adAccount    AdAccount   @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  adSets       AdSet[]
+  insights     AdInsight[]
+
+  @@index([adAccountId])
+}
+
+model AdSet {
+  id                   String      @id @default(uuid())
+  fbAdSetId            String      @unique
+  name                 String
+  status               String
+  targetingDescription String?
+  campaignId           String
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  campaign             Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ads                  Ad[]
+  insights             AdInsight[]
+
+  @@index([campaignId])
+}
+
+model Ad {
+  id         String      @id @default(uuid())
+  fbAdId     String      @unique
+  name       String
+  status     String
+  creativeId String?
+  adSetId    String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  adSet      AdSet       @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  insights   AdInsight[]
+
+  @@index([adSetId])
+}
+
+model AdInsight {
+  id                String         @id @default(uuid())
+  date              DateTime       @db.Date
+  level             AdInsightLevel
+  campaignId        String?
+  adSetId           String?
+  adId              String?
+  spend             Float          @default(0)
+  impressions       Int            @default(0)
+  clicks            Int            @default(0)
+  reach             Int            @default(0)
+  conversions       Int            @default(0)
+  costPerConversion Float          @default(0)
+  rawActions        Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  campaign          Campaign?      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adSet             AdSet?         @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  ad                Ad?            @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@unique([date, level, campaignId, adSetId, adId])
+  @@index([date])
+  @@index([campaignId])
+  @@index([adSetId])
+  @@index([adId])
+}

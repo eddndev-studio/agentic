@@ -54,8 +54,8 @@ const currentPath = Astro.url.pathname;
         <div class="flex flex-col items-center justify-center gap-0.5 flex-1 relative">
             <button @click="showMenu = !showMenu"
                     class="flex flex-col items-center gap-0.5 transition-colors"
-                    :class="showMenu || isActive('/') || isActive('/ads') ? 'text-wa-green' : 'text-wa-text-secondary'">
-                <div class="rounded-xl px-4 py-1 transition-colors" :class="(showMenu || isActive('/') || isActive('/ads')) && 'bg-wa-green/10'">
+                    :class="showMenu || isActive('/') || isActive('/finance') ? 'text-wa-green' : 'text-wa-text-secondary'">
+                <div class="rounded-xl px-4 py-1 transition-colors" :class="(showMenu || isActive('/') || isActive('/finance')) && 'bg-wa-green/10'">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path>
                     </svg>
@@ -84,13 +84,13 @@ const currentPath = Astro.url.pathname;
                     <span x-text="$t('dashboard')">Dashboard</span>
                 </a>
 
-                <a href="/ads" @click="showMenu = false"
+                <a href="/finance" @click="showMenu = false"
                    class="flex items-center gap-3 px-4 py-3 text-sm transition-colors"
-                   :class="isActive('/ads') ? 'text-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:bg-wa-bg-hover hover:text-white'">
+                   :class="isActive('/finance') ? 'text-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:bg-wa-bg-hover hover:text-white'">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
                     </svg>
-                    <span x-text="$t('ads')">Ads</span>
+                    <span x-text="$t('fin_finance')">Finanzas</span>
                 </a>
 
                 <div class="border-t border-wa-border"></div>

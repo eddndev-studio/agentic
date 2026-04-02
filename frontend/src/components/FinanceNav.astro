@@ -1,0 +1,45 @@
+---
+interface Props {
+    currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+
+const tabs = [
+    { href: "/finance", label: "fin_nav_dashboard", fallback: "Dashboard", exact: true },
+    { href: "/finance/workers", label: "fin_nav_workers", fallback: "Equipo" },
+    { href: "/finance/income", label: "fin_nav_income", fallback: "Ingresos" },
+    { href: "/finance/reports", label: "fin_nav_reports", fallback: "Reportes" },
+    { href: "/finance/ads", label: "fin_nav_ads", fallback: "Ads" },
+    { href: "/finance/settings", label: "fin_nav_settings", fallback: "Config" },
+];
+
+function isActive(href: string, exact?: boolean) {
+    if (exact) return currentPath === href || currentPath === href + "/";
+    return currentPath.startsWith(href);
+}
+---
+
+<nav class="flex items-center gap-1 overflow-x-auto pb-4 mb-2 border-b border-wa-border scrollbar-none">
+    <a href="/bots" class="text-wa-text-secondary hover:text-wa-green transition-colors mr-2 shrink-0" title="Back">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+    </a>
+    <span class="text-lg font-bold tracking-tight mr-4 shrink-0">Finanzas</span>
+    {tabs.map(tab => (
+        <a
+            href={tab.href}
+            class:list={[
+                "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap shrink-0",
+                isActive(tab.href, tab.exact)
+                    ? "bg-wa-green/15 text-wa-green font-medium"
+                    : "text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover"
+            ]}
+            x-data
+            x-text={`$t('${tab.label}')`}
+        >
+            {tab.fallback}
+        </a>
+    ))}
+</nav>

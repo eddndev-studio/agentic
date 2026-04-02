@@ -1,0 +1,247 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FinanceNav from "../../components/FinanceNav.astro";
+---
+
+<Layout title="Finance - Equipo">
+    <FinanceNav currentPath="/finance/workers" />
+    <main class="space-y-6" x-data="financeWorkers">
+
+        <!-- Loading -->
+        <div x-show="loading" class="flex items-center justify-center py-24">
+            <div class="animate-spin w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full"></div>
+        </div>
+
+        <div x-show="!loading" style="display:none;">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold" x-text="$t('fin_workers_title')">Equipo de Trabajo</h2>
+                <button
+                    @click="openModal()"
+                    class="px-4 py-2 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span x-text="$t('fin_add_worker')">Agregar</span>
+                </button>
+            </div>
+
+            <!-- Empty state -->
+            <div x-show="workers.length === 0" class="text-center py-16 text-wa-text-secondary text-sm" style="display:none;">
+                <svg class="w-12 h-12 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <p x-text="$t('fin_no_workers')">No hay trabajadores registrados</p>
+            </div>
+
+            <!-- Workers table -->
+            <div x-show="workers.length > 0" class="border border-wa-border rounded-xl overflow-hidden" style="display:none;">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_name')">Nombre</th>
+                                <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_base_salary')">Salario Base</th>
+                                <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_bonus_pct')">Bono %</th>
+                                <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_min_licenses')">Min Licencias</th>
+                                <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_ad_account')">Cuenta Ads</th>
+                                <th class="text-center px-4 py-3 font-medium" x-text="$t('fin_active')">Activo</th>
+                                <th class="px-4 py-3 font-medium w-24"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="w in workers" :key="w.id">
+                                <tr class="border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-white" x-text="w.name"></td>
+                                    <td class="px-4 py-3 text-right text-wa-text-secondary" x-text="'$' + Number(w.baseSalary).toFixed(2)"></td>
+                                    <td class="px-4 py-3 text-right text-wa-text-secondary" x-text="w.bonusPercent + '%'"></td>
+                                    <td class="px-4 py-3 text-right text-wa-text-secondary" x-text="w.bonusMinLicenses"></td>
+                                    <td class="px-4 py-3 text-wa-text-secondary text-xs" x-text="w.adAccountName || '—'"></td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                            :class="w.active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'"
+                                            x-text="w.active ? 'Activo' : 'Inactivo'"
+                                        ></span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-2 justify-end">
+                                            <button @click="openModal(w)" class="p-1.5 text-wa-text-secondary hover:text-wa-green transition-colors" title="Editar">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                            </button>
+                                            <button @click="deleteWorker(w)" class="p-1.5 text-wa-text-secondary hover:text-red-400 transition-colors" title="Eliminar">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal -->
+        <div
+            x-show="showModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @keydown.escape.window="showModal = false"
+            style="display:none;"
+        >
+            <div
+                class="bg-wa-bg-panel border border-wa-border rounded-xl w-full max-w-md mx-4 p-6"
+                @click.outside="showModal = false"
+            >
+                <h3 class="text-lg font-bold mb-4" x-text="editing ? $t('fin_edit_worker') : $t('fin_add_worker')">Worker</h3>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_name')">Nombre</label>
+                        <input
+                            type="text"
+                            x-model="form.name"
+                            class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white"
+                            placeholder="Nombre del trabajador"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_base_salary')">Salario Base</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            x-model.number="form.baseSalary"
+                            class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white"
+                            placeholder="0.00"
+                        />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_bonus_pct')">Bono %</label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                x-model.number="form.bonusPercent"
+                                class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white"
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_min_licenses')">Min Licencias</label>
+                            <input
+                                type="number"
+                                x-model.number="form.bonusMinLicenses"
+                                class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white"
+                                placeholder="0"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6">
+                    <button
+                        @click="showModal = false"
+                        class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors"
+                        x-text="$t('fin_cancel')"
+                    >Cancelar</button>
+                    <button
+                        @click="saveWorker()"
+                        class="px-4 py-2 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-medium rounded-lg transition-colors"
+                        :disabled="saving"
+                        x-text="saving ? '...' : $t('fin_save')"
+                    >Guardar</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</Layout>
+
+<script>
+    document.addEventListener("alpine:init", () => {
+        const Alpine = (window as any).Alpine;
+        const ApiClient = (window as any).ApiClient;
+
+        Alpine.data("financeWorkers", () => ({
+            loading: true,
+            workers: [] as any[],
+            showModal: false,
+            editing: null as any,
+            saving: false,
+            form: { name: "", baseSalary: 0, bonusPercent: 0, bonusMinLicenses: 0 },
+
+            async init() {
+                try {
+                    await this.loadWorkers();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async loadWorkers() {
+                this.workers = await ApiClient.get("/finance/workers");
+            },
+
+            openModal(worker?: any) {
+                if (worker) {
+                    this.editing = worker;
+                    this.form = {
+                        name: worker.name,
+                        baseSalary: worker.baseSalary,
+                        bonusPercent: worker.bonusPercent,
+                        bonusMinLicenses: worker.bonusMinLicenses,
+                    };
+                } else {
+                    this.editing = null;
+                    this.form = { name: "", baseSalary: 0, bonusPercent: 0, bonusMinLicenses: 0 };
+                }
+                this.showModal = true;
+            },
+
+            async saveWorker() {
+                if (!this.form.name.trim()) return;
+                this.saving = true;
+                try {
+                    if (this.editing) {
+                        await ApiClient.put(`/finance/workers/${this.editing.id}`, this.form);
+                        (window as any).__toast.success("Worker actualizado");
+                    } else {
+                        await ApiClient.post("/finance/workers", this.form);
+                        (window as any).__toast.success("Worker creado");
+                    }
+                    this.showModal = false;
+                    await this.loadWorkers();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            async deleteWorker(worker: any) {
+                if (!confirm(`Eliminar a ${worker.name}?`)) return;
+                try {
+                    await ApiClient.delete(`/finance/workers/${worker.id}`);
+                    (window as any).__toast.success("Worker eliminado");
+                    await this.loadWorkers();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                }
+            },
+        }));
+    });
+</script>

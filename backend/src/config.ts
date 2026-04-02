@@ -61,4 +61,11 @@ export const config = {
         /** Bot config cache TTL (ms) */
         cacheTtl: envInt('NOTIFICATION_CACHE_TTL_MS', 30_000),
     },
+    // ── Facebook Ads ──────────────────────────────────────────────────────
+    facebook: {
+        appId: env('FB_APP_ID', ''),
+        appSecret: env('FB_APP_SECRET', ''),
+        syncIntervalMs: envInt('FB_SYNC_INTERVAL_MS', 2 * 60 * 60 * 1000),
+        insightsDaysBack: envInt('FB_INSIGHTS_DAYS_BACK', 7),
+    },
 } as const;

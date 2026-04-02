@@ -1,0 +1,164 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FinanceNav from "../../components/FinanceNav.astro";
+---
+
+<Layout title="Finance - Dashboard">
+    <FinanceNav currentPath="/finance" />
+    <main class="space-y-6" x-data="financeDashboard">
+
+        <!-- Loading -->
+        <div x-show="loading" class="flex items-center justify-center py-24">
+            <div class="animate-spin w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full"></div>
+        </div>
+
+        <div x-show="!loading" style="display:none;">
+
+            <!-- Period selector -->
+            <div class="flex items-center gap-4 mb-6">
+                <label class="text-sm text-wa-text-secondary" x-text="$t('fin_period')">Periodo</label>
+                <select
+                    x-model="selectedPeriodId"
+                    @change="loadDashboard()"
+                    class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green"
+                >
+                    <option value="">-- Seleccionar --</option>
+                    <template x-for="p in periods" :key="p.id">
+                        <option :value="p.id" x-text="p.type + ': ' + p.startDate?.split('T')[0] + ' → ' + p.endDate?.split('T')[0] + (p.status === 'CLOSED' ? ' (Cerrado)' : '')"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Empty state -->
+            <div x-show="!selectedPeriodId" class="text-center py-16 text-wa-text-secondary text-sm" style="display:none;">
+                <svg class="w-12 h-12 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <p x-text="$t('fin_select_period')">Selecciona un periodo para ver el dashboard</p>
+            </div>
+
+            <!-- Dashboard content -->
+            <div x-show="selectedPeriodId && data" style="display:none;">
+
+                <!-- Thermometer: progress toward 30% target -->
+                <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5 mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-medium" x-text="$t('fin_profit_target')">Meta de Rentabilidad (30%)</h3>
+                        <span
+                            class="text-sm font-bold"
+                            :class="profitPercent >= 30 ? 'text-emerald-400' : 'text-yellow-400'"
+                            x-text="profitPercent.toFixed(1) + '%'"
+                        ></span>
+                    </div>
+                    <div class="w-full bg-wa-bg-deep rounded-full h-4 overflow-hidden relative">
+                        <!-- 30% target marker -->
+                        <div class="absolute top-0 bottom-0 w-px bg-white/30 z-10" style="left: 30%;"></div>
+                        <div
+                            class="h-full rounded-full transition-all duration-700"
+                            :class="profitPercent >= 30 ? 'bg-emerald-500' : 'bg-yellow-500'"
+                            :style="'width: ' + Math.min(profitPercent, 100) + '%'"
+                        ></div>
+                    </div>
+                    <div class="flex justify-between mt-1">
+                        <span class="text-[10px] text-wa-text-secondary">0%</span>
+                        <span class="text-[10px] text-wa-text-secondary">Meta 30%</span>
+                        <span class="text-[10px] text-wa-text-secondary">100%</span>
+                    </div>
+                </div>
+
+                <!-- Summary cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <div class="text-xs text-wa-green font-medium mb-1" x-text="$t('fin_total_income')">Ingresos</div>
+                        <div class="text-xl font-light" x-text="fmt(data.totalIncome)">$0</div>
+                    </div>
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <div class="text-xs text-blue-400 font-medium mb-1" x-text="$t('fin_total_salaries')">Salarios</div>
+                        <div class="text-xl font-light" x-text="fmt(data.totalSalaries)">$0</div>
+                    </div>
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <div class="text-xs text-purple-400 font-medium mb-1" x-text="$t('fin_total_ad_spend')">Gasto Ads</div>
+                        <div class="text-xl font-light" x-text="fmt(data.totalAdSpend)">$0</div>
+                    </div>
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <div class="text-xs text-orange-400 font-medium mb-1" x-text="$t('fin_total_expenses')">Gastos Fijos</div>
+                        <div class="text-xl font-light" x-text="fmt(data.totalExpenses)">$0</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <div class="text-xs text-wa-text-secondary font-medium mb-1" x-text="$t('fin_total_investment')">Inversion Total</div>
+                        <div class="text-xl font-light" x-text="fmt(data.totalInvestment)">$0</div>
+                    </div>
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <div class="text-xs text-yellow-400 font-medium mb-1" x-text="$t('fin_target_30')">Meta (30%)</div>
+                        <div class="text-xl font-light" x-text="fmt(data.target30)">$0</div>
+                    </div>
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4"
+                         :class="data.pureProfit >= 0 ? 'border-emerald-500/30' : 'border-red-500/30'"
+                    >
+                        <div class="text-xs font-medium mb-1"
+                             :class="data.pureProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                             x-text="$t('fin_pure_profit')"
+                        >Ganancia Neta</div>
+                        <div class="text-xl font-bold"
+                             :class="data.pureProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                             x-text="fmt(data.pureProfit)"
+                        >$0</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script>
+    document.addEventListener("alpine:init", () => {
+        const Alpine = (window as any).Alpine;
+        const ApiClient = (window as any).ApiClient;
+
+        Alpine.data("financeDashboard", () => ({
+            loading: true,
+            periods: [] as any[],
+            selectedPeriodId: "",
+            data: null as any,
+
+            get profitPercent(): number {
+                if (!this.data || !this.data.totalIncome || this.data.totalIncome === 0) return 0;
+                return (this.data.pureProfit / this.data.totalIncome) * 100;
+            },
+
+            fmt(n: number): string {
+                if (n == null) return "$0.00";
+                return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+
+            async init() {
+                try {
+                    this.periods = await ApiClient.get("/finance/periods");
+                    // Auto-select latest open period
+                    const open = this.periods.find((p: any) => p.status === "OPEN");
+                    if (open) {
+                        this.selectedPeriodId = open.id;
+                        await this.loadDashboard();
+                    }
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async loadDashboard() {
+                if (!this.selectedPeriodId) { this.data = null; return; }
+                try {
+                    this.data = await ApiClient.get(`/finance/dashboard?periodId=${this.selectedPeriodId}`);
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                }
+            },
+        }));
+    });
+</script>
