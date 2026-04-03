@@ -25,30 +25,69 @@ import Layout from "../../layouts/Layout.astro";
                 <span x-show="totalSessions > 0" class="text-[10px] text-wa-text-secondary bg-wa-bg-hover px-2 py-0.5 rounded-full" x-text="totalSessions + ' chats'"></span>
             </div>
 
-            <!-- Search bar + label filter -->
-            <div class="p-2 bg-wa-bg-panel space-y-1.5">
-                <div class="relative">
-                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                    <input
-                        type="text"
-                        x-model="searchQuery"
-                        x-ref="searchInput"
-                        @input.debounce.300ms="loadSessions()"
-                        class="w-full bg-wa-bg-hover text-wa-text-primary text-sm py-1.5 pl-9 pr-3 rounded-full focus:outline-none placeholder-wa-text-secondary"
-                        :placeholder="$t('search_sessions')"
-                    />
-                </div>
-                <!-- Label filter pills -->
-                <div x-show="botLabels.length > 0" class="flex flex-wrap gap-1" style="display:none;">
-                    <button @click="filterLabelId = ''; loadSessions()" class="text-[10px] px-2 py-0.5 rounded-full transition-colors" :class="!filterLabelId ? 'bg-wa-green/20 text-wa-green' : 'bg-wa-bg-hover text-wa-text-secondary hover:text-white'">Todos</button>
-                    <template x-for="lbl in botLabels" :key="'flt-' + lbl.id">
-                        <button @click="filterLabelId = lbl.id; loadSessions()" class="text-[10px] px-2 py-0.5 rounded-full transition-colors flex items-center gap-1" :class="filterLabelId === lbl.id ? 'text-white' : 'bg-wa-bg-hover text-wa-text-secondary hover:text-white'" :style="filterLabelId === lbl.id ? `background:${labelColor(lbl.color)}` : ''">
-                            <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
-                            <span x-text="lbl.name"></span>
+            <!-- Search bar + filter -->
+            <div class="p-2 bg-wa-bg-panel">
+                <div class="flex items-center gap-1.5">
+                    <div class="relative flex-1">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input
+                            type="text"
+                            x-model="searchQuery"
+                            x-ref="searchInput"
+                            @input.debounce.300ms="loadSessions()"
+                            class="w-full bg-wa-bg-hover text-wa-text-primary text-sm py-1.5 pl-9 pr-3 rounded-full focus:outline-none placeholder-wa-text-secondary"
+                            :placeholder="$t('search_sessions')"
+                        />
+                    </div>
+                    <!-- Label filter dropdown -->
+                    <div x-show="botLabels.length > 0" class="relative flex-shrink-0" x-data="{ filterOpen: false }" style="display:none;">
+                        <button
+                            @click="filterOpen = !filterOpen"
+                            class="h-8 px-2.5 rounded-full flex items-center gap-1.5 transition-colors text-[11px]"
+                            :class="filterLabelId ? 'bg-wa-green/15 text-wa-green' : 'bg-wa-bg-hover text-wa-text-secondary hover:text-white'"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                            <span x-show="filterLabelId" x-text="botLabels.find(l => l.id === filterLabelId)?.name || ''" class="max-w-[80px] truncate"></span>
+                            <span x-show="filterLabelId" @click.stop="filterLabelId = ''; loadSessions(); filterOpen = false" class="hover:text-red-400">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </span>
                         </button>
-                    </template>
+                        <div
+                            x-show="filterOpen"
+                            @click.outside="filterOpen = false"
+                            x-transition
+                            class="absolute top-full right-0 mt-1 z-50 bg-wa-bg-deep border border-wa-border rounded-xl shadow-xl w-56 max-h-72 overflow-hidden"
+                            style="display:none;"
+                        >
+                            <div class="px-3 py-2 border-b border-wa-border">
+                                <span class="text-[10px] text-wa-text-secondary uppercase tracking-wider font-medium">Filtrar por etiqueta</span>
+                            </div>
+                            <div class="max-h-56 overflow-y-auto py-1">
+                                <button
+                                    @click="filterLabelId = ''; loadSessions(); filterOpen = false"
+                                    class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 transition-colors"
+                                    :class="!filterLabelId ? 'bg-wa-green/10 text-wa-green' : 'text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover'"
+                                >
+                                    <span class="w-3 h-3 rounded-full bg-wa-bg-hover border border-wa-border flex-shrink-0"></span>
+                                    <span>Todos</span>
+                                    <span class="ml-auto text-[10px] text-wa-text-secondary" x-text="totalSessions"></span>
+                                </button>
+                                <template x-for="lbl in botLabels" :key="'flt-' + lbl.id">
+                                    <button
+                                        @click="filterLabelId = lbl.id; loadSessions(); filterOpen = false"
+                                        class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 transition-colors"
+                                        :class="filterLabelId === lbl.id ? 'bg-wa-bg-hover text-white' : 'text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover'"
+                                    >
+                                        <span class="w-3 h-3 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
+                                        <span class="truncate" x-text="lbl.name"></span>
+                                        <span class="ml-auto text-[10px] text-wa-text-secondary" x-text="lbl.sessionCount || ''"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
