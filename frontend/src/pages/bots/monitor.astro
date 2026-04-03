@@ -22,8 +22,8 @@ import Layout from "../../layouts/Layout.astro";
                 <h1 class="text-base font-semibold flex-1" x-text="botName || $t('monitor')"></h1>
             </div>
 
-            <!-- Search bar -->
-            <div class="p-2 bg-wa-bg-panel">
+            <!-- Search bar + label filter -->
+            <div class="p-2 bg-wa-bg-panel space-y-1.5">
                 <div class="relative">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -31,10 +31,21 @@ import Layout from "../../layouts/Layout.astro";
                     <input
                         type="text"
                         x-model="searchQuery"
+                        x-ref="searchInput"
                         @input.debounce.300ms="loadSessions()"
                         class="w-full bg-wa-bg-hover text-wa-text-primary text-sm py-1.5 pl-9 pr-3 rounded-full focus:outline-none placeholder-wa-text-secondary"
                         :placeholder="$t('search_sessions')"
                     />
+                </div>
+                <!-- Label filter pills -->
+                <div x-show="botLabels.length > 0" class="flex flex-wrap gap-1" style="display:none;">
+                    <button @click="filterLabelId = ''; loadSessions()" class="text-[10px] px-2 py-0.5 rounded-full transition-colors" :class="!filterLabelId ? 'bg-wa-green/20 text-wa-green' : 'bg-wa-bg-hover text-wa-text-secondary hover:text-white'">Todos</button>
+                    <template x-for="lbl in botLabels" :key="'flt-' + lbl.id">
+                        <button @click="filterLabelId = lbl.id; loadSessions()" class="text-[10px] px-2 py-0.5 rounded-full transition-colors flex items-center gap-1" :class="filterLabelId === lbl.id ? 'text-white' : 'bg-wa-bg-hover text-wa-text-secondary hover:text-white'" :style="filterLabelId === lbl.id ? `background:${labelColor(lbl.color)}` : ''">
+                            <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
+                            <span x-text="lbl.name"></span>
+                        </button>
+                    </template>
                 </div>
             </div>
 
@@ -713,6 +724,7 @@ import Layout from "../../layouts/Layout.astro";
             messages: [] as any[],
             messageInput: "",
             searchQuery: "",
+            filterLabelId: "",
             sending: false,
             unreadCounts: {} as Record<string, number>,
             typingIndicator: {} as Record<string, ReturnType<typeof setTimeout> | null>,
@@ -948,10 +960,7 @@ import Layout from "../../layouts/Layout.astro";
                 // Reset pagination on fresh load (initial or search change)
                 this.sessionOffset = 0;
                 try {
-                    const params = new URLSearchParams();
-                    if (this.botId) params.append("botId", this.botId);
-                    if (this.searchQuery) params.append("search", this.searchQuery);
-                    params.append("limit", String(this.sessionLimit));
+                    const params = this.buildSessionParams();
                     params.append("offset", "0");
                     const res = await ApiClient.get(`/sessions?${params.toString()}`);
                     this.sessions = res.data || [];
@@ -962,15 +971,21 @@ import Layout from "../../layouts/Layout.astro";
                 }
             },
 
+            buildSessionParams(): URLSearchParams {
+                const params = new URLSearchParams();
+                if (this.botId) params.append("botId", this.botId);
+                if (this.searchQuery) params.append("search", this.searchQuery);
+                if (this.filterLabelId) params.append("labelId", this.filterLabelId);
+                params.append("limit", String(this.sessionLimit));
+                return params;
+            },
+
             async loadMoreSessions() {
                 if (this.loadingMoreSessions || !this.hasMoreSessions) return;
                 this.loadingMoreSessions = true;
                 try {
                     this.sessionOffset += this.sessionLimit;
-                    const params = new URLSearchParams();
-                    if (this.botId) params.append("botId", this.botId);
-                    if (this.searchQuery) params.append("search", this.searchQuery);
-                    params.append("limit", String(this.sessionLimit));
+                    const params = this.buildSessionParams();
                     params.append("offset", String(this.sessionOffset));
                     const res = await ApiClient.get(`/sessions?${params.toString()}`);
                     const newSessions = res.data || [];

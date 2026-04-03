@@ -13,7 +13,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
 
     // GET /sessions — List sessions with last message preview (paginated)
     .get("/", async ({ query }) => {
-        const { botId, search, limit, offset } = query;
+        const { botId, search, limit, offset, labelId } = query;
         const take = Math.min(Number(limit) || 50, 200);
         const skip = Number(offset) || 0;
 
@@ -28,6 +28,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
                 { name: { contains: search, mode: "insensitive" } },
                 { identifier: { contains: search, mode: "insensitive" } },
             ];
+        }
+        if (labelId) {
+            where.labels = { some: { labelId } };
         }
 
         const [total, sessions] = await prisma.$transaction([
@@ -77,6 +80,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         query: t.Object({
             botId: t.Optional(t.String()),
             search: t.Optional(t.String()),
+            labelId: t.Optional(t.String()),
             limit: t.Optional(t.String()),
             offset: t.Optional(t.String()),
         }),
