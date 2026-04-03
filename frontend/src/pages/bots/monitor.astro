@@ -7,12 +7,12 @@ import Layout from "../../layouts/Layout.astro";
         x-data="botMonitor"
         @keydown.escape.window="if (showEmojiPicker) { showEmojiPicker = false } else if (showNotesPanel) { showNotesPanel = false } else if (showQuickReplies) { showQuickReplies = false } else if (selectedSession) { selectedSession = null }"
         @keydown.ctrl.f.prevent.window="$refs.searchInput?.focus()"
-        class="h-[calc(100vh-1rem)] flex overflow-hidden rounded-lg"
+        class="h-dvh md:h-[calc(100vh-1rem)] flex overflow-hidden md:rounded-lg"
     >
         <!-- Left: Sessions panel -->
         <div
             class="flex-col border-r border-wa-border min-h-0 bg-wa-bg-panel"
-            :class="selectedSession ? 'hidden md:flex md:w-[360px] md:flex-shrink-0' : 'flex w-full md:w-[360px] md:flex-shrink-0'"
+            :class="selectedSession ? 'hidden md:flex md:w-[280px] lg:w-[360px] md:flex-shrink-0' : 'flex w-full md:w-[280px] lg:w-[360px] md:flex-shrink-0'"
         >
             <!-- Panel header -->
             <div class="h-14 bg-wa-bg-header flex items-center px-4 gap-3 flex-shrink-0">
@@ -100,12 +100,12 @@ import Layout from "../../layouts/Layout.astro";
                 <template x-for="s in sessions" :key="s.id">
                     <button
                         @click="selectSession(s)"
-                        class="w-full text-left px-3 py-3 flex items-center gap-3 hover:bg-wa-bg-hover transition-colors border-b border-wa-border/50"
+                        class="w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-wa-bg-hover transition-colors border-b border-wa-border/50"
                         :class="selectedSession?.id === s.id ? 'bg-wa-bg-hover' : ''"
                     >
                         <!-- Avatar -->
                         <div
-                            class="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                            class="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
                             :style="`background:${avatarColor(s.name || s.identifier)}`"
                             x-text="avatarInitials(s.name || s.identifier)"
                         ></div>
@@ -181,7 +181,7 @@ import Layout from "../../layouts/Layout.astro";
             <template x-if="selectedSession">
                 <div class="flex flex-col h-full min-h-0">
                     <!-- Chat header -->
-                    <div class="h-14 bg-wa-bg-header flex items-center px-4 gap-3 flex-shrink-0">
+                    <div class="h-14 bg-wa-bg-header flex items-center px-2 sm:px-4 gap-2 sm:gap-3 flex-shrink-0">
                         <!-- Back button (mobile) -->
                         <button
                             @click="selectedSession = null"
@@ -194,7 +194,7 @@ import Layout from "../../layouts/Layout.astro";
 
                         <!-- Avatar -->
                         <div
-                            class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                            class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm flex-shrink-0"
                             :style="`background:${avatarColor(selectedSession.name || selectedSession.identifier)}`"
                             x-text="avatarInitials(selectedSession.name || selectedSession.identifier)"
                         ></div>
@@ -250,7 +250,7 @@ import Layout from "../../layouts/Layout.astro";
 
                         <!-- Three-dot menu -->
                         <div class="relative flex-shrink-0" x-data="{ menuOpen: false }">
-                            <button @click="menuOpen = !menuOpen" class="w-10 h-10 flex items-center justify-center text-wa-text-secondary hover:text-wa-text-primary transition-colors rounded-full hover:bg-wa-bg-hover">
+                            <button @click="menuOpen = !menuOpen" class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-wa-text-secondary hover:text-wa-text-primary transition-colors rounded-full hover:bg-wa-bg-hover">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                     <circle cx="12" cy="5" r="1.5"/>
                                     <circle cx="12" cy="12" r="1.5"/>
@@ -354,7 +354,7 @@ import Layout from "../../layouts/Layout.astro";
                     <div
                         x-ref="messagesContainer"
                         @scroll="onChatScroll()"
-                        class="flex-1 overflow-y-auto px-[6%] md:px-[10%] py-4 min-h-0 wa-chat-wallpaper"
+                        class="flex-1 overflow-y-auto px-3 sm:px-[5%] md:px-[8%] lg:px-[10%] py-3 min-h-0 wa-chat-wallpaper"
                     >
                         <!-- Load more indicator -->
                         <div x-show="loadingMore" class="flex justify-center py-3">
@@ -401,7 +401,7 @@ import Layout from "../../layouts/Layout.astro";
                                         </div>
                                     </div>
                                     <div
-                                        class="relative max-w-[85%] md:max-w-[65%] text-sm break-words shadow-sm overflow-hidden"
+                                        class="relative max-w-[88%] sm:max-w-[80%] md:max-w-[70%] lg:max-w-[65%] text-sm break-words shadow-sm overflow-hidden"
                                         :class="[
                                             msg.fromMe ? 'bg-wa-bubble-out text-white' : 'bg-wa-bubble-in text-white',
                                             isLastInGroup(messages, idx)
@@ -426,7 +426,7 @@ import Layout from "../../layouts/Layout.astro";
 
                                         <!-- AUDIO -->
                                         <template x-if="msg.type === 'AUDIO' && getMediaUrl(msg)">
-                                            <div class="px-2.5 pt-2 min-w-[240px]">
+                                            <div class="px-2.5 pt-2 min-w-[180px] sm:min-w-[240px]">
                                                 <audio :src="getMediaUrl(msg)" controls preload="metadata" class="w-full h-10"></audio>
                                             </div>
                                         </template>
@@ -451,7 +451,7 @@ import Layout from "../../layouts/Layout.astro";
 
                                         <!-- PTT (voice note) -->
                                         <template x-if="msg.type === 'PTT' && getMediaUrl(msg)">
-                                            <div class="px-2.5 pt-2 min-w-[240px] flex items-center gap-2">
+                                            <div class="px-2.5 pt-2 min-w-[180px] sm:min-w-[240px] flex items-center gap-2">
                                                 <svg class="w-5 h-5 text-wa-green flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 0014 0h-2zM11 19.93V22h2v-2.07A8 8 0 0020 12h-2a6 6 0 01-12 0H4a8 8 0 007 7.93z"/></svg>
                                                 <audio :src="getMediaUrl(msg)" controls preload="metadata" class="w-full h-10"></audio>
                                             </div>
@@ -527,7 +527,7 @@ import Layout from "../../layouts/Layout.astro";
                             x-show="showScrollDown"
                             x-transition
                             @click="scrollToBottom()"
-                            class="absolute bottom-3 right-6 z-10 w-10 h-10 rounded-full bg-wa-bg-header border border-wa-border shadow-lg flex items-center justify-center text-wa-text-secondary hover:text-wa-green transition-colors"
+                            class="absolute bottom-3 right-3 sm:right-6 z-10 w-10 h-10 rounded-full bg-wa-bg-header border border-wa-border shadow-lg flex items-center justify-center text-wa-text-secondary hover:text-wa-green transition-colors"
                             style="display:none;"
                         >
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
@@ -535,7 +535,7 @@ import Layout from "../../layouts/Layout.astro";
                     </div>
 
                     <!-- Attachment preview -->
-                    <div x-show="attachedFile" class="bg-wa-bg-header px-4 pt-2 flex items-center gap-2 flex-shrink-0 border-t border-wa-border" style="display:none;">
+                    <div x-show="attachedFile" class="bg-wa-bg-header px-2 sm:px-4 pt-2 flex items-center gap-2 flex-shrink-0 border-t border-wa-border" style="display:none;">
                         <div class="flex-1 flex items-center gap-2 bg-wa-bg-hover rounded-lg px-3 py-2">
                             <svg class="w-4 h-4 text-wa-green flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                             <span class="text-xs text-wa-text-primary truncate" x-text="attachedFile?.name"></span>
@@ -561,8 +561,8 @@ import Layout from "../../layouts/Layout.astro";
                     </div>
 
                     <!-- Emoji picker grid -->
-                    <div x-show="showEmojiPicker" x-transition class="bg-wa-bg-deep border-t border-wa-border px-3 py-2 flex-shrink-0" style="display:none;">
-                        <div class="grid grid-cols-8 gap-1 max-h-36 overflow-y-auto">
+                    <div x-show="showEmojiPicker" x-transition class="bg-wa-bg-deep border-t border-wa-border px-2 sm:px-3 py-2 flex-shrink-0" style="display:none;">
+                        <div class="grid grid-cols-6 sm:grid-cols-8 gap-0.5 sm:gap-1 max-h-36 overflow-y-auto">
                             <template x-for="emoji in ['😀','😁','😂','🤣','😊','😍','🥰','😘','😜','🤔','😎','🥳','😢','😭','😤','🤬','👍','👎','👏','🙏','❤️','🔥','⭐','✅','❌','💯','🎉','🎊','💪','🤝','👋','🫡','💀','🤯','🥺','😱','🙄','😴','🤮','🤑','💰','📱','📸','🎁','🏆','⚡','💡','🔔','📌']" :key="emoji">
                                 <button @click="messageInput += emoji; $refs.messageInputEl.focus()" class="w-9 h-9 flex items-center justify-center text-xl hover:bg-wa-bg-hover rounded transition-colors" x-text="emoji"></button>
                             </template>
@@ -570,19 +570,19 @@ import Layout from "../../layouts/Layout.astro";
                     </div>
 
                     <!-- Input area -->
-                    <div class="bg-wa-bg-header px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
-                        <!-- Emoji button -->
+                    <div class="bg-wa-bg-header px-2 sm:px-4 py-2 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                        <!-- Emoji button (hidden on very small screens) -->
                         <button
                             @click="showEmojiPicker = !showEmojiPicker; showQuickReplies = false"
-                            class="w-10 h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover flex items-center justify-center transition-colors flex-shrink-0"
+                            class="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover items-center justify-center transition-colors flex-shrink-0"
                             :class="showEmojiPicker ? 'text-wa-green' : ''"
                         >
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         </button>
-                        <!-- Quick replies button -->
+                        <!-- Quick replies button (hidden on very small screens) -->
                         <button
                             @click="showQuickReplies = !showQuickReplies; showEmojiPicker = false"
-                            class="w-10 h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover flex items-center justify-center transition-colors flex-shrink-0"
+                            class="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover items-center justify-center transition-colors flex-shrink-0"
                             :class="showQuickReplies ? 'text-wa-green' : ''"
                         >
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
@@ -590,25 +590,25 @@ import Layout from "../../layouts/Layout.astro";
                         <!-- Attach button -->
                         <button
                             @click="$refs.fileInput.click()"
-                            class="w-10 h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover flex items-center justify-center transition-colors flex-shrink-0"
+                            class="w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover flex items-center justify-center transition-colors flex-shrink-0"
                             :disabled="uploadingFile"
                         >
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                         </button>
                         <input type="file" x-ref="fileInput" @change="handleFileSelect($event)" class="hidden" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" />
 
-                        <form @submit.prevent="sendMessage()" class="flex-1 flex items-center gap-2">
+                        <form @submit.prevent="sendMessage()" class="flex-1 flex items-center gap-1.5 sm:gap-2">
                             <input
                                 type="text"
                                 x-model="messageInput"
                                 x-ref="messageInputEl"
-                                class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2.5 px-4 rounded-full focus:outline-none placeholder-wa-text-secondary"
-                                :placeholder="attachedFile ? 'Escribe un caption...' : $t('type_message')"
+                                class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2 sm:py-2.5 px-3 sm:px-4 rounded-full focus:outline-none placeholder-wa-text-secondary"
+                                :placeholder="attachedFile ? 'Caption...' : $t('type_message')"
                             />
                             <button
                                 type="submit"
                                 :disabled="(!messageInput.trim() && !attachedFile) || sending || uploadingFile"
-                                class="w-10 h-10 rounded-full bg-wa-green text-white flex items-center justify-center hover:bg-wa-green-hover transition-colors disabled:opacity-40 flex-shrink-0"
+                                class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-wa-green text-white flex items-center justify-center hover:bg-wa-green-hover transition-colors disabled:opacity-40 flex-shrink-0"
                             >
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
@@ -623,10 +623,10 @@ import Layout from "../../layouts/Layout.astro";
         <!-- Force AI Modal -->
         <div
             x-show="showForceAIModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
             style="display: none;"
         >
-            <div class="bg-wa-bg-panel border border-wa-border p-6 max-w-md w-full rounded-xl" @click.outside="showForceAIModal = false">
+            <div class="bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 sm:max-w-md w-full rounded-t-2xl sm:rounded-xl" @click.outside="showForceAIModal = false">
                 <h3 class="text-sm font-bold mb-2" x-text="$t('force_ai')"></h3>
                 <p class="text-xs text-wa-text-secondary mb-4" x-text="$t('force_ai_desc')"></p>
                 <textarea
@@ -653,10 +653,10 @@ import Layout from "../../layouts/Layout.astro";
         <!-- Run Flow Modal -->
         <div
             x-show="showFlowModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
             style="display: none;"
         >
-            <div class="bg-wa-bg-panel border border-wa-border p-6 max-w-md w-full rounded-xl" @click.outside="showFlowModal = false">
+            <div class="bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 sm:max-w-md w-full rounded-t-2xl sm:rounded-xl" @click.outside="showFlowModal = false">
                 <h3 class="text-sm font-bold mb-4" x-text="$t('run_flow')"></h3>
                 <select
                     x-model="selectedFlowId"
@@ -686,10 +686,10 @@ import Layout from "../../layouts/Layout.astro";
         <!-- Run Tool Modal -->
         <div
             x-show="showToolModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
             style="display: none;"
         >
-            <div class="bg-wa-bg-panel border border-wa-border p-6 max-w-md w-full rounded-xl" @click.outside="showToolModal = false">
+            <div class="bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 sm:max-w-md w-full rounded-t-2xl sm:rounded-xl" @click.outside="showToolModal = false">
                 <h3 class="text-sm font-bold mb-4" x-text="$t('run_tool')"></h3>
                 <select
                     x-model="selectedToolName"
