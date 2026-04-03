@@ -1103,14 +1103,24 @@ import Layout from "../../layouts/Layout.astro";
                 ApiClient.post(`/sessions/${session.id}/mark-read`, {}).catch(() => {});
             },
 
-            async loadMessages() {
+            async loadMessages(merge = false) {
                 if (!this.selectedSession) return;
                 try {
                     const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=${this.messageLimit}`);
-                    this.messages = res.data;
+                    if (merge && this.messages.length > 0) {
+                        // Merge: only add messages that don't already exist
+                        const existingIds = new Set(this.messages.map((m: any) => m.id));
+                        const newMsgs = (res.data || []).filter((m: any) => !existingIds.has(m.id));
+                        if (newMsgs.length > 0) {
+                            this.messages.push(...newMsgs);
+                            this.$nextTick(() => this.scrollToBottom());
+                        }
+                    } else {
+                        this.messages = res.data;
+                        this.$nextTick(() => this.scrollToBottom());
+                    }
                     this.lastMessageCount = res.pagination.total;
-                    this.hasMoreMessages = res.data.length < res.pagination.total;
-                    this.$nextTick(() => this.scrollToBottom());
+                    this.hasMoreMessages = (merge ? this.messages.length : res.data.length) < res.pagination.total;
                 } catch (e) {
                     console.error("Failed to load messages", e);
                 }
@@ -1199,8 +1209,8 @@ import Layout from "../../layouts/Layout.astro";
                     await ApiClient.post(`/sessions/${this.selectedSession.id}/send`, payload);
                     this.messageInput = "";
                     this.clearAttachment();
-                    // Don't call loadMessages() — the SSE message:received event
-                    // from persistOutgoingMessage will add the message to the array
+                    // Delayed merge reload — SSE may deliver it first (dedup prevents doubles)
+                    setTimeout(() => this.loadMessages(true), 1500);
                 } catch (e: any) {
                     window.__toast.error("Send failed: " + (e.message || "Unknown error"));
                 } finally {
@@ -1300,7 +1310,7 @@ import Layout from "../../layouts/Layout.astro";
                     this.showForceAIModal = false;
                     this.forceAIContext = "";
                     // Wait a bit then reload messages
-                    setTimeout(() => this.loadMessages(), 2000);
+                    setTimeout(() => this.loadMessages(true), 2000);
                 } catch (e: any) {
                     window.__toast.error("Force AI failed: " + (e.message || "Unknown error"));
                 }
@@ -1322,7 +1332,7 @@ import Layout from "../../layouts/Layout.astro";
                         flowId: this.selectedFlowId,
                     });
                     this.showFlowModal = false;
-                    setTimeout(() => this.loadMessages(), 2000);
+                    setTimeout(() => this.loadMessages(true), 2000);
                 } catch (e: any) {
                     window.__toast.error("Execute flow failed: " + (e.message || "Unknown error"));
                 }
