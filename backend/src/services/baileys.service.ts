@@ -20,6 +20,7 @@ import { generateLinkPreview } from './link-preview.service';
 import pino from 'pino';
 import { LabelService } from './label.service';
 import { MessageIngestService, isMessageDuplicate } from './message-ingest.service';
+import { normalizeWAMessage } from '../providers/baileys.normalizer';
 import { upsertSessionFromChat, updateContactName } from './session-helpers';
 import { config } from '../config';
 import { createLogger } from '../logger';
@@ -311,8 +312,11 @@ export class BaileysService {
                             continue;
                         }
 
-                        // @ts-ignore
-                        await MessageIngestService.handleIncomingMessage(botId, msg);
+                        // Normalize Baileys message → provider-agnostic format
+                        const normalized = await normalizeWAMessage(botId, msg);
+                        if (!normalized) continue; // protocol message or invalid
+
+                        await MessageIngestService.handleIncomingMessage(normalized);
                     } catch (e) {
                         log.error(`Error in messages.upsert handler for msg ${msg.key.id}:`, e);
                     }
@@ -351,7 +355,8 @@ export class BaileysService {
             sock.ev.on('contacts.update', async (updates) => {
                 for (const contact of updates) {
                     try {
-                        await updateContactName(botId, contact);
+                        const normalizedId = contact.id ? jidNormalizedUser(contact.id) : undefined;
+                        await updateContactName(botId, contact, normalizedId);
                     } catch (e: unknown) {
                         log.warn('contacts.update error:', (e as Error).message);
                     }
@@ -362,7 +367,8 @@ export class BaileysService {
             sock.ev.on('contacts.upsert', async (contacts) => {
                 for (const contact of contacts) {
                     try {
-                        await updateContactName(botId, contact);
+                        const normalizedId = contact.id ? jidNormalizedUser(contact.id) : undefined;
+                        await updateContactName(botId, contact, normalizedId);
                     } catch (e: unknown) {
                         log.warn('contacts.upsert error:', (e as Error).message);
                     }
@@ -410,7 +416,8 @@ export class BaileysService {
                 if (histContacts?.length) {
                     for (const contact of histContacts) {
                         try {
-                            await updateContactName(botId, contact);
+                            const normalizedId = contact.id ? jidNormalizedUser(contact.id) : undefined;
+                            await updateContactName(botId, contact, normalizedId);
                         } catch (e) { log.warn('history contact update error:', (e as Error).message); }
                     }
                 }
@@ -727,8 +734,8 @@ export class BaileysService {
         // Intercept emulator sessions — don't send via WhatsApp
         if (to.startsWith('emu://')) {
             const externalId = `emu_sent_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            // Persist outgoing message
-            await MessageIngestService.persistOutgoingMessage(botId, to, externalId, content).catch(e => {
+            const { msgType, textContent, mediaUrl } = this.extractOutgoingMeta(content);
+            await MessageIngestService.persistOutgoingMessage(botId, to, externalId, msgType, textContent, mediaUrl).catch(e => {
                 log.warn('Emulator outgoing persistence error:', (e as Error).message);
             });
             return true;
@@ -758,14 +765,15 @@ export class BaileysService {
 
             // Persist outgoing message to DB so it shows in the monitor
             if (sent?.key?.id) {
-                MessageIngestService.persistOutgoingMessage(botId, to, sent.key.id, content).catch(e => {
+                const normalizedTo = jidNormalizedUser(to);
+                const { msgType, textContent, mediaUrl } = this.extractOutgoingMeta(content);
+                MessageIngestService.persistOutgoingMessage(botId, normalizedTo, sent.key.id, msgType, textContent, mediaUrl).catch(e => {
                     log.warn('Outgoing message persistence error:', (e as Error).message);
                 });
             }
 
             return true;
         } catch (error: unknown) {
-            // Log the error with details but don't crash
             const errorCode = (error instanceof Error && 'code' in error ? (error as Record<string, unknown>).code : undefined) || 'UNKNOWN';
             const errorMsg = (error instanceof Error ? error.message : undefined) || String(error);
             log.error(`sendMessage failed for Bot ${botId} to ${to}:`, {
@@ -773,10 +781,27 @@ export class BaileysService {
                 message: errorMsg,
                 contentType: content?.text ? 'TEXT' : content?.image ? 'IMAGE' : content?.audio ? 'AUDIO' : 'OTHER'
             });
-
-            // Rethrow so caller can handle/log, but with more context
             throw new Error(`Baileys send failed (${errorCode}): ${errorMsg}`);
         }
+    }
+
+    /**
+     * Extract normalized outgoing message metadata from Baileys content structure.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private static extractOutgoingMeta(content: any): { msgType: string; textContent: string; mediaUrl?: string } {
+        const msgType =
+            content.image ? 'IMAGE' :
+            content.video ? 'VIDEO' :
+            content.audio ? (content.ptt ? 'PTT' : 'AUDIO') :
+            content.document ? 'DOCUMENT' :
+            content.sticker ? 'STICKER' : 'TEXT';
+        const textContent = content.text || content.caption || '';
+        const mediaUrl =
+            content.image?.url || content.video?.url ||
+            content.audio?.url || content.document?.url ||
+            content.sticker?.url || undefined;
+        return { msgType, textContent, mediaUrl };
     }
 
     /**

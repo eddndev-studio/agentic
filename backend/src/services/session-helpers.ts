@@ -1,19 +1,19 @@
-import { jidNormalizedUser } from '@whiskeysockets/baileys';
 import { prisma } from './postgres.service';
 import { Platform, SessionStatus, type Session } from '@prisma/client';
 import { eventBus } from './event-bus';
 
 /**
- * Update a session's name from a contact object (used by contacts.update, contacts.upsert, messaging-history.set).
+ * Update a session's name from a contact identifier.
+ * @param identifier Already-normalized identifier (caller must normalize before calling)
  * Returns true if the name was changed.
  */
-export async function updateContactName(botId: string, contact: { id?: string; notify?: string; verifiedName?: string; name?: string }): Promise<boolean> {
-    if (!contact.id) return false;
+export async function updateContactName(botId: string, contact: { id?: string; notify?: string; verifiedName?: string; name?: string }, normalizedId?: string): Promise<boolean> {
+    const identifier = normalizedId || contact.id;
+    if (!identifier) return false;
     const name = contact.notify || contact.verifiedName || contact.name;
     if (!name) return false;
-    const jid = jidNormalizedUser(contact.id);
     const session = await prisma.session.findUnique({
-        where: { botId_identifier: { botId, identifier: jid } },
+        where: { botId_identifier: { botId, identifier } },
     });
     if (session && session.name !== name) {
         await prisma.session.update({ where: { id: session.id }, data: { name } });
@@ -24,12 +24,13 @@ export async function updateContactName(botId: string, contact: { id?: string; n
 }
 
 /**
- * Find-or-create a session from a chat JID (used by chats.upsert, messaging-history.set, labels, messages).
- * Handles LID↔phone normalization and P2002 race conditions.
- * @param altIdentifier Optional fallback identifier to search (e.g. raw LID when primary is resolved phone)
+ * Find-or-create a session from a normalized identifier.
+ * Handles alternate identifier dedup (e.g. LID↔phone) and P2002 race conditions.
+ *
+ * @param identifier Already-normalized identifier (caller must normalize before calling)
+ * @param altIdentifier Optional fallback identifier for dedup
  */
-export async function upsertSessionFromChat(botId: string, jid: string, name?: string, altIdentifier?: string): Promise<{ session: Session | null; created: boolean }> {
-    const identifier = jidNormalizedUser(jid);
+export async function upsertSessionFromChat(botId: string, identifier: string, name?: string, altIdentifier?: string): Promise<{ session: Session | null; created: boolean }> {
     let session = await prisma.session.findUnique({
         where: { botId_identifier: { botId, identifier } },
     });

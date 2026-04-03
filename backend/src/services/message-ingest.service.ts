@@ -1,4 +1,3 @@
-import { type WAMessage, jidNormalizedUser } from '@whiskeysockets/baileys';
 import { prisma } from './postgres.service';
 import { eventBus } from './event-bus';
 import { flowEngine } from '../core/flow';
@@ -10,6 +9,7 @@ import { upsertSessionFromChat } from './session-helpers';
 import { config } from '../config';
 import { safeParseMessageMetadata } from '../schemas';
 import type { Message } from '@prisma/client';
+import type { NormalizedMessage } from '../providers/types';
 import { createLogger } from '../logger';
 
 const log = createLogger('MessageIngest');
@@ -34,129 +34,34 @@ function isMessageDuplicate(key: string): boolean {
 export class MessageIngestService {
 
     /**
-     * Handle an incoming WhatsApp message: normalize JID, detect type, persist to DB,
-     * download media, evaluate flow triggers, and enqueue AI processing.
+     * Handle a normalized incoming message: persist to DB, download media,
+     * evaluate flow triggers, and enqueue AI processing.
+     *
+     * Provider-agnostic: all platform-specific normalization (JID, unwrapping,
+     * type detection, media download) is done by the provider's normalizer
+     * BEFORE calling this method.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys message wrappers need broad type after unwrapping
-    static async handleIncomingMessage(botId: string, msg: WAMessage & { message: any }): Promise<void> {
-        const rawFrom = msg.key.remoteJid;
-        if (!rawFrom) return;
+    static async handleIncomingMessage(msg: NormalizedMessage): Promise<void> {
+        const { botId, from, altFrom, type: msgType, id: messageExternalId } = msg;
 
-        // Skip outgoing messages sent via our API — they are already persisted by persistOutgoingMessage()
-        // This prevents duplicate messages when WhatsApp echoes back our sent messages via messages.upsert
-        if (msg.key.fromMe) {
-            // Check if already persisted (by sendMessage → persistOutgoingMessage)
-            if (msg.key.id) {
-                const exists = await prisma.message.findFirst({ where: { externalId: msg.key.id }, select: { id: true } });
-                if (exists) return; // Already saved, skip
-            }
-        }
-
-        // CRITICAL: Normalize JID and resolve LID -> phone when possible
-        const normalizedRaw = jidNormalizedUser(rawFrom);
-        let from = normalizedRaw;
-        const keyWithAlt = msg.key as typeof msg.key & { remoteJidAlt?: string };
-        if (from.includes('@lid') && keyWithAlt.remoteJidAlt) {
-            from = jidNormalizedUser(keyWithAlt.remoteJidAlt);
-        }
-        // Keep the original LID as alt identifier for session dedup
-        const altFrom = from !== normalizedRaw ? normalizedRaw : undefined;
-
-        // Unwrap view-once, ephemeral, and document-with-caption wrappers
-        let m = msg.message;
-        if (m.viewOnceMessage) m = m.viewOnceMessage.message;
-        else if (m.viewOnceMessageV2) m = m.viewOnceMessageV2.message;
-        else if (m.ephemeralMessage) m = m.ephemeralMessage.message;
-        if (m.documentWithCaptionMessage) m = m.documentWithCaptionMessage.message;
-
-        // Skip protocol messages (edits/deletes handled elsewhere)
-        if (m.protocolMessage || m.senderKeyDistributionMessage) return;
-
-        // Detect message type
-        const msgType =
-            m.stickerMessage   ? 'STICKER' :
-            m.reactionMessage  ? 'REACTION' :
-            m.imageMessage     ? 'IMAGE' :
-            m.videoMessage     ? 'VIDEO' :
-            m.audioMessage     ? (m.audioMessage.ptt ? 'PTT' : 'AUDIO') :
-            m.documentMessage  ? 'DOCUMENT' :
-            m.contactMessage   ? 'CONTACT' :
-            m.contactsArrayMessage ? 'CONTACT' :
-            m.locationMessage  ? 'LOCATION' :
-            m.liveLocationMessage ? 'LOCATION' :
-            m.pollCreationMessage ? 'POLL' :
-            'TEXT';
-
-        // Extract content based on type
-        let content = '';
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma JSON field
-        let extraMetadata: Record<string, any> = {};
-
-        switch (msgType) {
-            case 'TEXT':
-                content = m.conversation || m.extendedTextMessage?.text || '';
-                break;
-            case 'IMAGE':
-                content = m.imageMessage?.caption || '';
-                break;
-            case 'VIDEO':
-                content = m.videoMessage?.caption || '';
-                break;
-            case 'DOCUMENT':
-                content = m.documentMessage?.caption || m.documentMessage?.fileName || '';
-                break;
-            case 'STICKER':
-                content = '';
-                extraMetadata.animated = !!m.stickerMessage?.isAnimated;
-                break;
-            case 'REACTION':
-                content = m.reactionMessage?.text || '';  // emoji or empty = removed
-                extraMetadata.reactedTo = {
-                    id: m.reactionMessage?.key?.id,
-                    fromMe: m.reactionMessage?.key?.fromMe,
-                };
-                break;
-            case 'CONTACT': {
-                const single = m.contactMessage;
-                const arr = m.contactsArrayMessage?.contacts;
-                if (single) {
-                    content = single.displayName || '';
-                    extraMetadata.vcard = single.vcard;
-                } else if (arr) {
-                    content = arr.map((c: { displayName?: string }) => c.displayName).join(', ');
-                    extraMetadata.contacts = arr.map((c: { displayName?: string; vcard?: string }) => ({ name: c.displayName, vcard: c.vcard }));
-                }
-                break;
-            }
-            case 'LOCATION': {
-                const loc = m.locationMessage || m.liveLocationMessage;
-                content = loc?.name || loc?.address || '';
-                extraMetadata.latitude = loc?.degreesLatitude;
-                extraMetadata.longitude = loc?.degreesLongitude;
-                extraMetadata.live = !!m.liveLocationMessage;
-                break;
-            }
-            case 'POLL':
-                content = m.pollCreationMessage?.name || '';
-                extraMetadata.options = m.pollCreationMessage?.options?.map((o: { optionName?: string }) => o.optionName) || [];
-                break;
-            default: // AUDIO, PTT
-                content = '';
-                break;
+        // Skip outgoing messages sent via our API — already persisted by persistOutgoingMessage()
+        if (msg.fromMe) {
+            const exists = await prisma.message.findFirst({ where: { externalId: messageExternalId }, select: { id: true } });
+            if (exists) return;
         }
 
         const hasMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'STICKER', 'PTT'].includes(msgType);
 
-        log.info(`Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${msg.key.id}] on Bot ${botId}: ${(content || '').substring(0, 50)}...`);
+        log.info(`Received ${msgType} from ${from} (${msg.pushName}) [MsgID: ${messageExternalId}] on Bot ${botId}: ${(msg.content || '').substring(0, 50)}...`);
 
         try {
             // 1. Resolve Bot (include template for messageDelay resolution)
             const bot = await prisma.bot.findUnique({ where: { id: botId }, include: { template: true } });
             if (!bot) return;
 
-            // 2. Resolve Session (with LID<->phone dedup) -- ALWAYS, even for filtered messages
+            // 2. Resolve Session (with alt identifier dedup) — ALWAYS, even for filtered messages
             const { session, created: sessionCreated } = await upsertSessionFromChat(
-                bot.id, from, msg.pushName || undefined, altFrom
+                bot.id, from, msg.pushName, altFrom
             );
             if (!session) throw new Error(`Could not resolve session for ${from}`);
             if (sessionCreated) {
@@ -164,15 +69,14 @@ export class MessageIngestService {
             }
 
             // 3. ALWAYS persist message to DB (every type, every group, every direction)
-            const messageExternalId = msg.key.id || `msg_${Date.now()}`;
             const messageData = {
                 sessionId: session.id,
                 sender: from,
-                fromMe: msg.key.fromMe || false,
-                content,
+                fromMe: msg.fromMe,
+                content: msg.content,
                 type: msgType,
                 isProcessed: false,
-                ...(Object.keys(extraMetadata).length > 0 ? { metadata: extraMetadata } : {}),
+                ...(Object.keys(msg.metadata).length > 0 ? { metadata: msg.metadata as Record<string, any> } : {}),
             };
 
             let message: Message;
@@ -188,22 +92,36 @@ export class MessageIngestService {
                 throw e;
             }
 
-            // 4. Download media (stickers, images, audio, video, documents, PTT)
+            // 4. Store media (provider already downloaded the buffer)
             if (hasMedia) {
-                try {
-                    await MediaService.downloadAndAttachMedia(msg, msgType, message.id, botId);
-                    const updated = await prisma.message.findUnique({ where: { id: message.id } });
-                    if (updated) message = updated;
+                if (msg.mediaBuffer) {
+                    try {
+                        await MediaService.attachMediaBuffer(
+                            msg.mediaBuffer, msgType, message.id, botId,
+                            msg.mediaMimeType, msg.mediaFileName,
+                        );
+                        const updated = await prisma.message.findUnique({ where: { id: message.id } });
+                        if (updated) message = updated;
 
-                    // Generate AI descriptions only for IMAGE and DOCUMENT (skip stickers, audio, etc.)
-                    if (msgType === 'IMAGE' || msgType === 'DOCUMENT') {
-                        MediaService.generateMediaDescription(message.id, msgType, safeParseMessageMetadata(message.metadata).mediaUrl, bot.aiProvider)
-                            .catch(err => log.warn(`Media description failed for ${messageExternalId}:`, err.message));
+                        // Generate AI descriptions only for IMAGE and DOCUMENT
+                        if (msgType === 'IMAGE' || msgType === 'DOCUMENT') {
+                            MediaService.generateMediaDescription(message.id, msgType, safeParseMessageMetadata(message.metadata).mediaUrl, bot.aiProvider)
+                                .catch(err => log.warn(`Media description failed for ${messageExternalId}:`, err.message));
+                        }
+                    } catch (mediaErr) {
+                        log.error(`Media storage failed for ${messageExternalId}:`, mediaErr);
+                        const placeholder = `[${msgType.toLowerCase()} adjunto no pudo ser procesado]`;
+                        const updatedContent = msg.content ? `${msg.content}\n${placeholder}` : placeholder;
+                        await prisma.message.update({
+                            where: { id: message.id },
+                            data: { content: updatedContent },
+                        }).catch(e => log.warn('media fallback content update failed:', (e as Error).message));
+                        message = { ...message, content: updatedContent };
                     }
-                } catch (mediaErr) {
-                    log.error(`Media download failed for ${messageExternalId}:`, mediaErr);
+                } else {
+                    // Media download failed at provider level
                     const placeholder = `[${msgType.toLowerCase()} adjunto no pudo ser descargado]`;
-                    const updatedContent = content ? `${content}\n${placeholder}` : placeholder;
+                    const updatedContent = msg.content ? `${msg.content}\n${placeholder}` : placeholder;
                     await prisma.message.update({
                         where: { id: message.id },
                         data: { content: updatedContent },
@@ -222,7 +140,7 @@ export class MessageIngestService {
 
             // -- From here on: filters only affect PROCESSING (flows, AI), NOT storage --
 
-            // Skip processing for non-conversational types (reactions, stickers, polls, etc.)
+            // Skip processing for non-conversational types
             if (['REACTION', 'STICKER', 'CONTACT', 'LOCATION', 'POLL'].includes(msgType)) return;
 
             // Skip processing when bot is paused
@@ -291,38 +209,30 @@ export class MessageIngestService {
 
     /**
      * Persist an outgoing message to the database and emit message:sent event.
-     * Called after a message is successfully sent via the WhatsApp socket.
+     * Called after a message is successfully sent via the provider.
+     *
+     * @param normalizedTo - Already-normalized recipient identifier (provider normalizes before calling)
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys message content structure varies
-    static async persistOutgoingMessage(botId: string, to: string, sentKeyId: string, content: any): Promise<void> {
+    static async persistOutgoingMessage(
+        botId: string,
+        normalizedTo: string,
+        sentKeyId: string,
+        msgType: string,
+        textContent: string,
+        mediaUrl?: string,
+    ): Promise<void> {
         try {
-            // For emulator sessions, look up directly by identifier (not a valid JID)
-            const isEmulator = to.startsWith('emu://');
+            const isEmulator = normalizedTo.startsWith('emu://');
             const { session } = isEmulator
-                ? { session: await prisma.session.findFirst({ where: { identifier: to, botId } }) }
-                : await upsertSessionFromChat(botId, jidNormalizedUser(to));
+                ? { session: await prisma.session.findFirst({ where: { identifier: normalizedTo, botId } }) }
+                : await upsertSessionFromChat(botId, normalizedTo);
 
             if (session) {
-                const msgType =
-                    content.image ? 'IMAGE' :
-                    content.video ? 'VIDEO' :
-                    content.audio ? (content.ptt ? 'PTT' : 'AUDIO') :
-                    content.document ? 'DOCUMENT' :
-                    content.sticker ? 'STICKER' : 'TEXT';
-                const textContent =
-                    content.text || content.caption || '';
-
-                // Extract media URL from Baileys content structure
-                const mediaUrl =
-                    content.image?.url || content.video?.url ||
-                    content.audio?.url || content.document?.url ||
-                    content.sticker?.url || undefined;
-
                 const message = await prisma.message.create({
                     data: {
                         externalId: sentKeyId,
                         sessionId: session.id,
-                        sender: isEmulator ? to : jidNormalizedUser(to),
+                        sender: normalizedTo,
                         fromMe: true,
                         content: textContent,
                         type: msgType,
@@ -334,7 +244,6 @@ export class MessageIngestService {
                     return null;
                 });
 
-                // Emit full message object so the frontend can render it immediately
                 if (message) {
                     eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
                 } else {

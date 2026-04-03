@@ -1,30 +1,33 @@
-import { downloadMediaMessage, type WAMessage } from '@whiskeysockets/baileys';
 import * as fs from 'fs';
 import * as path from 'path';
-import { prisma } from './postgres.service';
 import { StorageService } from './storage.service';
 import { updateMessageMetadata } from '../utils/helpers';
 
 export class MediaService {
     /**
-     * Download media from a WhatsApp message, store in R2 (or local fallback),
-     * and attach the URL to the persisted message.
+     * Store a media buffer in R2 (or local fallback) and attach the URL to the persisted message.
+     * Provider-agnostic: receives a pre-downloaded buffer instead of a raw platform message.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys message wrappers need broad type
-    static async downloadAndAttachMedia(msg: WAMessage & { message: any }, msgType: string, messageId: string, botId?: string): Promise<void> {
-        const buffer = await downloadMediaMessage(msg, 'buffer', {});
-        if (!buffer) return;
-
+    static async attachMediaBuffer(
+        buffer: Buffer,
+        msgType: string,
+        messageId: string,
+        botId?: string,
+        mimeType?: string,
+        fileName?: string,
+    ): Promise<void> {
         const MIME_MAP: Record<string, { ext: string; mime: string }> = {
             IMAGE:    { ext: 'jpg',  mime: 'image/jpeg' },
             AUDIO:    { ext: 'ogg',  mime: 'audio/ogg' },
             PTT:      { ext: 'ogg',  mime: 'audio/ogg' },
             VIDEO:    { ext: 'mp4',  mime: 'video/mp4' },
             STICKER:  { ext: 'webp', mime: 'image/webp' },
-            DOCUMENT: { ext: msg.message.documentMessage?.fileName?.split('.').pop() || 'pdf',
-                        mime: msg.message.documentMessage?.mimetype || 'application/octet-stream' },
+            DOCUMENT: { ext: fileName?.split('.').pop() || 'pdf',
+                        mime: mimeType || 'application/octet-stream' },
         };
-        const { ext, mime } = MIME_MAP[msgType] || { ext: 'bin', mime: 'application/octet-stream' };
+        const fallback = MIME_MAP[msgType] || { ext: 'bin', mime: 'application/octet-stream' };
+        const ext = fallback.ext;
+        const mime = mimeType || fallback.mime;
         const filename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
         let mediaUrl: string;
