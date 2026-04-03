@@ -960,10 +960,15 @@ import Layout from "../../layouts/Layout.astro";
                     try {
                         const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=${this.messageLimit}`);
                         if (res.pagination.total !== this.lastMessageCount) {
-                            this.messages = res.data;
+                            // Only append new messages instead of replacing the array
+                            const existingIds = new Set(this.messages.map((m: any) => m.id));
+                            const newMsgs = (res.data || []).filter((m: any) => !existingIds.has(m.id));
+                            if (newMsgs.length > 0) {
+                                this.messages.push(...newMsgs);
+                                this.$nextTick(() => this.scrollToBottom());
+                            }
                             this.lastMessageCount = res.pagination.total;
-                            this.hasMoreMessages = res.data.length < res.pagination.total;
-                            this.$nextTick(() => this.scrollToBottom());
+                            this.hasMoreMessages = this.messages.length < res.pagination.total;
                         }
                     } catch {}
                 }
