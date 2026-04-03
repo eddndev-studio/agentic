@@ -232,6 +232,7 @@ import FinanceNav from "../../components/FinanceNav.astro";
                                 <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
                                     <th class="px-4 py-3 w-8"></th>
                                     <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_campaign_name')">Campana</th>
+                                    <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_type')">Tipo</th>
                                     <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_status')">Estado</th>
                                     <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_spend')">Gasto</th>
                                     <th class="text-right px-4 py-3 font-medium">Impressions</th>
@@ -242,7 +243,7 @@ import FinanceNav from "../../components/FinanceNav.astro";
                                 <template x-for="c in campaigns" :key="c.id">
                                     <tr>
                                         <!-- Campaign row -->
-                                        <td colspan="6" class="p-0">
+                                        <td colspan="7" class="p-0">
                                             <div
                                                 class="flex items-center border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors cursor-pointer"
                                                 @click="toggleCampaign(c)"
@@ -257,6 +258,9 @@ import FinanceNav from "../../components/FinanceNav.astro";
                                                     </svg>
                                                 </div>
                                                 <div class="flex-1 px-4 py-3 font-medium text-white" x-text="c.name"></div>
+                                                <div class="px-4 py-3 w-32">
+                                                    <span class="text-[10px] text-wa-text-secondary" x-text="c.objective?.replace('OUTCOME_', '') || c.buyingType || '—'"></span>
+                                                </div>
                                                 <div class="px-4 py-3">
                                                     <span
                                                         class="px-2 py-0.5 rounded-full text-[10px] font-medium"

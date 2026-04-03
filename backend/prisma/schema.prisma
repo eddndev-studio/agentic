@@ -553,6 +553,7 @@ model Campaign {
   name         String
   status       String
   objective    String?
+  buyingType   String?
   adAccountId  String
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

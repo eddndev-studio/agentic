@@ -153,14 +153,14 @@ export class FacebookService {
         log.info(`Syncing ad account ${fbAccountId}...`);
 
         // Fetch campaigns
-        const campaignsRes = await this.fbGet(token, `/${fbAccountId}/campaigns?fields=id,name,status,objective&limit=100`);
+        const campaignsRes = await this.fbGet(token, `/${fbAccountId}/campaigns?fields=id,name,status,objective,buying_type&limit=100`);
         const campaigns = campaignsRes.data || [];
 
         for (const c of campaigns) {
             const campaign = await prisma.campaign.upsert({
                 where: { fbCampaignId: c.id },
-                create: { fbCampaignId: c.id, name: c.name, status: c.status, objective: c.objective || null, adAccountId },
-                update: { name: c.name, status: c.status, objective: c.objective || null },
+                create: { fbCampaignId: c.id, name: c.name, status: c.status, objective: c.objective || null, buyingType: c.buying_type || null, adAccountId },
+                update: { name: c.name, status: c.status, objective: c.objective || null, buyingType: c.buying_type || null },
             });
 
             // Fetch adsets
