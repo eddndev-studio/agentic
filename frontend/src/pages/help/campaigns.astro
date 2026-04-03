@@ -1,0 +1,479 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import HelpNav from "../../components/HelpNav.astro";
+---
+
+<Layout title="Ayuda - Campanas de Facebook">
+    <HelpNav currentPath="/help/campaigns" />
+    <main class="space-y-8">
+
+        <div>
+            <h1 class="text-2xl font-bold text-white mb-2">Campanas de Facebook</h1>
+            <p class="text-sm text-wa-text-secondary">Aprende a conectar Facebook, crear campanas publicitarias, segmentar audiencias y gestionar anuncios desde Agentic.</p>
+        </div>
+
+        <!-- Table of contents -->
+        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5">
+            <h2 class="text-xs font-bold text-wa-text-secondary uppercase tracking-wider mb-3">En esta seccion</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <a href="#conectar" class="text-sm text-wa-green hover:underline">Conectar Facebook</a>
+                <a href="#cuentas" class="text-sm text-wa-green hover:underline">Cuentas publicitarias</a>
+                <a href="#crear-campana" class="text-sm text-wa-green hover:underline">Crear una campana</a>
+                <a href="#segmentacion" class="text-sm text-wa-green hover:underline">Segmentacion</a>
+                <a href="#anuncio" class="text-sm text-wa-green hover:underline">Crear anuncio</a>
+                <a href="#boost" class="text-sm text-wa-green hover:underline">Promover publicaciones</a>
+                <a href="#gestionar" class="text-sm text-wa-green hover:underline">Gestionar campanas</a>
+                <a href="#metricas" class="text-sm text-wa-green hover:underline">Entender las metricas</a>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Conectar Facebook                                      -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="conectar" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Conectar Facebook</h2>
+            <p class="text-sm text-wa-text-secondary">Para usar las funciones de campanas, primero debes conectar tu cuenta de Facebook con Agentic.</p>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Ve a Configuracion</p>
+                        <p class="text-xs text-wa-text-secondary">Desde el modulo de Finanzas, entra a la pestana "Config" o ve directamente a <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">/finance/settings</code>.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Haz clic en "Conectar Facebook"</p>
+                        <p class="text-xs text-wa-text-secondary">Se abrira una ventana de Facebook donde debes iniciar sesion con la cuenta que administra tus paginas y cuentas publicitarias.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Otorga los permisos necesarios</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Facebook te pedira permisos para:</p>
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-2 max-w-md">
+                            <div class="flex items-center gap-2">
+                                <span class="text-wa-green text-xs">&#10003;</span>
+                                <p class="text-xs text-wa-text-secondary">Gestionar tus paginas de Facebook</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-wa-green text-xs">&#10003;</span>
+                                <p class="text-xs text-wa-text-secondary">Acceder a cuentas publicitarias</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-wa-green text-xs">&#10003;</span>
+                                <p class="text-xs text-wa-text-secondary">Crear y gestionar campanas publicitarias</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-wa-green text-xs">&#10003;</span>
+                                <p class="text-xs text-wa-text-secondary">Leer metricas de rendimiento</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium">Selecciona tu cuenta publicitaria</p>
+                        <p class="text-xs text-wa-text-secondary">Una vez conectado, Agentic mostrara las cuentas publicitarias disponibles. Selecciona la que quieras usar.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
+                <p class="text-xs text-yellow-300"><strong>Importante:</strong> Necesitas una cuenta de Facebook Business con al menos una cuenta publicitaria activa y metodo de pago configurado en Facebook para poder crear campanas.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Cuentas publicitarias                                  -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="cuentas" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Cuentas publicitarias</h2>
+            <p class="text-sm text-wa-text-secondary">Una cuenta publicitaria (Ad Account) es donde Facebook cobra los gastos de tus campanas. Cada cuenta tiene su propio presupuesto y metodo de pago.</p>
+
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 max-w-lg">
+                <p class="text-xs text-wa-text-secondary mb-3">En la configuracion veras tus cuentas publicitarias:</p>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <div>
+                            <p class="text-xs text-white font-medium">Gestoria Express MX</p>
+                            <p class="text-[10px] text-wa-text-secondary">ID: act_123456789</p>
+                        </div>
+                        <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] rounded">Activa</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <div>
+                            <p class="text-xs text-white font-medium">Licencias Guadalajara</p>
+                            <p class="text-[10px] text-wa-text-secondary">ID: act_987654321</p>
+                        </div>
+                        <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] rounded">Activa</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Asignar trabajadores:</strong> Puedes vincular una cuenta publicitaria a un trabajador especifico para rastrear el gasto publicitario por persona en los reportes financieros.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Multiples cuentas:</strong> Si tienes varias cuentas publicitarias, puedes seleccionar cual usar al crear cada campana.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Crear una campana                                      -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="crear-campana" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Crear una campana</h2>
+            <p class="text-sm text-wa-text-secondary">Crear una campana es un proceso guiado (wizard) de varios pasos.</p>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Nombre y objetivo de la campana</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Define un nombre descriptivo y selecciona el objetivo publicitario:</p>
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-3 max-w-md">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Nombre de la campana</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">Licencias CDMX - Abril 2026</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Objetivo</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">ENGAGEMENT</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-wa-text-secondary mt-2">El objetivo <strong class="text-white">ENGAGEMENT</strong> es ideal para gestorias de licencias porque genera interaccion directa con tus publicaciones.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Presupuesto y calendario</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Establece cuanto quieres gastar por dia y por cuanto tiempo:</p>
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-3 max-w-md">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Presupuesto diario</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">$300 MXN / dia</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Fecha de inicio</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">02/04/2026</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Fecha de fin (opcional)</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">30/04/2026</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Configura la segmentacion</p>
+                        <p class="text-xs text-wa-text-secondary">Define a quien quieres llegar. <a href="#segmentacion" class="text-wa-green hover:underline">Ver seccion de segmentacion</a>.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Crea el anuncio</p>
+                        <p class="text-xs text-wa-text-secondary">Selecciona la pagina, escribe el texto y configura el CTA. <a href="#anuncio" class="text-wa-green hover:underline">Ver seccion de anuncios</a>.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">5</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium">Revisa y publica</p>
+                        <p class="text-xs text-wa-text-secondary">Revisa el resumen de la campana y haz clic en "Crear Campana". Facebook la revisara y la publicara cuando sea aprobada.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Empieza con un presupuesto bajo ($150-300 MXN/dia) durante la primera semana para probar que anuncio funciona mejor. Despues sube el presupuesto a los anuncios ganadores.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Segmentacion                                           -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="segmentacion" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Segmentacion</h2>
+            <p class="text-sm text-wa-text-secondary">La segmentacion define a que personas Facebook le mostrara tu anuncio. Entre mejor segmentes, mas efectivo sera tu presupuesto.</p>
+
+            <div class="space-y-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-3">Ubicacion</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Busca una ciudad o zona y define el radio de alcance. El mapa te mostrara el area cubierta.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2 max-w-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-wa-text-secondary">Ubicacion:</span>
+                            <span class="text-xs text-white">Ciudad de Mexico, CDMX</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-wa-text-secondary">Radio:</span>
+                            <span class="text-xs text-white">40 km</span>
+                        </div>
+                        <div class="w-full h-24 bg-wa-bg-deep rounded-lg flex items-center justify-center mt-2">
+                            <div class="text-center">
+                                <div class="w-16 h-16 rounded-full border-2 border-dashed border-wa-green/40 flex items-center justify-center">
+                                    <div class="w-2 h-2 rounded-full bg-wa-green"></div>
+                                </div>
+                                <p class="text-[10px] text-wa-text-secondary mt-1">CDMX, 40km</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-purple-400 mb-3">Edad y genero</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Define el rango de edad y genero de tu audiencia objetivo.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2 max-w-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-wa-text-secondary">Edad minima:</span>
+                            <span class="text-xs text-white">18 anos</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-wa-text-secondary">Edad maxima:</span>
+                            <span class="text-xs text-white">45 anos</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-wa-text-secondary">Genero:</span>
+                            <span class="text-xs text-white">Todos</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-orange-400 mb-3">Intereses</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Agrega intereses para llegar a personas mas relevantes. Facebook buscara usuarios que hayan mostrado interes en estos temas.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 max-w-md">
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-white">Licencia de conducir</span>
+                            <span class="px-2 py-1 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-white">Automoviles</span>
+                            <span class="px-2 py-1 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-white">Tramites gubernamentales</span>
+                            <span class="px-2 py-1 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-white">Escuela de manejo</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Para licencias de conducir, segmenta personas de 18-45 anos en tu zona con intereses como "Licencia de conducir", "Automoviles" o "Escuela de manejo". Esto filtra a personas que realmente necesitan el servicio.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Crear anuncio                                          -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="anuncio" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Crear anuncio</h2>
+            <p class="text-sm text-wa-text-secondary">El anuncio es lo que los usuarios veran en Facebook. Configura la pagina, el mensaje y la llamada a la accion.</p>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Selecciona la pagina de Facebook</p>
+                        <p class="text-xs text-wa-text-secondary">El anuncio se publicara en nombre de una de tus paginas de Facebook. Selecciona la pagina de tu negocio.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Configura el contenido del anuncio</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Escribe el texto, agrega un enlace y define el CTA:</p>
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-3 max-w-md">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Enlace (URL)</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">https://wa.me/5215512345678</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Mensaje del anuncio</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-xs text-white italic">Obtene tu licencia de conducir en solo 3 dias! Tramite express, sin filas, sin complicaciones. Escribenos ahora y te explicamos todo el proceso.</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Titulo (headline)</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">Licencia Express en 3 Dias</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Boton de accion (CTA)</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">SEND_MESSAGE</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Usa el CTA <strong>SEND_MESSAGE</strong> para que los clientes te escriban directamente por WhatsApp o Messenger. Es el mas efectivo para gestorias porque genera conversaciones directas.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Promover publicaciones (Boost)                         -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="boost" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Promover publicaciones</h2>
+            <p class="text-sm text-wa-text-secondary">Ademas de crear campanas desde cero, puedes promover (boost) publicaciones existentes de tu pagina de Facebook para que lleguen a mas personas.</p>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Ve a "Boost" en el modulo de Campanas</p>
+                        <p class="text-xs text-wa-text-secondary">Encontraras la opcion en la seccion de campanas publicitarias.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Selecciona la pagina y la publicacion</p>
+                        <p class="text-xs text-wa-text-secondary">Elige la pagina de Facebook y luego selecciona la publicacion que quieres promover de la lista.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Configura el presupuesto y duracion</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Define cuanto quieres invertir y por cuantos dias:</p>
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-3 max-w-md">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Presupuesto diario</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">$300 MXN / dia</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Duracion</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">7 dias</div>
+                            </div>
+                            <div class="bg-wa-bg-panel rounded-lg px-3 py-2">
+                                <p class="text-xs text-wa-text-secondary">Gasto total estimado: <strong class="text-white">$2,100 MXN</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium">Confirma y lanza</p>
+                        <p class="text-xs text-wa-text-secondary">Haz clic en "Promover" para enviar la solicitud a Facebook. La publicacion comenzara a mostrarse a mas personas una vez aprobada.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
+                <p class="text-xs text-yellow-300"><strong>Importante:</strong> El boost usa la misma segmentacion basica de la publicacion. Si necesitas segmentacion avanzada (intereses, edad especifica), crea una campana completa en lugar de un boost.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Gestionar campanas                                     -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="gestionar" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Gestionar campanas</h2>
+            <p class="text-sm text-wa-text-secondary">Una vez creadas, puedes gestionar tus campanas desde el panel principal.</p>
+
+            <div class="space-y-3">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-yellow-400 mb-2">Pausar / Reactivar</h3>
+                    <p class="text-xs text-wa-text-secondary">Haz clic en el boton de pausa para detener temporalmente una campana. Facebook dejara de mostrar los anuncios pero no perderas la configuracion. Haz clic de nuevo para reactivar.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-2">Editar presupuesto</h3>
+                    <p class="text-xs text-wa-text-secondary">Puedes ajustar el presupuesto diario de una campana activa sin necesidad de pausarla. Los cambios se aplican al dia siguiente.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-emerald-400 mb-2">Ver detalle</h3>
+                    <p class="text-xs text-wa-text-secondary">Haz clic en una campana para ver el detalle completo: conjuntos de anuncios, anuncios individuales y metricas desglosadas.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-purple-400 mb-2">Metricas en tiempo real</h3>
+                    <p class="text-xs text-wa-text-secondary">Las metricas se actualizan automaticamente. Puedes ver gasto, impresiones, clics y alcance directamente en la lista de campanas.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Entender las metricas                                  -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="metricas" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Entender las metricas</h2>
+            <p class="text-sm text-wa-text-secondary">Las metricas te dicen como esta funcionando tu campana. Aqui las principales:</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-emerald-400 mb-1">Gasto (Spend)</h3>
+                    <p class="text-xs text-wa-text-secondary">Cuanto dinero has gastado hasta ahora. Ejemplo: <strong class="text-white">$1,200 MXN</strong> de $2,100 MXN presupuestados.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-1">Impresiones (Impressions)</h3>
+                    <p class="text-xs text-wa-text-secondary">Cuantas veces se mostro tu anuncio en pantalla. Ejemplo: <strong class="text-white">15,432</strong> impresiones. Una persona puede ver el anuncio varias veces.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-purple-400 mb-1">Clics (Clicks)</h3>
+                    <p class="text-xs text-wa-text-secondary">Cuantas personas hicieron clic en tu anuncio o boton de accion. Ejemplo: <strong class="text-white">342</strong> clics en "Enviar mensaje".</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-orange-400 mb-1">Alcance (Reach)</h3>
+                    <p class="text-xs text-wa-text-secondary">Cuantas personas unicas vieron tu anuncio. Ejemplo: <strong class="text-white">8,750</strong> personas. A diferencia de impresiones, cada persona se cuenta una sola vez.</p>
+                </div>
+            </div>
+
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 max-w-lg">
+                <p class="text-xs text-wa-text-secondary mb-3">Ejemplo de metricas de una campana de licencias:</p>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-xs text-wa-text-secondary">Gasto</span>
+                        <span class="text-xs text-white font-medium">$1,200 MXN</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-xs text-wa-text-secondary">Impresiones</span>
+                        <span class="text-xs text-white font-medium">15,432</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-xs text-wa-text-secondary">Clics</span>
+                        <span class="text-xs text-white font-medium">342</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-xs text-wa-text-secondary">Alcance</span>
+                        <span class="text-xs text-white font-medium">8,750</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-xs text-wa-text-secondary">Costo por clic</span>
+                        <span class="text-xs text-wa-green font-medium">$3.51 MXN</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Un buen costo por clic (CPC) para servicios de licencias en Mexico esta entre $2-5 MXN. Si tu CPC esta por encima de $8, considera cambiar el texto del anuncio o ajustar la segmentacion.</p>
+            </div>
+        </section>
+
+        <!-- Navigation -->
+        <div class="flex items-center justify-between pt-4 border-t border-wa-border">
+            <a href="/help/templates" class="text-sm text-wa-text-secondary hover:text-wa-green transition-colors">&larr; Anterior: Plantillas</a>
+            <a href="/help/finance" class="text-sm text-wa-green hover:underline">Siguiente: Control Financiero &rarr;</a>
+        </div>
+
+    </main>
+</Layout>

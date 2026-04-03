@@ -1,0 +1,400 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import HelpNav from "../../components/HelpNav.astro";
+---
+
+<Layout title="Ayuda - Flujos de Automatizacion">
+    <HelpNav currentPath="/help/flows" />
+    <main class="space-y-8">
+
+        <div>
+            <h1 class="text-2xl font-bold text-white mb-2">Flujos de Automatizacion</h1>
+            <p class="text-sm text-wa-text-secondary">Aprende a crear flujos que responden automaticamente a los mensajes de tus clientes con triggers, pasos y variables.</p>
+        </div>
+
+        <!-- Table of contents -->
+        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5">
+            <h2 class="text-xs font-bold text-wa-text-secondary uppercase tracking-wider mb-3">En esta seccion</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <a href="#que-es" class="text-sm text-wa-green hover:underline">Que es un flujo</a>
+                <a href="#crear" class="text-sm text-wa-green hover:underline">Crear un flujo</a>
+                <a href="#triggers" class="text-sm text-wa-green hover:underline">Tipos de triggers</a>
+                <a href="#pasos" class="text-sm text-wa-green hover:underline">Tipos de pasos</a>
+                <a href="#editor" class="text-sm text-wa-green hover:underline">El editor visual</a>
+                <a href="#variables-en-flujos" class="text-sm text-wa-green hover:underline">Usar variables</a>
+                <a href="#importar" class="text-sm text-wa-green hover:underline">Importar/Exportar</a>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Que es un flujo                                        -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="que-es" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Que es un flujo</h2>
+            <p class="text-sm text-wa-text-secondary">Un flujo es una secuencia automatizada de acciones que el bot ejecuta cuando recibe un mensaje que coincide con un <strong class="text-white">trigger</strong> (disparador). Cada flujo tiene dos partes principales:</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-3">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-white mb-1">Triggers (Disparadores)</h3>
+                    <p class="text-xs text-wa-text-secondary">Palabras clave o patrones que activan el flujo. Cuando un cliente escribe algo que coincide con el trigger, el flujo se ejecuta.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mb-3">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-white mb-1">Pasos (Steps)</h3>
+                    <p class="text-xs text-wa-text-secondary">Las acciones que el bot realiza en orden: enviar texto, enviar imagen, esperar, ejecutar herramienta, evaluar condicion, etc.</p>
+                </div>
+            </div>
+
+            <p class="text-xs text-wa-text-secondary">Por ejemplo: un cliente escribe "hola" (trigger) y el bot responde con un mensaje de bienvenida y una lista de servicios (pasos).</p>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Crear un flujo                                         -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="crear" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Crear un flujo</h2>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Entra al detalle de un bot y ve a la pestana "Flujos"</p>
+                        <p class="text-xs text-wa-text-secondary">Haz clic en la tarjeta de tu bot, luego selecciona la pestana "Flujos" en el panel de control.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Haz clic en "+ Crear Flujo"</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Se abrira un formulario donde debes indicar:</p>
+                        <!-- Example form -->
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-3 max-w-md">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Nombre del flujo</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">Bienvenida Licencias</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Descripcion (opcional)</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">Saludo inicial con menu de servicios de licencias</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Palabra clave (trigger)</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">hola</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Agrega pasos al flujo</p>
+                        <p class="text-xs text-wa-text-secondary">Una vez creado el flujo, haz clic en "Agregar paso" para definir que hace el bot. Puedes agregar multiples pasos que se ejecutaran en orden.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium">Guarda y prueba</p>
+                        <p class="text-xs text-wa-text-secondary">Guarda el flujo y pruebalo con el emulador o enviando un mensaje real al bot.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Crea un flujo con trigger "hola" o "inicio" como punto de entrada. Este sera el primer mensaje que reciban tus clientes.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Tipos de triggers                                      -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="triggers" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Tipos de triggers</h2>
+            <p class="text-sm text-wa-text-secondary">Un trigger define cuando se activa el flujo. Hay 4 tipos disponibles:</p>
+
+            <div class="space-y-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-emerald-400 mb-2">EXACT — Coincidencia exacta</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">El mensaje debe ser exactamente igual a la palabra clave (sin importar mayusculas/minusculas).</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-wa-text-secondary w-20">Trigger:</span>
+                            <code class="text-xs text-wa-green bg-wa-bg-deep px-2 py-0.5 rounded">hola</code>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-emerald-400 w-20">Activa:</span>
+                            <span class="text-xs text-wa-text-secondary">"hola", "Hola", "HOLA"</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-red-400 w-20">No activa:</span>
+                            <span class="text-xs text-wa-text-secondary">"hola amigo", "holaa", "dime hola"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-2">CONTAINS — Contiene la palabra</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">El mensaje solo necesita contener la palabra clave en cualquier parte del texto.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-wa-text-secondary w-20">Trigger:</span>
+                            <code class="text-xs text-wa-green bg-wa-bg-deep px-2 py-0.5 rounded">precio</code>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-emerald-400 w-20">Activa:</span>
+                            <span class="text-xs text-wa-text-secondary">"cual es el precio", "precio de licencia", "dime el precio por favor"</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-red-400 w-20">No activa:</span>
+                            <span class="text-xs text-wa-text-secondary">"cuanto cuesta", "que valor tiene"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-purple-400 mb-2">REGEX — Expresion regular</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Usa un patron de expresion regular para mayor flexibilidad. Ideal para capturar variaciones de una palabra.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-wa-text-secondary w-20">Trigger:</span>
+                            <code class="text-xs text-wa-green bg-wa-bg-deep px-2 py-0.5 rounded">.*licencia.*</code>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-emerald-400 w-20">Activa:</span>
+                            <span class="text-xs text-wa-text-secondary">"quiero una licencia", "licencia de conducir", "tramite de licencia express"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-yellow-400 mb-2">DEFAULT — Respuesta por defecto</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Se activa cuando ningun otro trigger coincide. Solo puede haber un flujo DEFAULT por bot.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3">
+                        <p class="text-xs text-wa-text-secondary">Util para responder con un mensaje como: "No entendi tu mensaje. Escribe <strong class="text-white">hola</strong> para ver las opciones disponibles."</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
+                <p class="text-xs text-yellow-300"><strong>Importante:</strong> Si un mensaje coincide con multiples triggers, se ejecuta el flujo con mayor prioridad. Los triggers EXACT tienen prioridad sobre CONTAINS, y CONTAINS sobre REGEX.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Tipos de pasos                                         -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="pasos" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Tipos de pasos</h2>
+            <p class="text-sm text-wa-text-secondary">Cada flujo contiene uno o mas pasos que se ejecutan en secuencia. Estos son los tipos disponibles:</p>
+
+            <div class="space-y-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-emerald-400 mb-2">TEXT — Enviar mensaje de texto</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Envia un mensaje de texto al cliente. Puedes usar variables como <code class="text-wa-green bg-wa-bg-panel px-1 py-0.5 rounded">{{PRECIO}}</code> dentro del texto.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3">
+                        <p class="text-xs text-white italic">"Hola! Gracias por contactarnos. Somos Gestoria Express, especialistas en tramites de licencia de conducir en CDMX. En que te podemos ayudar?"</p>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-2">MEDIA — Enviar imagen, video o documento</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Envia un archivo multimedia al cliente. Selecciona una variable de tipo multimedia o ingresa la URL del archivo.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-wa-text-secondary">Tipo:</span>
+                            <span class="text-xs text-white">image</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-wa-text-secondary">Variable:</span>
+                            <code class="text-xs text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{{FOTO_REQUISITOS}}</code>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-wa-text-secondary">Caption:</span>
+                            <span class="text-xs text-white italic">Estos son los requisitos para tu tramite</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-orange-400 mb-2">DELAY — Esperar antes de continuar</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Agrega una pausa entre pasos para que la conversacion se sienta mas natural.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 flex items-center gap-4">
+                        <span class="text-xs text-wa-text-secondary">Duracion:</span>
+                        <span class="text-xs text-white font-mono">2000 ms</span>
+                        <span class="text-xs text-wa-text-secondary">(2 segundos)</span>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-purple-400 mb-2">TOOL — Ejecutar herramienta</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Ejecuta una herramienta (webhook, flujo o funcion del sistema) durante el flujo. Util para consultar APIs externas o ejecutar acciones automaticas.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3">
+                        <p class="text-xs text-wa-text-secondary">Ejemplo: Llamar a un webhook que registra al cliente en tu CRM cuando confirma su interes.</p>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-cyan-400 mb-2">CONDITION — Bifurcacion condicional</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Evalua una condicion y ejecuta diferentes pasos segun el resultado. Util para personalizar respuestas basadas en variables o datos del cliente.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
+                        <p class="text-xs text-wa-text-secondary">Ejemplo:</p>
+                        <p class="text-xs text-white">Si <code class="text-wa-green bg-wa-bg-deep px-1 py-0.5 rounded">{{TIPO_LICENCIA}}</code> = "A" &rarr; Mostrar precio tipo A</p>
+                        <p class="text-xs text-white">Si <code class="text-wa-green bg-wa-bg-deep px-1 py-0.5 rounded">{{TIPO_LICENCIA}}</code> = "B" &rarr; Mostrar precio tipo B</p>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-pink-400 mb-2">DOCUMENT — Enviar documento</h3>
+                    <p class="text-xs text-wa-text-secondary mb-3">Envia un archivo PDF, Excel u otro documento al cliente.</p>
+                    <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-wa-text-secondary">Variable:</span>
+                            <code class="text-xs text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{{PDF_REQUISITOS}}</code>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-wa-text-secondary">Nombre:</span>
+                            <span class="text-xs text-white">requisitos-licencia.pdf</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Editor visual                                          -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="editor" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">El editor visual</h2>
+            <p class="text-sm text-wa-text-secondary">Agentic incluye un editor visual de flujos donde puedes ver y editar la secuencia de pasos de forma grafica. Cada paso se representa como un nodo conectado al siguiente.</p>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Abre el editor</p>
+                        <p class="text-xs text-wa-text-secondary">Dentro del detalle de un flujo, haz clic en el boton "Editor" o ve directamente a <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">/editor</code>.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Arrastra y conecta pasos</p>
+                        <p class="text-xs text-wa-text-secondary">Cada paso aparece como un bloque. Puedes agregar nuevos pasos, reordenarlos y editar su contenido desde el panel lateral.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Usa el picker de variables</p>
+                        <p class="text-xs text-wa-text-secondary">Al editar un paso de texto, puedes insertar variables usando el selector integrado. Haz clic en el icono de variables para ver las disponibles.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> El editor visual es ideal para flujos complejos con multiples condiciones. Para flujos simples de 2-3 pasos, puedes editarlos directamente desde la lista de pasos.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Variables en flujos                                    -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="variables-en-flujos" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Usar variables en flujos</h2>
+            <p class="text-sm text-wa-text-secondary">Las variables te permiten insertar datos dinamicos en los mensajes de tus flujos. Se escriben entre dobles llaves <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{{NOMBRE}}</code> y se reemplazan automaticamente cuando el bot envia el mensaje.</p>
+
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 max-w-lg">
+                <p class="text-xs text-wa-text-secondary mb-3">Ejemplo de mensaje con variables:</p>
+                <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
+                    <p class="text-xs text-white/50 font-mono mb-2">Mensaje en el flujo:</p>
+                    <p class="text-xs text-white italic">"El precio de la licencia tipo B es de <span class="text-wa-green font-mono not-italic">{{PRECIO_LICENCIA_B}}</span>. El tramite tarda <span class="text-wa-green font-mono not-italic">{{DIAS_TRAMITE}}</span> dias habiles."</p>
+                    <hr class="border-wa-border my-3">
+                    <p class="text-xs text-white/50 font-mono mb-2">Lo que recibe el cliente:</p>
+                    <p class="text-xs text-white italic">"El precio de la licencia tipo B es de <span class="text-emerald-400">$2,500 MXN</span>. El tramite tarda <span class="text-emerald-400">3</span> dias habiles."</p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Variables de texto:</strong> Precios, horarios, URLs, telefonos.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Variables multimedia:</strong> Imagenes, videos, documentos que se envian con pasos MEDIA o DOCUMENT.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Cambiar valores:</strong> Edita las variables desde la pestana "Variables" del bot sin necesidad de modificar los flujos.</p>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Usa variables para precios y horarios. Asi cuando cambien, solo actualizas la variable y todos los flujos se actualizan automaticamente.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Importar/Exportar                                      -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="importar" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Importar y exportar flujos</h2>
+            <p class="text-sm text-wa-text-secondary">Puedes exportar tus flujos como archivos JSON para respaldos o para compartirlos entre bots.</p>
+
+            <div class="space-y-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-emerald-400 mb-2">Exportar flujos</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                            <p class="text-xs text-wa-text-secondary">Ve a la pestana "Flujos" del bot.</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                            <p class="text-xs text-wa-text-secondary">Haz clic en el boton "Exportar" (icono de descarga). Se descargara un archivo JSON con todos los flujos del bot.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-2">Importar flujos</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                            <p class="text-xs text-wa-text-secondary">Ve a la pestana "Flujos" del bot.</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                            <p class="text-xs text-wa-text-secondary">Haz clic en "Importar" (icono de subida) y selecciona el archivo JSON.</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                            <p class="text-xs text-wa-text-secondary">Los flujos del archivo se agregaran al bot. Si un flujo tiene el mismo nombre, se creara una copia.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
+                <p class="text-xs text-yellow-300"><strong>Importante:</strong> Al importar flujos, las variables referenciadas deben existir en el bot destino. Si un flujo usa <code class="text-wa-green">{{PRECIO_LICENCIA}}</code>, asegurate de que esa variable este creada en el bot.</p>
+            </div>
+        </section>
+
+        <!-- Navigation -->
+        <div class="flex items-center justify-between pt-4 border-t border-wa-border">
+            <a href="/help/bots" class="text-sm text-wa-text-secondary hover:text-wa-green transition-colors">&larr; Anterior: Bots</a>
+            <a href="/help/templates" class="text-sm text-wa-green hover:underline">Siguiente: Plantillas &rarr;</a>
+        </div>
+
+    </main>
+</Layout>

@@ -1,0 +1,167 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import HelpNav from "../../components/HelpNav.astro";
+---
+
+<Layout title="Ayuda - Monitoreo">
+    <HelpNav currentPath="/help/monitor" />
+    <main class="space-y-8">
+
+        <div>
+            <h1 class="text-2xl font-bold text-white mb-2">Monitoreo y Logs</h1>
+            <p class="text-sm text-wa-text-secondary">Supervisa las conversaciones en tiempo real, prueba tu bot y diagnostica problemas.</p>
+        </div>
+
+        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5">
+            <h2 class="text-xs font-bold text-wa-text-secondary uppercase tracking-wider mb-3">En esta seccion</h2>
+            <div class="grid grid-cols-2 gap-2">
+                <a href="#monitor" class="text-sm text-wa-green hover:underline">Monitor de sesiones</a>
+                <a href="#emulador" class="text-sm text-wa-green hover:underline">Emulador</a>
+                <a href="#logs" class="text-sm text-wa-green hover:underline">Logs del sistema</a>
+                <a href="#ejecuciones" class="text-sm text-wa-green hover:underline">Logs de ejecucion</a>
+            </div>
+        </div>
+
+        <!-- Monitor -->
+        <section id="monitor" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Monitor de sesiones</h2>
+            <p class="text-sm text-wa-text-secondary">El monitor te permite ver las conversaciones activas de tu bot en tiempo real, similar a WhatsApp Web.</p>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Accede desde el detalle del bot</p>
+                        <p class="text-xs text-wa-text-secondary">En el panel del bot, haz clic en el boton "Monitor" en la cabecera.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Panel izquierdo: Lista de sesiones</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Veras todos los contactos que han enviado mensajes. Cada sesion muestra:</p>
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 max-w-sm space-y-2">
+                            <div class="flex items-center gap-3 bg-wa-bg-panel rounded-lg px-3 py-2">
+                                <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs font-bold text-emerald-400">JL</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs text-white font-medium">Juan Lopez</div>
+                                    <div class="text-[10px] text-wa-text-secondary truncate">Quiero info sobre la licencia tipo B</div>
+                                </div>
+                                <span class="text-[9px] text-wa-text-secondary">2m</span>
+                            </div>
+                            <div class="flex items-center gap-3 bg-wa-bg-hover/30 rounded-lg px-3 py-2">
+                                <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">MR</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs text-white font-medium">Maria Rodriguez</div>
+                                    <div class="text-[10px] text-wa-text-secondary truncate">Gracias, ya hice el pago</div>
+                                </div>
+                                <span class="text-[9px] text-wa-text-secondary">15m</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Panel derecho: Conversacion</p>
+                        <p class="text-xs text-wa-text-secondary">Al seleccionar una sesion, veras el historial completo de mensajes con marcas de tiempo.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Emulador -->
+        <section id="emulador" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Emulador</h2>
+            <p class="text-sm text-wa-text-secondary">El emulador te permite probar tu bot sin necesidad de un telefono real. Simula una conversacion completa.</p>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Abre el emulador</p>
+                        <p class="text-xs text-wa-text-secondary">En el detalle del bot, haz clic en "Emular". Se abrira una vista dividida.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Escribe mensajes de prueba</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">En el panel izquierdo (chat), escribe un mensaje como si fueras un cliente:</p>
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 max-w-sm space-y-2">
+                            <div class="flex justify-end"><div class="bg-wa-green/20 text-white text-xs rounded-lg px-3 py-1.5 max-w-[80%]">hola</div></div>
+                            <div class="flex justify-start"><div class="bg-wa-bg-panel text-white text-xs rounded-lg px-3 py-1.5 max-w-[80%]">Hola! Bienvenido a Gestoria Virtual Leonardo. ¿En que tipo de licencia estas interesado?</div></div>
+                            <div class="flex justify-end"><div class="bg-wa-green/20 text-white text-xs rounded-lg px-3 py-1.5 max-w-[80%]">tipo B</div></div>
+                            <div class="flex justify-start"><div class="bg-wa-bg-panel text-white text-xs rounded-lg px-3 py-1.5 max-w-[80%]">La licencia tipo B tiene un costo de $2,500 MXN con tramite express en 3 dias.</div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Panel de debug (derecha)</p>
+                        <p class="text-xs text-wa-text-secondary">Muestra las variables actuales de la sesion, que flujo se ejecuto, y cada paso que se proceso. Muy util para diagnosticar problemas.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-2">
+                <p class="text-xs text-white font-medium">Botones del emulador:</p>
+                <div class="flex items-center gap-3">
+                    <span class="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 text-[10px] rounded">Resetear Sesion</span>
+                    <span class="text-xs text-wa-text-secondary">Limpia la conversacion y reinicia las variables</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="px-2 py-0.5 bg-red-500/10 text-red-400 text-[10px] rounded">Destruir Sesion</span>
+                    <span class="text-xs text-wa-text-secondary">Termina la sesion por completo como si fuera un usuario nuevo</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Logs -->
+        <section id="logs" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Logs del sistema</h2>
+            <p class="text-sm text-wa-text-secondary">Desde la barra de navegacion, toca "Registros" para ver los logs globales del sistema.</p>
+
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Filtrar por nivel:</strong> Info (informativo), Warn (advertencias), Error (errores). Usa el dropdown para filtrar.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Buscar:</strong> Escribe en el campo de busqueda para encontrar logs especificos.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Modo en vivo:</strong> Los logs se actualizan automaticamente. Pasa el mouse sobre el area de logs para pausar el scroll.</p>
+                </div>
+            </div>
+
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 font-mono text-[11px] space-y-1 max-w-lg">
+                <div><span class="text-emerald-400">[INFO]</span> <span class="text-wa-text-secondary">Bot "Ventas MX" conectado exitosamente</span></div>
+                <div><span class="text-yellow-400">[WARN]</span> <span class="text-wa-text-secondary">Sesion 5521... reconectando...</span></div>
+                <div><span class="text-emerald-400">[INFO]</span> <span class="text-wa-text-secondary">Flujo "Bienvenida" ejecutado para +5215512345678</span></div>
+                <div><span class="text-red-400">[ERROR]</span> <span class="text-wa-text-secondary">Webhook timeout: consultar_disponibilidad (5000ms)</span></div>
+            </div>
+        </section>
+
+        <!-- Ejecuciones -->
+        <section id="ejecuciones" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Logs de ejecucion</h2>
+            <p class="text-sm text-wa-text-secondary">En la pestana "Ejecuciones" de los logs, puedes ver que flujos se ejecutaron, para que contacto, y si hubo errores en algun paso.</p>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Si un flujo no responde como esperas, revisa los logs de ejecucion para ver en que paso fallo. Los errores se marcan en rojo con el detalle del problema.</p>
+            </div>
+
+            <p class="text-sm text-wa-text-secondary">Tambien puedes ver los logs especificos de cada bot desde la pestana "Logs" dentro del detalle del bot.</p>
+        </section>
+
+        <div class="flex items-center justify-between pt-4 border-t border-wa-border">
+            <a href="/help/finance" class="text-sm text-wa-text-secondary hover:text-wa-green transition-colors">&larr; Finanzas</a>
+            <a href="/help" class="text-sm text-wa-green hover:underline">Volver al indice &rarr;</a>
+        </div>
+
+    </main>
+</Layout>

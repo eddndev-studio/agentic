@@ -1,0 +1,274 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import HelpNav from "../../components/HelpNav.astro";
+---
+
+<Layout title="Ayuda - Plantillas">
+    <HelpNav currentPath="/help/templates" />
+    <main class="space-y-8">
+
+        <div>
+            <h1 class="text-2xl font-bold text-white mb-2">Plantillas</h1>
+            <p class="text-sm text-wa-text-secondary">Aprende a crear y usar plantillas reutilizables para configurar bots rapidamente con flujos, variables y configuracion de IA predefinidos.</p>
+        </div>
+
+        <!-- Table of contents -->
+        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5">
+            <h2 class="text-xs font-bold text-wa-text-secondary uppercase tracking-wider mb-3">En esta seccion</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <a href="#que-es" class="text-sm text-wa-green hover:underline">Que es una plantilla</a>
+                <a href="#crear" class="text-sm text-wa-green hover:underline">Crear una plantilla</a>
+                <a href="#usar" class="text-sm text-wa-green hover:underline">Usar plantilla en un bot</a>
+                <a href="#contenido" class="text-sm text-wa-green hover:underline">Contenido de la plantilla</a>
+                <a href="#exportar" class="text-sm text-wa-green hover:underline">Exportar flujos</a>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Que es una plantilla                                   -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="que-es" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Que es una plantilla</h2>
+            <p class="text-sm text-wa-text-secondary">Una plantilla es una configuracion reutilizable de bot que incluye flujos, variables y ajustes de IA predefinidos. Piensa en ella como un "molde" que puedes aplicar a cualquier bot nuevo o existente.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-emerald-400 mb-2">Ventajas</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-start gap-2">
+                            <span class="text-wa-green text-xs mt-0.5">&#10003;</span>
+                            <p class="text-xs text-wa-text-secondary">Crea bots nuevos en segundos con configuracion lista</p>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-wa-green text-xs mt-0.5">&#10003;</span>
+                            <p class="text-xs text-wa-text-secondary">Estandariza la atencion al cliente entre multiples bots</p>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-wa-green text-xs mt-0.5">&#10003;</span>
+                            <p class="text-xs text-wa-text-secondary">Comparte flujos probados entre equipos</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-2">Ejemplo de uso</h3>
+                    <p class="text-xs text-wa-text-secondary">Tienes una gestoria con 3 sucursales en CDMX, Guadalajara y Monterrey. Creas una plantilla "Gestoria Licencias" con todos los flujos de atencion y la aplicas a cada bot de sucursal. Solo cambias las variables de precios y horarios por sucursal.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Crear una plantilla                                    -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="crear" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Crear una plantilla</h2>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Ve a la seccion de Plantillas</p>
+                        <p class="text-xs text-wa-text-secondary">Desde la barra de navegacion, selecciona "Plantillas".</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Haz clic en "+ Crear Plantilla"</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Rellena los datos basicos de la plantilla:</p>
+                        <!-- Example form -->
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-3 max-w-md">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Nombre de la plantilla</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">Gestoria de Licencias</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Descripcion</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">Bot para gestoria de licencias de conducir con flujos de bienvenida, precios, requisitos y seguimiento</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Agrega contenido a la plantilla</p>
+                        <p class="text-xs text-wa-text-secondary">Una vez creada, entra al detalle de la plantilla para agregar flujos, variables y configuracion de IA. Funciona igual que configurar un bot.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium">Guarda la plantilla</p>
+                        <p class="text-xs text-wa-text-secondary">Todo se guarda automaticamente. La plantilla queda lista para ser usada en cualquier bot.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Crea primero un bot de prueba, perfecciona sus flujos, y luego crea una plantilla a partir de esa configuracion.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Usar plantilla en un bot                               -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="usar" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Usar plantilla en un bot</h2>
+            <p class="text-sm text-wa-text-secondary">Puedes aplicar una plantilla al crear un bot nuevo o agregarla a un bot existente.</p>
+
+            <div class="space-y-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-emerald-400 mb-3">Al crear un bot nuevo</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                            <p class="text-xs text-wa-text-secondary">Ve a Bots &gt; "+ Crear Bot".</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                            <p class="text-xs text-wa-text-secondary">En el formulario de creacion, selecciona una plantilla del dropdown "Plantilla".</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                            <p class="text-xs text-wa-text-secondary">El bot se creara con todos los flujos, variables y configuracion de IA de la plantilla ya incluidos.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-3">En un bot existente</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                            <p class="text-xs text-wa-text-secondary">Entra al detalle del bot.</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                            <p class="text-xs text-wa-text-secondary">En la pestana "Flujos", usa la opcion de importar para cargar los flujos de una plantilla.</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                            <p class="text-xs text-wa-text-secondary">Los flujos se agregaran a los existentes. No se eliminan los flujos que ya tenia el bot.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
+                <p class="text-xs text-yellow-300"><strong>Importante:</strong> Al aplicar una plantilla, se copian los flujos. Los cambios que hagas despues en la plantilla no se reflejan automaticamente en los bots donde ya se aplico.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Contenido de la plantilla                              -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="contenido" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Contenido de la plantilla</h2>
+            <p class="text-sm text-wa-text-secondary">Una plantilla puede incluir tres tipos de configuracion:</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-3">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-white mb-1">Flujos</h3>
+                    <p class="text-xs text-wa-text-secondary">Todos los flujos con sus triggers, pasos y condiciones. Son el corazon de la plantilla.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center mb-3">
+                        <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-white mb-1">Variables</h3>
+                    <p class="text-xs text-wa-text-secondary">Variables predefinidas con valores de ejemplo que luego se personalizan por bot.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mb-3">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-white mb-1">Config IA</h3>
+                    <p class="text-xs text-wa-text-secondary">Tono, contexto e instrucciones para la inteligencia artificial del bot.</p>
+                </div>
+            </div>
+
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 max-w-lg">
+                <p class="text-xs text-wa-text-secondary mb-3">Ejemplo: plantilla "Gestoria de Licencias" incluye:</p>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2 bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-emerald-400 text-xs">Flujo</span>
+                        <span class="text-xs text-white">Bienvenida (trigger: "hola")</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-emerald-400 text-xs">Flujo</span>
+                        <span class="text-xs text-white">Precios (trigger: "precio")</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-emerald-400 text-xs">Flujo</span>
+                        <span class="text-xs text-white">Requisitos (trigger: "requisitos")</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-yellow-400 text-xs">Variable</span>
+                        <span class="text-xs text-wa-green font-mono">{{PRECIO_LICENCIA_B}}</span>
+                        <span class="text-xs text-wa-text-secondary">= $2,500 MXN</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-yellow-400 text-xs">Variable</span>
+                        <span class="text-xs text-wa-green font-mono">{{HORARIO}}</span>
+                        <span class="text-xs text-wa-text-secondary">= Lun-Vie 9-6pm</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-blue-400 text-xs">IA</span>
+                        <span class="text-xs text-white">Tono amigable, contexto gestoria CDMX</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Exportar flujos de plantilla                           -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="exportar" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Exportar flujos de plantilla</h2>
+            <p class="text-sm text-wa-text-secondary">Puedes exportar los flujos de una plantilla como archivo JSON para respaldos o para compartir con otros usuarios de Agentic.</p>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Entra al detalle de la plantilla</p>
+                        <p class="text-xs text-wa-text-secondary">Desde la lista de plantillas, haz clic en la que deseas exportar.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Haz clic en "Exportar flujos"</p>
+                        <p class="text-xs text-wa-text-secondary">En la pestana de flujos de la plantilla, busca el boton de exportacion (icono de descarga).</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Guarda el archivo JSON</p>
+                        <p class="text-xs text-wa-text-secondary">Se descargara un archivo <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">plantilla-nombre.json</code> con todos los flujos y sus pasos.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Guarda un respaldo JSON de tus plantillas antes de hacer cambios grandes. Asi siempre puedes volver a la version anterior importando el archivo.</p>
+            </div>
+        </section>
+
+        <!-- Navigation -->
+        <div class="flex items-center justify-between pt-4 border-t border-wa-border">
+            <a href="/help/flows" class="text-sm text-wa-text-secondary hover:text-wa-green transition-colors">&larr; Anterior: Flujos</a>
+            <a href="/help/campaigns" class="text-sm text-wa-green hover:underline">Siguiente: Campanas &rarr;</a>
+        </div>
+
+    </main>
+</Layout>
