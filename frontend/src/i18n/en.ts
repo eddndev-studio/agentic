@@ -489,6 +489,51 @@ export default {
     fin_fb_select_page: "Select page",
     fin_fb_search_location: "Search city, region or country...",
 
+    // Finance - Navigation (redesign)
+    fin_nav_campaigns: "Campaigns",
+    fin_nav_financials: "Financials",
+
+    // Finance - Campaign list
+    fin_campaigns_title: "Campaigns",
+    fin_campaigns_filter_all: "All",
+    fin_campaigns_filter_active: "Active",
+    fin_campaigns_filter_paused: "Paused",
+    fin_campaigns_new: "New Campaign",
+    fin_campaigns_empty: "No campaigns. Select an account or sync.",
+    fin_campaigns_view_detail: "View detail",
+
+    // Finance - Campaign detail
+    fin_campaign_back: "Back to campaigns",
+    fin_campaign_adsets: "Ad Sets",
+    fin_campaign_new_adset: "New Ad Set",
+    fin_campaign_new_ad: "New Ad",
+    fin_campaign_targeting_summary: "Targeting",
+    fin_campaign_no_adsets: "No ad sets",
+    fin_campaign_no_ads: "No ads",
+
+    // Finance - Campaign wizard
+    fin_wizard_title: "Create Campaign",
+    fin_wizard_step_campaign: "Campaign",
+    fin_wizard_step_targeting: "Targeting",
+    fin_wizard_step_ad: "Ad",
+    fin_wizard_step_review: "Review",
+    fin_wizard_next: "Next",
+    fin_wizard_back: "Back",
+    fin_wizard_create: "Create Campaign",
+    fin_wizard_creating: "Creating...",
+    fin_wizard_review_campaign: "Campaign Data",
+    fin_wizard_review_targeting: "Targeting",
+    fin_wizard_review_ad: "Ad",
+
+    // Finance - Financials (merged)
+    fin_financials_title: "Financials",
+    fin_financials_tab_income: "Income",
+    fin_financials_tab_expenses: "Expenses",
+    fin_financials_tab_pnl: "P&L",
+
+    // Finance - Settings FB section
+    fin_settings_fb_section: "Facebook Connection",
+
     // Finance - Boost Posts
     fin_fb_boost_posts: "Boost Posts",
     fin_fb_boost: "Boost",

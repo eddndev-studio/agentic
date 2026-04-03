@@ -489,6 +489,51 @@ export default {
     fin_fb_select_page: "Seleccionar pagina",
     fin_fb_search_location: "Buscar ciudad, region o pais...",
 
+    // Finance - Navigation (redesign)
+    fin_nav_campaigns: "Campanas",
+    fin_nav_financials: "Finanzas",
+
+    // Finance - Campaign list
+    fin_campaigns_title: "Campanas",
+    fin_campaigns_filter_all: "Todas",
+    fin_campaigns_filter_active: "Activas",
+    fin_campaigns_filter_paused: "Pausadas",
+    fin_campaigns_new: "Nueva Campana",
+    fin_campaigns_empty: "No hay campanas. Selecciona una cuenta o sincroniza.",
+    fin_campaigns_view_detail: "Ver detalle",
+
+    // Finance - Campaign detail
+    fin_campaign_back: "Volver a campanas",
+    fin_campaign_adsets: "Conjuntos de Anuncios",
+    fin_campaign_new_adset: "Nuevo Conjunto",
+    fin_campaign_new_ad: "Nuevo Anuncio",
+    fin_campaign_targeting_summary: "Segmentacion",
+    fin_campaign_no_adsets: "Sin conjuntos de anuncios",
+    fin_campaign_no_ads: "Sin anuncios",
+
+    // Finance - Campaign wizard
+    fin_wizard_title: "Crear Campana",
+    fin_wizard_step_campaign: "Campana",
+    fin_wizard_step_targeting: "Segmentacion",
+    fin_wizard_step_ad: "Anuncio",
+    fin_wizard_step_review: "Revisar",
+    fin_wizard_next: "Siguiente",
+    fin_wizard_back: "Atras",
+    fin_wizard_create: "Crear Campana",
+    fin_wizard_creating: "Creando...",
+    fin_wizard_review_campaign: "Datos de Campana",
+    fin_wizard_review_targeting: "Segmentacion",
+    fin_wizard_review_ad: "Anuncio",
+
+    // Finance - Financials (merged)
+    fin_financials_title: "Finanzas",
+    fin_financials_tab_income: "Ingresos",
+    fin_financials_tab_expenses: "Gastos",
+    fin_financials_tab_pnl: "P&L",
+
+    // Finance - Settings FB section
+    fin_settings_fb_section: "Conexion Facebook",
+
     // Finance - Boost Posts
     fin_fb_boost_posts: "Promover Publicaciones",
     fin_fb_boost: "Promover",

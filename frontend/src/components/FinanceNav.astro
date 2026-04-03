@@ -7,15 +7,15 @@ const { currentPath } = Astro.props;
 
 const tabs = [
     { href: "/finance", label: "fin_nav_dashboard", fallback: "Dashboard", exact: true },
+    { href: "/finance/campaigns", label: "fin_nav_campaigns", fallback: "Campanas", prefix: "/finance/campaign" },
+    { href: "/finance/financials", label: "fin_nav_financials", fallback: "Finanzas" },
     { href: "/finance/workers", label: "fin_nav_workers", fallback: "Equipo" },
-    { href: "/finance/income", label: "fin_nav_income", fallback: "Ingresos" },
-    { href: "/finance/reports", label: "fin_nav_reports", fallback: "Reportes" },
-    { href: "/finance/ads", label: "fin_nav_ads", fallback: "Ads" },
     { href: "/finance/settings", label: "fin_nav_settings", fallback: "Config" },
 ];
 
-function isActive(href: string, exact?: boolean) {
+function isActive(href: string, exact?: boolean, prefix?: string) {
     if (exact) return currentPath === href || currentPath === href + "/";
+    if (prefix) return currentPath.startsWith(prefix);
     return currentPath.startsWith(href);
 }
 ---
@@ -32,7 +32,7 @@ function isActive(href: string, exact?: boolean) {
             href={tab.href}
             class:list={[
                 "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap shrink-0",
-                isActive(tab.href, tab.exact)
+                isActive(tab.href, tab.exact, (tab as any).prefix)
                     ? "bg-wa-green/15 text-wa-green font-medium"
                     : "text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover"
             ]}
