@@ -336,12 +336,28 @@ import Layout from "../../layouts/Layout.astro";
                                 </div>
 
                                 <!-- Message bubble -->
-                                <div class="flex mb-[2px]"
+                                <div class="flex mb-[2px] group/msg"
                                      :class="[
                                          msg.fromMe ? 'justify-end' : 'justify-start',
                                          isLastInGroup(messages, idx) ? 'mb-2' : ''
                                      ]"
                                 >
+                                    <!-- Reaction button (appears on hover) -->
+                                    <div class="flex items-end" :class="msg.fromMe ? 'order-first' : 'order-last'">
+                                        <div class="relative" x-data="{ showReactPicker: false }">
+                                            <button
+                                                @click="showReactPicker = !showReactPicker"
+                                                class="w-7 h-7 rounded-full flex items-center justify-center text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover transition-all opacity-0 group-hover/msg:opacity-100 mx-1"
+                                            >
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            </button>
+                                            <div x-show="showReactPicker" @click.outside="showReactPicker = false" class="absolute bottom-full mb-1 z-50 bg-wa-bg-header border border-wa-border rounded-full shadow-lg px-1.5 py-1 flex gap-0.5" :class="msg.fromMe ? 'right-0' : 'left-0'" style="display:none;">
+                                                <template x-for="emoji in ['👍','❤️','😂','😮','😢','🙏']" :key="emoji">
+                                                    <button @click="reactToMessage(msg.id, emoji); showReactPicker = false" class="w-8 h-8 flex items-center justify-center text-lg hover:scale-125 transition-transform rounded-full hover:bg-wa-bg-hover" x-text="emoji"></button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div
                                         class="relative max-w-[85%] md:max-w-[65%] text-sm break-words shadow-sm overflow-hidden"
                                         :class="[
@@ -1180,6 +1196,15 @@ import Layout from "../../layouts/Layout.astro";
                 this.attachedFile = null;
                 this.attachedUrl = '';
                 this.attachedMediaType = '';
+            },
+
+            async reactToMessage(messageId: string, emoji: string) {
+                if (!this.selectedSession) return;
+                try {
+                    await ApiClient.post(`/sessions/${this.selectedSession.id}/react`, { messageId, emoji });
+                } catch (e: any) {
+                    window.__toast.error("Reaction failed: " + (e.message || "Unknown"));
+                }
             },
 
             async saveNotes() {
