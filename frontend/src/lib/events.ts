@@ -5,7 +5,8 @@ type BotEventType =
     | 'connected' | 'bot:qr' | 'bot:connected' | 'bot:disconnected'
     | 'message:received' | 'message:sent' | 'session:created'
     | 'session:updated' | 'session:labels'
-    | 'session:labels:add' | 'session:labels:remove';
+    | 'session:labels:add' | 'session:labels:remove'
+    | 'session:typing';
 
 type EventHandler = (data: any) => void;
 

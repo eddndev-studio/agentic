@@ -327,6 +327,26 @@ export class BaileysService {
                 await LabelService.handleLabelAssociation(botId, event, sock);
             });
 
+            // --- presence.update: emit typing indicators to frontend ---
+            sock.ev.on('presence.update', (update) => {
+                try {
+                    const jid = update.id;
+                    if (!jid || jid.endsWith('@g.us')) return; // skip group presence
+                    const presences = update.presences;
+                    if (!presences) return;
+                    for (const [participantJid, presence] of Object.entries(presences)) {
+                        if (presence.lastKnownPresence === 'composing' || presence.lastKnownPresence === 'paused') {
+                            eventBus.emitBotEvent({
+                                type: 'session:typing',
+                                botId,
+                                identifier: jid,
+                                typing: presence.lastKnownPresence === 'composing',
+                            });
+                        }
+                    }
+                } catch {}
+            });
+
             // --- contacts.update: update session names when contacts change ---
             sock.ev.on('contacts.update', async (updates) => {
                 for (const contact of updates) {
