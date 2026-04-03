@@ -63,7 +63,7 @@ import Layout from "../../layouts/Layout.astro";
                                 <span class="font-medium text-[15px] text-wa-text-primary truncate" x-text="s.name || s.identifier"></span>
                                 <span class="text-xs text-wa-text-secondary flex-shrink-0 ml-2" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
                             </div>
-                            <div x-show="s.name && s.identifier && s.name !== s.identifier" class="text-[11px] text-wa-text-secondary font-mono truncate" x-text="s.identifier" style="display:none;"></div>
+                            <div x-show="s.name && s.identifier && s.name !== s.identifier" class="text-[11px] text-wa-text-secondary font-mono truncate" x-text="s.identifier?.split('@')[0]?.replace(/^(\d{2})(\d{2})(\d{4})(\d{4})$/, '+$1 $2 $3 $4')" style="display:none;"></div>
                             <div class="flex items-center gap-1 mt-0.5">
                                 <!-- Double check for fromMe -->
                                 <template x-if="s.lastMessage?.fromMe">
@@ -135,7 +135,7 @@ import Layout from "../../layouts/Layout.astro";
                         <div class="flex-1 min-w-0">
                             <div class="font-medium text-[15px] text-wa-text-primary truncate" x-text="selectedSession.name || selectedSession.identifier"></div>
                             <div class="text-[11px] text-wa-text-secondary flex items-center gap-2">
-                                <span x-show="selectedSession.name && selectedSession.identifier && selectedSession.name !== selectedSession.identifier" class="font-mono" x-text="selectedSession.identifier" style="display:none;"></span>
+                                <span x-show="selectedSession.name && selectedSession.identifier && selectedSession.name !== selectedSession.identifier" class="font-mono" x-text="selectedSession.identifier?.split('@')[0]?.replace(/^(\d{2})(\d{2})(\d{4})(\d{4})$/, '+$1 $2 $3 $4')" style="display:none;"></span>
                                 <span x-text="selectedSession.status === 'CONNECTED' ? 'en línea' : 'desconectado'"></span>
                             </div>
                         </div>
