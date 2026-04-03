@@ -115,9 +115,9 @@ import FinanceNav from "../../components/FinanceNav.astro";
 </Layout>
 
 <script>
+    import { ApiClient } from "../../lib/api";
     document.addEventListener("alpine:init", () => {
         const Alpine = (window as any).Alpine;
-        const ApiClient = (window as any).ApiClient;
 
         Alpine.data("financeDashboard", () => ({
             loading: true,

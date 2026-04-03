@@ -381,4 +381,64 @@ export default {
     fin_fb_last_7d: "Last 7 days",
     fin_fb_last_30d: "Last 30 days",
     fin_fb_custom_range: "Custom",
+
+    // Finance - Nav
+    fin_nav_dashboard: "Dashboard",
+    fin_nav_workers: "Team",
+    fin_nav_income: "Income",
+    fin_nav_reports: "Reports",
+    fin_nav_ads: "Ads",
+    fin_nav_settings: "Settings",
+
+    // Finance - Dashboard extras
+    fin_period: "Period",
+    fin_profit_target: "Profit Target (30%)",
+    fin_target_30: "Target (30%)",
+
+    // Finance - Workers extras
+    fin_workers_title: "Team",
+    fin_add_worker: "Add",
+    fin_name: "Name",
+    fin_bonus_pct: "Bonus %",
+    fin_min_licenses: "Min. Licenses",
+
+    // Finance - Income extras
+    fin_income_title: "Income",
+    fin_add_income: "Add Income",
+
+    // Finance - Reports extras
+    fin_reports_title: "Reports",
+    fin_pl_summary: "P&L Summary",
+    fin_ad_spend: "Ad Spend",
+    fin_salary: "Salary",
+    fin_total_cost: "Total Cost",
+    fin_balance: "Balance",
+    fin_licenses: "Licenses",
+    fin_bonus: "Bonus",
+    fin_no_worker_data: "No worker data for this period",
+
+    // Finance - Ads extras
+    fin_fb_connection: "Facebook Connection",
+    fin_fb_not_connected: "Not connected. Log in with Facebook to sync ad spend.",
+    fin_fb_login: "Connect Facebook",
+    fin_fb_sync: "Sync",
+    fin_ad_accounts: "Ad Accounts",
+    fin_no_ad_accounts: "No ad accounts found. Sync first.",
+    fin_assigned_worker: "Assigned Worker",
+    fin_campaign_browser: "Campaign Browser",
+    fin_custom: "Custom",
+    fin_campaign_name: "Campaign",
+    fin_status: "Status",
+    fin_spend: "Spend",
+    fin_no_campaigns: "No campaigns found",
+
+    // Finance - Settings extras
+    fin_add: "Add",
+    fin_no_bank_accounts: "No bank accounts",
+    fin_identifier: "Identifier",
+    fin_type: "Type",
+    fin_edit_bank: "Edit Account",
+    fin_add_bank: "New Account",
+    fin_description: "Description",
+    fin_no_periods: "No periods",
 };

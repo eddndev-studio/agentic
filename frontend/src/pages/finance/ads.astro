@@ -340,11 +340,11 @@ import FinanceNav from "../../components/FinanceNav.astro";
 </Layout>
 
 <script>
+    import { ApiClient } from "../../lib/api";
     const FB_APP_ID = (import.meta as any).env?.PUBLIC_FB_APP_ID || "1184660606783733";
 
     document.addEventListener("alpine:init", () => {
         const Alpine = (window as any).Alpine;
-        const ApiClient = (window as any).ApiClient;
 
         Alpine.data("financeAds", () => ({
             loading: true,

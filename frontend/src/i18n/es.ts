@@ -381,4 +381,64 @@ export default {
     fin_fb_last_7d: "Ultimos 7 dias",
     fin_fb_last_30d: "Ultimos 30 dias",
     fin_fb_custom_range: "Personalizado",
+
+    // Finance - Nav
+    fin_nav_dashboard: "Dashboard",
+    fin_nav_workers: "Equipo",
+    fin_nav_income: "Ingresos",
+    fin_nav_reports: "Reportes",
+    fin_nav_ads: "Ads",
+    fin_nav_settings: "Config",
+
+    // Finance - Dashboard extras
+    fin_period: "Periodo",
+    fin_profit_target: "Meta de Rentabilidad (30%)",
+    fin_target_30: "Meta (30%)",
+
+    // Finance - Workers extras
+    fin_workers_title: "Equipo de Trabajo",
+    fin_add_worker: "Agregar",
+    fin_name: "Nombre",
+    fin_bonus_pct: "% de Bono",
+    fin_min_licenses: "Min. Licencias",
+
+    // Finance - Income extras
+    fin_income_title: "Ingresos",
+    fin_add_income: "Agregar Ingreso",
+
+    // Finance - Reports extras
+    fin_reports_title: "Reportes",
+    fin_pl_summary: "Resumen P&L",
+    fin_ad_spend: "Gasto Ads",
+    fin_salary: "Salario",
+    fin_total_cost: "Costo Total",
+    fin_balance: "Balance",
+    fin_licenses: "Licencias",
+    fin_bonus: "Bono",
+    fin_no_worker_data: "No hay datos de trabajadores para este periodo",
+
+    // Finance - Ads extras
+    fin_fb_connection: "Conexion Facebook",
+    fin_fb_not_connected: "No conectado. Inicia sesion con Facebook para sincronizar gastos de ads.",
+    fin_fb_login: "Conectar Facebook",
+    fin_fb_sync: "Sincronizar",
+    fin_ad_accounts: "Cuentas de Anuncios",
+    fin_no_ad_accounts: "No se encontraron cuentas de anuncios. Sincroniza primero.",
+    fin_assigned_worker: "Trabajador Asignado",
+    fin_campaign_browser: "Explorador de Campanas",
+    fin_custom: "Personalizado",
+    fin_campaign_name: "Campana",
+    fin_status: "Estado",
+    fin_spend: "Gasto",
+    fin_no_campaigns: "No se encontraron campanas",
+
+    // Finance - Settings extras
+    fin_add: "Agregar",
+    fin_no_bank_accounts: "No hay cuentas bancarias",
+    fin_identifier: "Identificador",
+    fin_type: "Tipo",
+    fin_edit_bank: "Editar Cuenta",
+    fin_add_bank: "Nueva Cuenta",
+    fin_description: "Descripcion",
+    fin_no_periods: "No hay periodos",
 };
