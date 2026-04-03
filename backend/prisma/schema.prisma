@@ -548,18 +548,23 @@ model AdAccount {
 }
 
 model Campaign {
-  id           String      @id @default(uuid())
-  fbCampaignId String      @unique
-  name         String
-  status       String
-  objective    String?
-  buyingType   String?
-  adAccountId  String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  adAccount    AdAccount   @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
-  adSets       AdSet[]
-  insights     AdInsight[]
+  id                  String      @id @default(uuid())
+  fbCampaignId        String      @unique
+  name                String
+  status              String
+  objective           String?
+  buyingType          String?
+  dailyBudget         Float?
+  lifetimeBudget      Float?
+  specialAdCategories String[]    @default([])
+  startTime           DateTime?
+  endTime             DateTime?
+  adAccountId         String
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  adAccount           AdAccount   @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  adSets              AdSet[]
+  insights            AdInsight[]
 
   @@index([adAccountId])
 }
@@ -570,6 +575,14 @@ model AdSet {
   name                 String
   status               String
   targetingDescription String?
+  targeting            Json?
+  dailyBudget          Float?
+  lifetimeBudget       Float?
+  optimizationGoal     String?
+  billingEvent         String?
+  bidAmount            Float?
+  startTime            DateTime?
+  endTime              DateTime?
   campaignId           String
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt

@@ -721,4 +721,112 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }));
 
         return result;
+    })
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Campaign Management (write operations)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    .post("/facebook/campaigns/:id/status", async ({ params: { id }, body, set }) => {
+        const { status } = body as any;
+        if (!status || !["ACTIVE", "PAUSED"].includes(status)) {
+            set.status = 400;
+            return { error: "status must be ACTIVE or PAUSED" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.updateCampaignStatus(id, status);
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .post("/facebook/adsets/:id/status", async ({ params: { id }, body, set }) => {
+        const { status } = body as any;
+        if (!status || !["ACTIVE", "PAUSED"].includes(status)) {
+            set.status = 400;
+            return { error: "status must be ACTIVE or PAUSED" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.updateAdSetStatus(id, status);
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .post("/facebook/ads/:id/status", async ({ params: { id }, body, set }) => {
+        const { status } = body as any;
+        if (!status || !["ACTIVE", "PAUSED"].includes(status)) {
+            set.status = 400;
+            return { error: "status must be ACTIVE or PAUSED" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.updateAdStatus(id, status);
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .put("/facebook/campaigns/:id/budget", async ({ params: { id }, body, set }) => {
+        const { dailyBudget, lifetimeBudget } = body as any;
+        if (dailyBudget == null && lifetimeBudget == null) {
+            set.status = 400;
+            return { error: "Provide dailyBudget or lifetimeBudget" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.updateCampaignBudget(id, { dailyBudget, lifetimeBudget });
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .put("/facebook/adsets/:id/budget", async ({ params: { id }, body, set }) => {
+        const { dailyBudget, lifetimeBudget } = body as any;
+        if (dailyBudget == null && lifetimeBudget == null) {
+            set.status = 400;
+            return { error: "Provide dailyBudget or lifetimeBudget" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.updateAdSetBudget(id, { dailyBudget, lifetimeBudget });
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .post("/facebook/campaigns/create", async ({ body, set }) => {
+        const { adAccountId, name, objective, status, specialAdCategories, buyingType, dailyBudget, lifetimeBudget, startTime, endTime } = body as any;
+        if (!adAccountId || !name || !objective) {
+            set.status = 400;
+            return { error: "adAccountId, name, and objective are required" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.createCampaign(adAccountId, {
+                name, objective, status, specialAdCategories, buyingType,
+                dailyBudget, lifetimeBudget, startTime, endTime,
+            });
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .delete("/facebook/campaigns/:id", async ({ params: { id }, set }) => {
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            await FacebookService.deleteCampaign(id);
+            return { success: true };
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
     });
