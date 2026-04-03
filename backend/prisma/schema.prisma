@@ -86,6 +86,7 @@ model Session {
   identifier       String
   botId            String
   name             String?
+  notes            String?
   status           SessionStatus     @default(DISCONNECTED)
   authData         Json?
   aiEnabled        Boolean           @default(false)

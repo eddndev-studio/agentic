@@ -55,10 +55,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             data: sessions.map((s) => ({
                 id: s.id,
                 name: s.name,
+                notes: s.notes,
                 identifier: s.identifier,
                 platform: s.platform,
                 botId: s.botId,
                 status: s.status,
+                aiEnabled: s.aiEnabled,
                 updatedAt: s.updatedAt,
                 messageCount: s._count.messages,
                 lastMessage: s.messages[0] || null,
@@ -527,4 +529,97 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             toolName: t.String(),
             args: t.Optional(t.Record(t.String(), t.Any())),
         }),
+    })
+
+    // PATCH /sessions/:id/notes — Update session notes
+    .patch("/:id/notes", async ({ params: { id }, body, set }) => {
+        const session = await prisma.session.findUnique({ where: { id } });
+        if (!session) { set.status = 404; return { error: "Session not found" }; }
+
+        const updated = await prisma.session.update({
+            where: { id },
+            data: { notes: body.notes },
+        });
+        return { success: true, notes: updated.notes };
+    }, {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ notes: t.String() }),
+    })
+
+    // PATCH /sessions/:id/ai-enabled — Toggle AI per session
+    .patch("/:id/ai-enabled", async ({ params: { id }, body, set }) => {
+        const session = await prisma.session.findUnique({ where: { id } });
+        if (!session) { set.status = 404; return { error: "Session not found" }; }
+
+        const updated = await prisma.session.update({
+            where: { id },
+            data: { aiEnabled: body.enabled },
+        });
+        return { success: true, aiEnabled: updated.aiEnabled };
+    }, {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ enabled: t.Boolean() }),
+    })
+
+    // POST /sessions/:id/mark-read — Mark messages as read
+    .post("/:id/mark-read", async ({ params: { id }, set }) => {
+        const session = await prisma.session.findUnique({
+            where: { id },
+            include: { bot: true },
+        });
+        if (!session) { set.status = 404; return { error: "Session not found" }; }
+
+        // Get latest unread message IDs
+        const unreadMessages = await prisma.message.findMany({
+            where: { sessionId: id, fromMe: false },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: { externalId: true },
+        });
+
+        if (unreadMessages.length > 0) {
+            const messageIds = unreadMessages
+                .map(m => m.externalId)
+                .filter(id => id && !id.startsWith('manual_') && !id.startsWith('force_'));
+
+            if (messageIds.length > 0) {
+                try {
+                    await BaileysService.markRead(session.botId, session.identifier, messageIds);
+                } catch (e: unknown) {
+                    console.warn('[SessionController] markRead failed:', (e instanceof Error ? e.message : e));
+                }
+            }
+        }
+        return { success: true };
+    }, {
+        params: t.Object({ id: t.String() }),
+    })
+
+    // POST /sessions/:id/react — React to a message
+    .post("/:id/react", async ({ params: { id }, body, set }) => {
+        const session = await prisma.session.findUnique({
+            where: { id },
+            include: { bot: true },
+        });
+        if (!session) { set.status = 404; return { error: "Session not found" }; }
+
+        const message = await prisma.message.findUnique({ where: { id: body.messageId } });
+        if (!message) { set.status = 404; return { error: "Message not found" }; }
+
+        const sent = await BaileysService.sendMessage(session.botId, session.identifier, {
+            react: {
+                text: body.emoji,
+                key: {
+                    remoteJid: session.identifier,
+                    id: message.externalId,
+                    fromMe: message.fromMe,
+                },
+            },
+        });
+
+        if (!sent) { set.status = 500; return { error: "Failed to send reaction" }; }
+        return { success: true };
+    }, {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ messageId: t.String(), emoji: t.String() }),
     });
