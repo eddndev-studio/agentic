@@ -104,22 +104,22 @@ import FinanceNav from "../../components/FinanceNav.astro";
             </div>
 
             <!-- Campaign Cards Grid -->
-            <div x-show="filteredCampaigns.length > 0 && !loadingCampaigns" class="grid grid-cols-1 md:grid-cols-2 gap-4" style="display:none;">
+            <div x-show="filteredCampaigns.length > 0 && !loadingCampaigns" class="grid grid-cols-1 md:grid-cols-2 gap-5" style="display:none;">
                 <template x-for="c in filteredCampaigns" :key="c.id">
-                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4 hover:border-wa-green/30 transition-colors group">
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5 hover:border-wa-green/30 transition-colors group">
                         <!-- Header -->
-                        <div class="flex items-start justify-between mb-3">
-                            <div class="flex-1 min-w-0">
-                                <h3 class="text-sm font-medium text-white truncate" x-text="c.name"></h3>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-medium bg-wa-bg-hover text-wa-text-secondary"
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex-1 min-w-0 pr-3">
+                                <h3 class="text-sm font-semibold text-white truncate mb-1.5" x-text="c.name"></h3>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-wa-bg-hover text-wa-text-secondary"
                                         x-text="c.objective?.replace('OUTCOME_', '') || c.buyingType || '—'"></span>
-                                    <span x-show="c.dailyBudget" class="text-[10px] text-wa-text-secondary" x-text="'$' + Number(c.dailyBudget || 0).toFixed(0) + '/dia'"></span>
+                                    <span x-show="c.dailyBudget" class="text-[11px] text-wa-text-secondary" x-text="'$' + Number(c.dailyBudget || 0).toFixed(0) + '/dia'"></span>
                                 </div>
                             </div>
                             <!-- Status toggle -->
                             <button @click.prevent="toggleStatus(c)"
-                                class="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-colors"
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors shrink-0"
                                 :class="c.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20'"
                                 :disabled="togglingStatus[c.id]">
                                 <span class="w-1.5 h-1.5 rounded-full" :class="c.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-yellow-400'"></span>
@@ -128,25 +128,25 @@ import FinanceNav from "../../components/FinanceNav.astro";
                         </div>
 
                         <!-- Metrics -->
-                        <div class="grid grid-cols-3 gap-3 mb-3">
-                            <div>
-                                <div class="text-[10px] text-wa-text-secondary">Gasto</div>
-                                <div class="text-sm font-medium text-white" x-text="'$' + Number(c.spend || 0).toFixed(2)"></div>
+                        <div class="grid grid-cols-3 gap-4 mb-5">
+                            <div class="bg-wa-bg-deep/50 rounded-lg px-3 py-2.5">
+                                <div class="text-[10px] text-wa-text-secondary mb-1">Gasto</div>
+                                <div class="text-sm font-semibold text-white" x-text="'$' + Number(c.spend || 0).toFixed(2)"></div>
                             </div>
-                            <div>
-                                <div class="text-[10px] text-wa-text-secondary">Impressions</div>
-                                <div class="text-sm font-medium text-white" x-text="Number(c.impressions || 0).toLocaleString()"></div>
+                            <div class="bg-wa-bg-deep/50 rounded-lg px-3 py-2.5">
+                                <div class="text-[10px] text-wa-text-secondary mb-1">Impressions</div>
+                                <div class="text-sm font-semibold text-white" x-text="Number(c.impressions || 0).toLocaleString()"></div>
                             </div>
-                            <div>
-                                <div class="text-[10px] text-wa-text-secondary">Clicks</div>
-                                <div class="text-sm font-medium text-white" x-text="Number(c.clicks || 0).toLocaleString()"></div>
+                            <div class="bg-wa-bg-deep/50 rounded-lg px-3 py-2.5">
+                                <div class="text-[10px] text-wa-text-secondary mb-1">Clicks</div>
+                                <div class="text-sm font-semibold text-white" x-text="Number(c.clicks || 0).toLocaleString()"></div>
                             </div>
                         </div>
 
                         <!-- Actions -->
-                        <div class="flex items-center gap-2 pt-3 border-t border-wa-border/50">
+                        <div class="flex items-center gap-2 pt-4 border-t border-wa-border/50">
                             <a :href="'/finance/campaign-detail?id=' + c.id + '&adAccountId=' + selectedAdAccountId"
-                                class="flex-1 text-center px-3 py-1.5 bg-wa-bg-hover hover:bg-wa-bg-deep text-white text-xs rounded-lg transition-colors"
+                                class="flex-1 text-center px-3 py-2 bg-wa-bg-hover hover:bg-wa-green/10 hover:text-wa-green text-white text-xs font-medium rounded-lg transition-colors"
                                 x-text="$t('fin_campaigns_view_detail')">Ver detalle</a>
                             <button @click.prevent="openBudgetModal(c)" class="p-1.5 text-wa-text-secondary hover:text-wa-green transition-colors" title="Editar presupuesto">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
