@@ -5,6 +5,8 @@ import Layout from "../../layouts/Layout.astro";
 <Layout title="Monitor" fullWidth>
     <div
         x-data="botMonitor"
+        @keydown.escape.window="if (showNotesPanel) { showNotesPanel = false } else if (showQuickReplies) { showQuickReplies = false } else if (selectedSession) { selectedSession = null }"
+        @keydown.ctrl.f.prevent.window="$refs.searchInput?.focus()"
         class="h-[calc(100vh-1rem)] flex overflow-hidden rounded-lg"
     >
         <!-- Left: Sessions panel -->
