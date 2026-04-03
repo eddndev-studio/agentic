@@ -380,16 +380,31 @@ export class FacebookService {
 
     static async getPagePosts(pageId: string) {
         const { token } = await this.getDecryptedToken();
-        // Get page access token first
         const pageRes = await this.fbGet(token, `/${pageId}?fields=access_token`);
         const pageToken = pageRes.access_token || token;
-        const result = await this.fbGet(pageToken, `/${pageId}/posts?fields=id,message,created_time,full_picture&limit=25`);
-        return (result.data || []).map((p: any) => ({
-            id: p.id,
-            message: (p.message || "").substring(0, 200),
-            createdTime: p.created_time,
-            picture: p.full_picture || null,
-        }));
+        const result = await this.fbGet(pageToken, `/${pageId}/posts?fields=id,message,created_time,full_picture,permalink_url,type,attachments{type,media_type,title,description,url,media,subattachments},likes.summary(true),comments.summary(true)&limit=25`);
+        return (result.data || []).map((p: any) => {
+            const attachment = p.attachments?.data?.[0];
+            const media = attachment?.media;
+            const subattachments = attachment?.subattachments?.data;
+            return {
+                id: p.id,
+                message: p.message || "",
+                createdTime: p.created_time,
+                picture: p.full_picture || null,
+                permalink: p.permalink_url || null,
+                type: p.type || attachment?.type || "status",
+                mediaType: attachment?.media_type || null,
+                video: media?.source || null,
+                videoImage: media?.image?.src || null,
+                album: subattachments ? subattachments.map((s: any) => ({
+                    picture: s.media?.image?.src || null,
+                    type: s.media_type || "photo",
+                })) : null,
+                likes: p.likes?.summary?.total_count || 0,
+                comments: p.comments?.summary?.total_count || 0,
+            };
+        });
     }
 
     static async uploadAdImage(adAccountId: string, imageUrl: string) {
