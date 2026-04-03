@@ -385,6 +385,109 @@ export class FacebookService {
         return firstKey ? { hash: images[firstKey].hash } : null;
     }
 
+    // ── Boost Post ────────────────────────────────────────────────────
+
+    static async boostPost(adAccountId: string, params: {
+        postId: string;
+        pageId: string;
+        dailyBudget: number;
+        duration: number;
+        targeting?: {
+            countries?: string[];
+            ageMin?: number;
+            ageMax?: number;
+            gender?: number;
+        };
+    }) {
+        const adAccount = await prisma.adAccount.findUniqueOrThrow({ where: { id: adAccountId } });
+        const { token } = await this.getDecryptedToken();
+        const fbAccountId = adAccount.fbAccountId;
+
+        const startTime = new Date();
+        const endTime = new Date();
+        endTime.setDate(endTime.getDate() + params.duration);
+
+        // Step 1: Create campaign with OUTCOME_ENGAGEMENT
+        const campaignResult = await this.fbPost(token, `/${fbAccountId}/campaigns`, {
+            name: `Boost - ${params.postId.substring(0, 20)} - ${startTime.toISOString().split("T")[0]}`,
+            objective: "OUTCOME_ENGAGEMENT",
+            status: "ACTIVE",
+            special_ad_categories: ["NONE"],
+            buying_type: "AUCTION",
+            daily_budget: toCents(params.dailyBudget),
+        });
+
+        const campaign = await prisma.campaign.create({
+            data: {
+                fbCampaignId: campaignResult.id,
+                name: `Boost - ${startTime.toISOString().split("T")[0]}`,
+                status: "ACTIVE",
+                objective: "OUTCOME_ENGAGEMENT",
+                buyingType: "AUCTION",
+                dailyBudget: params.dailyBudget,
+                adAccountId,
+            },
+        });
+
+        // Step 2: Create adset with targeting
+        const targeting: any = {
+            geo_locations: { countries: params.targeting?.countries || ["MX"] },
+            age_min: params.targeting?.ageMin || 18,
+            age_max: params.targeting?.ageMax || 65,
+        };
+        if (params.targeting?.gender && params.targeting.gender > 0) {
+            targeting.genders = [params.targeting.gender];
+        }
+
+        const adSetResult = await this.fbPost(token, `/${fbAccountId}/adsets`, {
+            campaign_id: campaignResult.id,
+            name: `Boost AdSet - ${startTime.toISOString().split("T")[0]}`,
+            status: "ACTIVE",
+            targeting,
+            billing_event: "IMPRESSIONS",
+            optimization_goal: "POST_ENGAGEMENT",
+            daily_budget: toCents(params.dailyBudget),
+            start_time: startTime.toISOString(),
+            end_time: endTime.toISOString(),
+        });
+
+        await prisma.adSet.create({
+            data: {
+                fbAdSetId: adSetResult.id,
+                name: `Boost AdSet`,
+                status: "ACTIVE",
+                targeting,
+                dailyBudget: params.dailyBudget,
+                optimizationGoal: "POST_ENGAGEMENT",
+                billingEvent: "IMPRESSIONS",
+                startTime,
+                endTime,
+                campaignId: campaign.id,
+            },
+        });
+
+        // Step 3: Create ad with the existing post as creative
+        const creativeResult = await this.fbPost(token, `/${fbAccountId}/adcreatives`, {
+            name: `Boost Creative - ${params.postId}`,
+            object_story_id: params.postId,
+        });
+
+        const adResult = await this.fbPost(token, `/${fbAccountId}/ads`, {
+            name: `Boost Ad - ${params.postId.substring(0, 20)}`,
+            adset_id: adSetResult.id,
+            creative: { creative_id: creativeResult.id },
+            status: "ACTIVE",
+        });
+
+        log.info(`Boost created: campaign=${campaignResult.id}, adset=${adSetResult.id}, ad=${adResult.id}`);
+
+        return {
+            success: true,
+            campaignId: campaign.id,
+            fbCampaignId: campaignResult.id,
+        };
+    }
+
     // ── Sync ────────────────────────────────────────────────────────────
 
     static async syncAll() {

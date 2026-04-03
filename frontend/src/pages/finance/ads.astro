@@ -402,6 +402,138 @@ import FinanceNav from "../../components/FinanceNav.astro";
                 </div>
             </section>
 
+            <!-- ========================================================== -->
+            <!-- SECTION 4: Boost Posts                                     -->
+            <!-- ========================================================== -->
+            <section class="bg-wa-bg-panel border border-wa-border rounded-xl p-5" x-show="connection" style="display:none;">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold" x-text="$t('fin_fb_boost_posts')">Promover Publicaciones</h3>
+                    <div class="flex items-center gap-2">
+                        <select x-model="boostPageId" @change="loadPagePosts()" class="bg-wa-bg-deep border border-wa-border rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-wa-green">
+                            <option value="">-- Pagina --</option>
+                            <template x-for="page in fbPages" :key="page.id">
+                                <option :value="page.id" x-text="page.name"></option>
+                            </template>
+                        </select>
+                        <button x-show="!boostPageId && fbPages.length === 0" @click="loadFbPages()" class="px-3 py-1.5 bg-wa-bg-deep border border-wa-border text-xs text-wa-text-secondary rounded-lg hover:text-white transition-colors" style="display:none;" x-text="$t('fin_fb_load_posts')">Cargar</button>
+                    </div>
+                </div>
+
+                <!-- Loading -->
+                <div x-show="loadingPosts" class="flex items-center gap-2 text-wa-text-secondary text-xs py-6 justify-center" style="display:none;">
+                    <div class="animate-spin w-4 h-4 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                </div>
+
+                <!-- No page selected -->
+                <div x-show="!boostPageId && !loadingPosts" class="text-center py-8 text-wa-text-secondary text-sm" style="display:none;">
+                    <p x-text="$t('fin_fb_select_page')">Selecciona una pagina</p>
+                </div>
+
+                <!-- No posts -->
+                <div x-show="boostPageId && !loadingPosts && pagePosts.length === 0" class="text-center py-8 text-wa-text-secondary text-sm" style="display:none;">
+                    <p x-text="$t('fin_fb_no_posts')">No se encontraron publicaciones</p>
+                </div>
+
+                <!-- Posts grid -->
+                <div x-show="pagePosts.length > 0 && !loadingPosts" class="grid grid-cols-1 md:grid-cols-2 gap-3" style="display:none;">
+                    <template x-for="post in pagePosts" :key="post.id">
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 flex gap-3">
+                            <!-- Thumbnail -->
+                            <div x-show="post.picture" class="w-16 h-16 rounded-lg bg-wa-bg-hover shrink-0 overflow-hidden" style="display:none;">
+                                <img :src="post.picture" class="w-full h-full object-cover" loading="lazy" />
+                            </div>
+                            <!-- Content -->
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs text-white line-clamp-2 mb-1" x-text="post.message || '(sin texto)'"></p>
+                                <p class="text-[10px] text-wa-text-secondary" x-text="new Date(post.createdTime).toLocaleDateString()"></p>
+                            </div>
+                            <!-- Boost button -->
+                            <button
+                                @click="openBoostModal(post)"
+                                class="shrink-0 self-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors"
+                                x-text="$t('fin_fb_boost')"
+                            >Promover</button>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Boost Modal                                                    -->
+        <!-- ============================================================== -->
+        <div
+            x-show="showBoostModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            @keydown.escape.window="showBoostModal = false"
+            style="display:none;"
+        >
+            <div class="bg-wa-bg-panel border border-wa-border rounded-xl w-full max-w-md mx-4 p-6" @click.outside="showBoostModal = false">
+                <h3 class="text-lg font-bold mb-1" x-text="$t('fin_fb_boost')">Promover</h3>
+                <p class="text-xs text-wa-text-secondary mb-4 line-clamp-2" x-text="boostPost?.message || ''"></p>
+
+                <div class="space-y-4">
+                    <!-- Ad Account -->
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_select_ad_account')">Cuenta</label>
+                        <select x-model="boostForm.adAccountId" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                            <option value="">-- Seleccionar --</option>
+                            <template x-for="acc in adAccounts" :key="acc.id">
+                                <option :value="acc.id" x-text="acc.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <!-- Budget + Duration -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_daily_budget')">Presupuesto/dia</label>
+                            <input type="number" step="0.01" x-model.number="boostForm.dailyBudget" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="5.00" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_duration_days')">Dias</label>
+                            <input type="number" min="1" max="30" x-model.number="boostForm.duration" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="7" />
+                        </div>
+                    </div>
+                    <!-- Targeting (simplified) -->
+                    <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 space-y-3">
+                        <h4 class="text-xs font-bold text-wa-text-secondary" x-text="$t('fin_fb_targeting')">Segmentacion</h4>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Pais</label>
+                                <select x-model="boostForm.country" class="w-full bg-wa-bg-panel border border-wa-border rounded p-1.5 text-xs text-white focus:outline-none">
+                                    <option value="MX">Mexico</option><option value="US">USA</option><option value="CO">Colombia</option>
+                                    <option value="AR">Argentina</option><option value="ES">Espana</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Edad</label>
+                                <div class="flex gap-1">
+                                    <input type="number" x-model.number="boostForm.ageMin" min="18" max="65" class="w-full bg-wa-bg-panel border border-wa-border rounded p-1.5 text-xs text-white" />
+                                    <input type="number" x-model.number="boostForm.ageMax" min="18" max="65" class="w-full bg-wa-bg-panel border border-wa-border rounded p-1.5 text-xs text-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1" x-text="$t('fin_fb_gender')">Genero</label>
+                                <select x-model.number="boostForm.gender" class="w-full bg-wa-bg-panel border border-wa-border rounded p-1.5 text-xs text-white focus:outline-none">
+                                    <option value="0">Todos</option><option value="1">Hombre</option><option value="2">Mujer</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Total estimate -->
+                    <div class="text-center py-2 text-sm">
+                        <span class="text-wa-text-secondary">Total estimado: </span>
+                        <span class="text-white font-bold" x-text="'$' + ((boostForm.dailyBudget || 0) * (boostForm.duration || 0)).toFixed(2)"></span>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-4">
+                    <button @click="showBoostModal = false" class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors" x-text="$t('fin_cancel')">Cancelar</button>
+                    <button @click="submitBoost()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors" :disabled="boosting" x-text="boosting ? $t('fin_fb_boosting') : $t('fin_fb_boost')">Promover</button>
+                </div>
+            </div>
         </div>
 
         <!-- ============================================================== -->
@@ -791,6 +923,15 @@ import FinanceNav from "../../components/FinanceNav.astro";
             interestQuery: "",
             interestResults: [] as any[],
 
+            // Boost posts
+            boostPageId: "",
+            pagePosts: [] as any[],
+            loadingPosts: false,
+            showBoostModal: false,
+            boostPost: null as any,
+            boostForm: { adAccountId: "", dailyBudget: 5, duration: 7, country: "MX", ageMin: 18, ageMax: 65, gender: 0 },
+            boosting: false,
+
             // Ad creation
             showAdModal: false,
             adTargetAdSetId: "",
@@ -812,6 +953,7 @@ import FinanceNav from "../../components/FinanceNav.astro";
 
                     if (this.connection) {
                         await this.loadAdAccounts();
+                        this.loadFbPages(); // non-blocking
                     }
 
                     // Init Facebook SDK in background
@@ -1113,6 +1255,65 @@ import FinanceNav from "../../components/FinanceNav.astro";
                     this.savingCampaign = false;
                 }
             },
+            // ── Boost Posts ─────────────────────────────────
+            async loadFbPages() {
+                try {
+                    this.fbPages = await ApiClient.get("/finance/facebook/pages");
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                }
+            },
+
+            async loadPagePosts() {
+                if (!this.boostPageId) { this.pagePosts = []; return; }
+                this.loadingPosts = true;
+                try {
+                    this.pagePosts = await ApiClient.get(`/finance/facebook/pages/${this.boostPageId}/posts`);
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loadingPosts = false;
+                }
+            },
+
+            openBoostModal(post: any) {
+                this.boostPost = post;
+                this.boostForm = {
+                    adAccountId: this.adAccounts[0]?.id || "",
+                    dailyBudget: 5, duration: 7,
+                    country: "MX", ageMin: 18, ageMax: 65, gender: 0,
+                };
+                this.showBoostModal = true;
+                // Load pages if needed
+                if (this.fbPages.length === 0) this.loadFbPages();
+            },
+
+            async submitBoost() {
+                if (!this.boostForm.adAccountId || !this.boostForm.dailyBudget || !this.boostForm.duration) return;
+                this.boosting = true;
+                try {
+                    await ApiClient.post("/finance/facebook/boost", {
+                        adAccountId: this.boostForm.adAccountId,
+                        postId: this.boostPost.id,
+                        pageId: this.boostPageId,
+                        dailyBudget: this.boostForm.dailyBudget,
+                        duration: this.boostForm.duration,
+                        targeting: {
+                            countries: [this.boostForm.country],
+                            ageMin: this.boostForm.ageMin,
+                            ageMax: this.boostForm.ageMax,
+                            gender: this.boostForm.gender,
+                        },
+                    });
+                    (window as any).__toast.success("Publicacion promovida exitosamente");
+                    this.showBoostModal = false;
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.boosting = false;
+                }
+            },
+
             // ── AdSet Creation ──────────────────────────────
             openAdSetModal(campaignId: string) {
                 this.adSetTargetCampaignId = campaignId;

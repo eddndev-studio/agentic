@@ -487,4 +487,14 @@ export default {
     fin_fb_adset_created: "Ad set created",
     fin_fb_ad_created: "Ad created",
     fin_fb_select_page: "Select page",
+
+    // Finance - Boost Posts
+    fin_fb_boost_posts: "Boost Posts",
+    fin_fb_boost: "Boost",
+    fin_fb_boosting: "Boosting...",
+    fin_fb_boost_success: "Post boosted successfully",
+    fin_fb_duration_days: "Duration (days)",
+    fin_fb_select_ad_account: "Select account",
+    fin_fb_no_posts: "No posts found",
+    fin_fb_load_posts: "Load posts",
 };

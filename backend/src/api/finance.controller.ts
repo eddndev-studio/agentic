@@ -923,4 +923,19 @@ export const financeController = new Elysia({ prefix: "/finance" })
             set.status = 500;
             return { error: e.message };
         }
+    })
+
+    .post("/facebook/boost", async ({ body, set }) => {
+        const { adAccountId, postId, pageId, dailyBudget, duration, targeting } = body as any;
+        if (!adAccountId || !postId || !pageId || !dailyBudget || !duration) {
+            set.status = 400;
+            return { error: "adAccountId, postId, pageId, dailyBudget, and duration are required" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.boostPost(adAccountId, { postId, pageId, dailyBudget, duration, targeting });
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
     });

@@ -487,4 +487,14 @@ export default {
     fin_fb_adset_created: "Conjunto de anuncios creado",
     fin_fb_ad_created: "Anuncio creado",
     fin_fb_select_page: "Seleccionar pagina",
+
+    // Finance - Boost Posts
+    fin_fb_boost_posts: "Promover Publicaciones",
+    fin_fb_boost: "Promover",
+    fin_fb_boosting: "Promoviendo...",
+    fin_fb_boost_success: "Publicacion promovida exitosamente",
+    fin_fb_duration_days: "Duracion (dias)",
+    fin_fb_select_ad_account: "Seleccionar cuenta",
+    fin_fb_no_posts: "No se encontraron publicaciones",
+    fin_fb_load_posts: "Cargar publicaciones",
 };
