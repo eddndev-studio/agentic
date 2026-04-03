@@ -47,22 +47,22 @@ import FinanceNav from "../../components/FinanceNav.astro";
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                             <div class="text-xs text-wa-text-secondary mb-1">Ingresos</div>
-                            <div class="text-lg font-medium text-emerald-400" x-text="fmt(summary.totalIncome)"></div>
+                            <div class="text-lg font-medium text-emerald-400" x-text="fmt(summary?.totalIncome)"></div>
                         </div>
                         <div>
                             <div class="text-xs text-wa-text-secondary mb-1">Costos Totales</div>
-                            <div class="text-lg font-medium text-red-400" x-text="fmt(summary.totalCosts)"></div>
+                            <div class="text-lg font-medium text-red-400" x-text="fmt(summary?.totalCosts)"></div>
                         </div>
                         <div>
                             <div class="text-xs text-wa-text-secondary mb-1">Gastos Fijos</div>
-                            <div class="text-lg font-medium text-orange-400" x-text="fmt(summary.totalExpenses)"></div>
+                            <div class="text-lg font-medium text-orange-400" x-text="fmt(summary?.totalExpenses)"></div>
                         </div>
                         <div>
                             <div class="text-xs text-wa-text-secondary mb-1">Ganancia Neta</div>
                             <div
                                 class="text-lg font-bold"
-                                :class="summary.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
-                                x-text="fmt(summary.netProfit)"
+                                :class="summary?.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                                x-text="fmt(summary?.netProfit)"
                             ></div>
                         </div>
                     </div>
