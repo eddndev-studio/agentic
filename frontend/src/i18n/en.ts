@@ -441,4 +441,5 @@ export default {
     fin_add_bank: "New Account",
     fin_description: "Description",
     fin_no_periods: "No periods",
+    fin_add_expense: "New Expense",
 };
