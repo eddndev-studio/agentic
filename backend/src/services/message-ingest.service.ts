@@ -42,6 +42,16 @@ export class MessageIngestService {
         const rawFrom = msg.key.remoteJid;
         if (!rawFrom) return;
 
+        // Skip outgoing messages sent via our API — they are already persisted by persistOutgoingMessage()
+        // This prevents duplicate messages when WhatsApp echoes back our sent messages via messages.upsert
+        if (msg.key.fromMe) {
+            // Check if already persisted (by sendMessage → persistOutgoingMessage)
+            if (msg.key.id) {
+                const exists = await prisma.message.findFirst({ where: { externalId: msg.key.id }, select: { id: true } });
+                if (exists) return; // Already saved, skip
+            }
+        }
+
         // CRITICAL: Normalize JID and resolve LID -> phone when possible
         const normalizedRaw = jidNormalizedUser(rawFrom);
         let from = normalizedRaw;
