@@ -1,0 +1,553 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FinanceNav from "../../components/FinanceNav.astro";
+---
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<Layout title="Finance - Crear Campaña">
+    <FinanceNav currentPath="/finance/campaign-create" />
+    <main x-data="campaignWizard">
+
+        <!-- Loading -->
+        <div x-show="loading" class="flex items-center justify-center py-24">
+            <div class="animate-spin w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full"></div>
+        </div>
+
+        <div x-show="!loading" class="flex gap-6" style="display:none;">
+
+            <!-- ========================================= -->
+            <!-- LEFT: Stepper                             -->
+            <!-- ========================================= -->
+            <div class="w-48 shrink-0 hidden md:block">
+                <a href="/finance/campaigns" class="inline-flex items-center gap-1 text-xs text-wa-text-secondary hover:text-wa-green transition-colors mb-6">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                    <span x-text="$t('fin_campaign_back')">Volver</span>
+                </a>
+
+                <div class="space-y-0">
+                    <template x-for="(s, idx) in steps" :key="idx">
+                        <div class="flex items-start gap-3">
+                            <div class="flex flex-col items-center">
+                                <!-- Circle -->
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
+                                    :class="step === idx + 1 ? 'bg-wa-green text-white' : step > idx + 1 ? 'bg-wa-green/20 text-wa-green' : 'bg-wa-bg-hover text-wa-text-secondary'">
+                                    <span x-show="step <= idx + 1" x-text="idx + 1"></span>
+                                    <svg x-show="step > idx + 1" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                                <!-- Line -->
+                                <div x-show="idx < steps.length - 1" class="w-px h-8" :class="step > idx + 1 ? 'bg-wa-green/30' : 'bg-wa-border'"></div>
+                            </div>
+                            <span class="text-xs mt-2 transition-colors"
+                                :class="step === idx + 1 ? 'text-white font-medium' : step > idx + 1 ? 'text-wa-green' : 'text-wa-text-secondary'"
+                                x-text="$t(s.label)"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ========================================= -->
+            <!-- RIGHT: Step Content                       -->
+            <!-- ========================================= -->
+            <div class="flex-1 min-w-0">
+
+                <!-- Mobile step indicator -->
+                <div class="md:hidden flex items-center gap-2 mb-4">
+                    <template x-for="(s, idx) in steps" :key="idx">
+                        <div class="flex items-center gap-1">
+                            <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+                                :class="step === idx + 1 ? 'bg-wa-green text-white' : step > idx + 1 ? 'bg-wa-green/20 text-wa-green' : 'bg-wa-bg-hover text-wa-text-secondary'"
+                                x-text="idx + 1"></div>
+                            <div x-show="idx < steps.length - 1" class="w-4 h-px" :class="step > idx + 1 ? 'bg-wa-green/30' : 'bg-wa-border'"></div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- STEP 1: Campaign                       -->
+                <!-- ═══════════════════════════════════════ -->
+                <div x-show="step === 1" class="bg-wa-bg-panel border border-wa-border rounded-xl p-6 space-y-4">
+                    <h2 class="text-lg font-bold" x-text="$t('fin_wizard_step_campaign')">Campana</h2>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1">Nombre</label>
+                        <input type="text" x-model="campaignForm.name" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="Nombre de la campana" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_campaign_objective')">Objetivo</label>
+                            <select x-model="campaignForm.objective" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                                <option value="OUTCOME_ENGAGEMENT">Engagement</option>
+                                <option value="OUTCOME_TRAFFIC">Traffic</option>
+                                <option value="OUTCOME_LEADS">Leads</option>
+                                <option value="OUTCOME_SALES">Sales</option>
+                                <option value="OUTCOME_AWARENESS">Awareness</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_daily_budget')">Presupuesto Diario</label>
+                            <input type="number" step="1" x-model.number="campaignForm.dailyBudget" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="300" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_start_time')">Inicio</label>
+                            <input type="datetime-local" x-model="campaignForm.startTime" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_end_time')">Fin</label>
+                            <input type="datetime-local" x-model="campaignForm.endTime" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_special_categories')">Categorias Especiales</label>
+                        <select x-model="campaignForm.specialAdCategory" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                            <option value="NONE">Ninguna</option><option value="CREDIT">Credito</option>
+                            <option value="EMPLOYMENT">Empleo</option><option value="HOUSING">Vivienda</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- STEP 2: Targeting                      -->
+                <!-- ═══════════════════════════════════════ -->
+                <div x-show="step === 2" class="bg-wa-bg-panel border border-wa-border rounded-xl p-6 space-y-4" style="display:none;">
+                    <h2 class="text-lg font-bold" x-text="$t('fin_wizard_step_targeting')">Segmentacion</h2>
+
+                    <!-- AdSet name -->
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1">Nombre del conjunto</label>
+                        <input type="text" x-model="adSetForm.name" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="Ad Set 1" />
+                    </div>
+
+                    <!-- Location search -->
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_location')">Ubicaciones</label>
+                        <input type="text" x-model="locationQuery" @input.debounce.300ms="searchLocations()"
+                            class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white"
+                            placeholder="Buscar ciudad, region o pais..." />
+                        <div x-show="locationResults.length > 0" class="mt-1 bg-wa-bg-deep border border-wa-border rounded-lg max-h-40 overflow-y-auto" style="display:none;">
+                            <template x-for="loc in locationResults" :key="loc.key + loc.type">
+                                <button @click="addLocation(loc)" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-wa-bg-hover transition-colors flex justify-between items-center border-b border-wa-border/30 last:border-0">
+                                    <div>
+                                        <span x-text="loc.name" class="font-medium"></span>
+                                        <span x-show="loc.region && loc.type === 'city'" class="text-wa-text-secondary" x-text="', ' + loc.region"></span>
+                                        <span x-show="loc.countryName" class="text-wa-text-secondary" x-text="' — ' + loc.countryName"></span>
+                                    </div>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] bg-wa-bg-hover text-wa-text-secondary shrink-0 ml-2"
+                                        x-text="loc.type === 'city' ? 'Ciudad' : loc.type === 'region' ? 'Region' : 'Pais'"></span>
+                                </button>
+                            </template>
+                        </div>
+                        <!-- Selected locations -->
+                        <div class="space-y-1.5 mt-2">
+                            <template x-for="(loc, idx) in adSetForm.locations" :key="loc.key + loc.type">
+                                <div class="flex items-center gap-2 bg-wa-bg-deep/50 rounded-lg px-2 py-1.5">
+                                    <span class="w-2 h-2 rounded-full shrink-0" :class="loc.type === 'city' ? 'bg-blue-400' : loc.type === 'region' ? 'bg-purple-400' : 'bg-wa-green'"></span>
+                                    <span class="text-xs text-white flex-1 truncate" x-text="loc.name + (loc.type === 'city' && loc.region ? ', ' + loc.region : '')"></span>
+                                    <template x-if="loc.type === 'city'">
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <input type="number" min="1" max="80" :value="loc.radius || 40" @change="loc.radius = Number($event.target.value); updateMap()"
+                                                class="w-14 bg-wa-bg-deep border border-wa-border rounded p-1 text-[10px] text-white text-center" />
+                                            <span class="text-[10px] text-wa-text-secondary">km</span>
+                                        </div>
+                                    </template>
+                                    <button @click="adSetForm.locations.splice(idx, 1); updateMap()" class="text-wa-text-secondary hover:text-red-400 text-xs shrink-0">&times;</button>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="adSetForm.locations.length > 0" class="mt-3 rounded-lg overflow-hidden border border-wa-border" style="display:none;">
+                            <div id="wizard-map" style="height: 240px; width: 100%; background: #1a1a2e;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Age + Gender -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1">Edad Min</label>
+                            <input type="number" x-model.number="adSetForm.ageMin" min="18" max="65" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1">Edad Max</label>
+                            <input type="number" x-model.number="adSetForm.ageMax" min="18" max="65" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_gender')">Genero</label>
+                            <select x-model.number="adSetForm.gender" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                                <option value="0">Todos</option><option value="1">Hombre</option><option value="2">Mujer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Interests -->
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_interests')">Intereses</label>
+                        <input type="text" x-model="interestQuery" @input.debounce.300ms="searchInterests()"
+                            class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" :placeholder="$t('fin_fb_search_interests')" />
+                        <div x-show="interestResults.length > 0" class="mt-1 bg-wa-bg-deep border border-wa-border rounded-lg max-h-32 overflow-y-auto" style="display:none;">
+                            <template x-for="interest in interestResults" :key="interest.id">
+                                <button @click="addInterest(interest)" class="w-full text-left px-3 py-1.5 text-xs text-white hover:bg-wa-bg-hover transition-colors flex justify-between">
+                                    <span x-text="interest.name"></span>
+                                    <span class="text-wa-text-secondary" x-text="interest.audienceSize ? Number(interest.audienceSize).toLocaleString() : ''"></span>
+                                </button>
+                            </template>
+                        </div>
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            <template x-for="(interest, idx) in adSetForm.interests" :key="interest.id">
+                                <span class="px-2 py-0.5 bg-purple-500/10 text-purple-400 text-xs rounded-full flex items-center gap-1">
+                                    <span x-text="interest.name"></span>
+                                    <button @click="adSetForm.interests.splice(idx, 1)" class="hover:text-red-400">&times;</button>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_daily_budget')">Presupuesto AdSet</label>
+                            <input type="number" step="1" x-model.number="adSetForm.dailyBudget" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="300" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_optimization_goal')">Optimizacion</label>
+                            <select x-model="adSetForm.optimizationGoal" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                                <option value="REACH">Alcance</option><option value="LINK_CLICKS">Clicks</option>
+                                <option value="IMPRESSIONS">Impresiones</option><option value="CONVERSATIONS">Conversaciones</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- STEP 3: Ad Creative                    -->
+                <!-- ═══════════════════════════════════════ -->
+                <div x-show="step === 3" class="bg-wa-bg-panel border border-wa-border rounded-xl p-6 space-y-4" style="display:none;">
+                    <h2 class="text-lg font-bold" x-text="$t('fin_wizard_step_ad')">Anuncio</h2>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1">Nombre del anuncio</label>
+                        <input type="text" x-model="adForm.name" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="Nombre del anuncio" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_page')">Pagina de Facebook</label>
+                        <select x-model="adForm.pageId" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                            <option value="">-- Seleccionar --</option>
+                            <template x-for="page in fbPages" :key="page.id">
+                                <option :value="page.id" x-text="page.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_link_url')">URL de destino</label>
+                        <input type="url" x-model="adForm.link" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="https://..." />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_message_text')">Texto del anuncio</label>
+                        <textarea x-model="adForm.message" rows="4" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white resize-none" placeholder="Escribe el texto de tu anuncio..."></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_headline')">Titulo</label>
+                            <input type="text" x-model="adForm.headline" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="Titulo del anuncio" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_cta')">Llamada a la accion</label>
+                            <select x-model="adForm.cta" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                                <option value="LEARN_MORE">Mas Info</option><option value="SEND_MESSAGE">Enviar Mensaje</option>
+                                <option value="SHOP_NOW">Comprar</option><option value="SIGN_UP">Registrarse</option>
+                                <option value="CONTACT_US">Contactar</option><option value="WHATSAPP_MESSAGE">WhatsApp</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- STEP 4: Review                         -->
+                <!-- ═══════════════════════════════════════ -->
+                <div x-show="step === 4" class="space-y-4" style="display:none;">
+                    <h2 class="text-lg font-bold" x-text="$t('fin_wizard_step_review')">Revisar</h2>
+
+                    <!-- Campaign summary -->
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <h3 class="text-xs font-bold text-wa-text-secondary uppercase mb-3" x-text="$t('fin_wizard_review_campaign')">Campana</h3>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div><span class="text-wa-text-secondary text-xs">Nombre:</span> <span class="text-white" x-text="campaignForm.name"></span></div>
+                            <div><span class="text-wa-text-secondary text-xs">Objetivo:</span> <span class="text-white" x-text="campaignForm.objective?.replace('OUTCOME_', '')"></span></div>
+                            <div><span class="text-wa-text-secondary text-xs">Presupuesto:</span> <span class="text-white" x-text="'$' + (campaignForm.dailyBudget || 0) + '/dia'"></span></div>
+                            <div><span class="text-wa-text-secondary text-xs">Estado:</span> <span class="text-yellow-400">PAUSED</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Targeting summary -->
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <h3 class="text-xs font-bold text-wa-text-secondary uppercase mb-3" x-text="$t('fin_wizard_review_targeting')">Segmentacion</h3>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="text-wa-text-secondary text-xs">Ad Set:</span> <span class="text-white" x-text="adSetForm.name"></span></div>
+                            <div>
+                                <span class="text-wa-text-secondary text-xs">Ubicaciones:</span>
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    <template x-for="loc in adSetForm.locations" :key="loc.key">
+                                        <span class="px-2 py-0.5 text-xs rounded-full"
+                                            :class="loc.type === 'city' ? 'bg-blue-500/10 text-blue-400' : 'bg-wa-green/10 text-wa-green'"
+                                            x-text="loc.name + (loc.radius ? ' (' + loc.radius + 'km)' : '')"></span>
+                                    </template>
+                                </div>
+                            </div>
+                            <div><span class="text-wa-text-secondary text-xs">Edad:</span> <span class="text-white" x-text="adSetForm.ageMin + ' - ' + adSetForm.ageMax"></span></div>
+                            <div x-show="adSetForm.interests.length > 0">
+                                <span class="text-wa-text-secondary text-xs">Intereses:</span>
+                                <span class="text-white" x-text="adSetForm.interests.map(i => i.name).join(', ')"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ad summary -->
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                        <h3 class="text-xs font-bold text-wa-text-secondary uppercase mb-3" x-text="$t('fin_wizard_review_ad')">Anuncio</h3>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="text-wa-text-secondary text-xs">Nombre:</span> <span class="text-white" x-text="adForm.name"></span></div>
+                            <div><span class="text-wa-text-secondary text-xs">URL:</span> <span class="text-blue-400 text-xs" x-text="adForm.link"></span></div>
+                            <div x-show="adForm.message"><span class="text-wa-text-secondary text-xs">Texto:</span> <span class="text-white text-xs" x-text="adForm.message?.substring(0, 100)"></span></div>
+                            <div x-show="adForm.headline"><span class="text-wa-text-secondary text-xs">Titulo:</span> <span class="text-white" x-text="adForm.headline"></span></div>
+                            <div><span class="text-wa-text-secondary text-xs">CTA:</span> <span class="text-white" x-text="adForm.cta"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- Navigation Buttons                     -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="flex items-center justify-between mt-6">
+                    <button x-show="step > 1" @click="prevStep()"
+                        class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors flex items-center gap-2"
+                        style="display:none;">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                        <span x-text="$t('fin_wizard_back')">Atras</span>
+                    </button>
+                    <div x-show="step === 1" style="display:none;"></div>
+
+                    <button x-show="step < 4" @click="nextStep()"
+                        class="px-5 py-2 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ml-auto"
+                        style="display:none;">
+                        <span x-text="$t('fin_wizard_next')">Siguiente</span>
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+
+                    <button x-show="step === 4" @click="submit()"
+                        class="px-6 py-2.5 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ml-auto"
+                        :disabled="submitting"
+                        style="display:none;">
+                        <span x-text="submitting ? $t('fin_wizard_creating') : $t('fin_wizard_create')">Crear Campana</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</Layout>
+
+<script>
+    import { ApiClient } from "../../lib/api";
+
+    document.addEventListener("alpine:init", () => {
+        const Alpine = (window as any).Alpine;
+
+        Alpine.data("campaignWizard", () => ({
+            loading: true,
+            adAccountId: "",
+            step: 1,
+            submitting: false,
+            fbPages: [] as any[],
+
+            steps: [
+                { label: "fin_wizard_step_campaign" },
+                { label: "fin_wizard_step_targeting" },
+                { label: "fin_wizard_step_ad" },
+                { label: "fin_wizard_step_review" },
+            ],
+
+            // Step 1
+            campaignForm: { name: "", objective: "OUTCOME_ENGAGEMENT", dailyBudget: 300, startTime: "", endTime: "", specialAdCategory: "NONE" },
+
+            // Step 2
+            adSetForm: { name: "", locations: [] as any[], ageMin: 18, ageMax: 65, gender: 0, interests: [] as any[], dailyBudget: 0, optimizationGoal: "REACH" },
+            locationQuery: "",
+            locationResults: [] as any[],
+            interestQuery: "",
+            interestResults: [] as any[],
+            _map: null as any,
+            _mapMarkers: [] as any[],
+
+            // Step 3
+            adForm: { name: "", pageId: "", link: "", message: "", headline: "", cta: "LEARN_MORE" },
+
+            async init() {
+                const params = new URLSearchParams(window.location.search);
+                this.adAccountId = params.get("adAccountId") || "";
+                if (!this.adAccountId) { window.location.href = "/finance/campaigns"; return; }
+
+                try {
+                    this.fbPages = await ApiClient.get("/finance/facebook/pages").catch(() => []);
+                } catch {} finally {
+                    this.loading = false;
+                }
+            },
+
+            nextStep() {
+                if (!this.validateStep(this.step)) return;
+                if (this.step === 1 && !this.adSetForm.name) {
+                    this.adSetForm.name = this.campaignForm.name + " - Ad Set 1";
+                }
+                if (this.step === 2 && !this.adForm.name) {
+                    this.adForm.name = this.campaignForm.name + " - Ad 1";
+                }
+                this.step++;
+            },
+
+            prevStep() {
+                if (this.step > 1) this.step--;
+            },
+
+            validateStep(n: number): boolean {
+                if (n === 1) {
+                    if (!this.campaignForm.name.trim()) { (window as any).__toast.error("Nombre de campana requerido"); return false; }
+                    if (!this.campaignForm.dailyBudget || this.campaignForm.dailyBudget <= 0) { (window as any).__toast.error("Presupuesto diario requerido"); return false; }
+                    return true;
+                }
+                if (n === 2) {
+                    if (!this.adSetForm.name.trim()) { (window as any).__toast.error("Nombre del conjunto requerido"); return false; }
+                    if (this.adSetForm.locations.length === 0) { (window as any).__toast.error("Agrega al menos una ubicacion"); return false; }
+                    return true;
+                }
+                if (n === 3) {
+                    if (!this.adForm.name.trim()) { (window as any).__toast.error("Nombre del anuncio requerido"); return false; }
+                    if (!this.adForm.pageId) { (window as any).__toast.error("Selecciona una pagina de Facebook"); return false; }
+                    if (!this.adForm.link) { (window as any).__toast.error("URL de destino requerida"); return false; }
+                    return true;
+                }
+                return true;
+            },
+
+            async submit() {
+                this.submitting = true;
+                let campaignId = null;
+                try {
+                    // 1. Create campaign
+                    const campaign = await ApiClient.post("/finance/facebook/campaigns/create", {
+                        adAccountId: this.adAccountId,
+                        name: this.campaignForm.name,
+                        objective: this.campaignForm.objective,
+                        status: "PAUSED",
+                        specialAdCategories: [this.campaignForm.specialAdCategory],
+                        dailyBudget: this.campaignForm.dailyBudget,
+                        startTime: this.campaignForm.startTime || undefined,
+                        endTime: this.campaignForm.endTime || undefined,
+                    });
+                    campaignId = campaign.id;
+
+                    // 2. Build targeting
+                    const geoLocations: any = {};
+                    const countries = this.adSetForm.locations.filter((l: any) => l.type === "country");
+                    const regions = this.adSetForm.locations.filter((l: any) => l.type === "region");
+                    const cities = this.adSetForm.locations.filter((l: any) => l.type === "city");
+                    if (countries.length) geoLocations.countries = countries.map((c: any) => c.key);
+                    if (regions.length) geoLocations.regions = regions.map((r: any) => ({ key: r.key }));
+                    if (cities.length) geoLocations.cities = cities.map((c: any) => ({ key: c.key, radius: c.radius || 40, distance_unit: "kilometer" }));
+
+                    const targeting: any = { geo_locations: geoLocations, age_min: this.adSetForm.ageMin, age_max: this.adSetForm.ageMax };
+                    if (this.adSetForm.gender > 0) targeting.genders = [this.adSetForm.gender];
+                    if (this.adSetForm.interests.length > 0) targeting.flexible_spec = [{ interests: this.adSetForm.interests.map((i: any) => ({ id: i.id, name: i.name })) }];
+
+                    // 3. Create adset
+                    const adset = await ApiClient.post("/finance/facebook/adsets/create", {
+                        campaignId, name: this.adSetForm.name, status: "PAUSED", targeting,
+                        dailyBudget: this.adSetForm.dailyBudget || undefined,
+                        optimizationGoal: this.adSetForm.optimizationGoal, billingEvent: "IMPRESSIONS",
+                    });
+
+                    // 4. Create ad
+                    const linkData: any = { link: this.adForm.link, message: this.adForm.message };
+                    if (this.adForm.headline) linkData.name = this.adForm.headline;
+                    if (this.adForm.cta) linkData.call_to_action = { type: this.adForm.cta, value: { link: this.adForm.link } };
+
+                    await ApiClient.post("/finance/facebook/ads/create", {
+                        adSetId: adset.id, name: this.adForm.name, status: "PAUSED",
+                        creative: { objectStorySpec: { page_id: this.adForm.pageId, link_data: linkData } },
+                    });
+
+                    (window as any).__toast.success("Campana creada exitosamente");
+                    window.location.href = `/finance/campaign-detail?id=${campaignId}&adAccountId=${this.adAccountId}`;
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                    if (campaignId) {
+                        (window as any).__toast.info("Campana creada parcialmente. Revisa el detalle.");
+                        window.location.href = `/finance/campaign-detail?id=${campaignId}&adAccountId=${this.adAccountId}`;
+                    }
+                } finally {
+                    this.submitting = false;
+                }
+            },
+
+            // Location helpers
+            async searchLocations() {
+                if (this.locationQuery.length < 2) { this.locationResults = []; return; }
+                try { this.locationResults = await ApiClient.get(`/finance/facebook/locations?q=${encodeURIComponent(this.locationQuery)}`); } catch { this.locationResults = []; }
+            },
+
+            addLocation(loc: any) {
+                if (!this.adSetForm.locations.find((l: any) => l.key === loc.key && l.type === loc.type)) {
+                    loc.radius = loc.type === "city" ? 40 : 0;
+                    this.adSetForm.locations.push(loc);
+                    this.geocodeAndMap(loc);
+                }
+                this.locationQuery = "";
+                this.locationResults = [];
+            },
+
+            geocodeAndMap(loc: any) {
+                const q = loc.name + (loc.region ? ", " + loc.region : "") + (loc.countryName ? ", " + loc.countryName : "");
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`)
+                    .then(r => r.json()).then(results => {
+                        if (results[0]) { loc.lat = parseFloat(results[0].lat); loc.lng = parseFloat(results[0].lon); this.updateMap(); }
+                    }).catch(() => {});
+            },
+
+            updateMap() {
+                const L = (window as any).L;
+                if (!L) return;
+                const locs = this.adSetForm.locations.filter((l: any) => l.lat && l.lng);
+                if (locs.length === 0) return;
+                if (!this._map) {
+                    const el = document.getElementById("wizard-map");
+                    if (!el) return;
+                    this._map = L.map(el, { zoomControl: true, attributionControl: false });
+                    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 18 }).addTo(this._map);
+                }
+                this._mapMarkers.forEach((m: any) => m.remove());
+                this._mapMarkers = [];
+                const bounds: any[] = [];
+                for (const loc of locs) {
+                    const color = loc.type === "city" ? "#60a5fa" : loc.type === "region" ? "#a78bfa" : "#25D366";
+                    if (loc.radius > 0) {
+                        const circle = L.circle([loc.lat, loc.lng], { radius: loc.radius * 1000, color, fillColor: color, fillOpacity: 0.12, weight: 1.5 }).addTo(this._map);
+                        this._mapMarkers.push(circle);
+                    }
+                    const marker = L.circleMarker([loc.lat, loc.lng], { radius: 5, color, fillColor: color, fillOpacity: 1, weight: 2 }).bindTooltip(loc.name).addTo(this._map);
+                    this._mapMarkers.push(marker);
+                    bounds.push([loc.lat, loc.lng]);
+                }
+                if (bounds.length === 1) this._map.setView(bounds[0], 10);
+                else if (bounds.length > 1) this._map.fitBounds(bounds, { padding: [30, 30] });
+            },
+
+            // Interest helpers
+            async searchInterests() {
+                if (this.interestQuery.length < 2) { this.interestResults = []; return; }
+                try { this.interestResults = await ApiClient.get(`/finance/facebook/interests?q=${encodeURIComponent(this.interestQuery)}`); } catch { this.interestResults = []; }
+            },
+
+            addInterest(interest: any) {
+                if (!this.adSetForm.interests.find((i: any) => i.id === interest.id)) this.adSetForm.interests.push(interest);
+                this.interestQuery = "";
+                this.interestResults = [];
+            },
+        }));
+    });
+</script>
