@@ -479,6 +479,19 @@ import Layout from "../../layouts/Layout.astro";
                         </template>
                     </div>
 
+                    <!-- Scroll-to-bottom floating button -->
+                    <div class="relative">
+                        <button
+                            x-show="showScrollDown"
+                            x-transition
+                            @click="scrollToBottom()"
+                            class="absolute bottom-3 right-6 z-10 w-10 h-10 rounded-full bg-wa-bg-header border border-wa-border shadow-lg flex items-center justify-center text-wa-text-secondary hover:text-wa-green transition-colors"
+                            style="display:none;"
+                        >
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                        </button>
+                    </div>
+
                     <!-- Attachment preview -->
                     <div x-show="attachedFile" class="bg-wa-bg-header px-4 pt-2 flex items-center gap-2 flex-shrink-0 border-t border-wa-border" style="display:none;">
                         <div class="flex-1 flex items-center gap-2 bg-wa-bg-hover rounded-lg px-3 py-2">
@@ -764,6 +777,7 @@ import Layout from "../../layouts/Layout.astro";
             unreadCounts: {} as Record<string, number>,
             typingIndicator: {} as Record<string, ReturnType<typeof setTimeout> | null>,
             typingSessions: {} as Record<string, boolean>,
+            showScrollDown: false,
             showNotesPanel: false,
             sessionNotes: '',
             attachedFile: null as File | null,
@@ -1111,9 +1125,14 @@ import Layout from "../../layouts/Layout.astro";
 
             onChatScroll() {
                 const container = this.$refs.messagesContainer as HTMLElement;
-                if (container && container.scrollTop < 100 && this.hasMoreMessages && !this.loadingMore) {
+                if (!container) return;
+                // Load older messages when scrolled near top
+                if (container.scrollTop < 100 && this.hasMoreMessages && !this.loadingMore) {
                     this.loadMoreMessages();
                 }
+                // Show/hide scroll-to-bottom button
+                const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+                this.showScrollDown = distFromBottom > 200;
             },
 
             async poll() {
