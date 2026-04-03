@@ -1,0 +1,311 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import HelpNav from "../../components/HelpNav.astro";
+---
+
+<Layout title="Ayuda - Bots">
+    <HelpNav currentPath="/help/bots" />
+    <main class="space-y-8">
+
+        <div>
+            <h1 class="text-2xl font-bold text-white mb-2">Bots</h1>
+            <p class="text-sm text-wa-text-secondary">Aprende a crear, configurar y gestionar bots de WhatsApp en Agentic.</p>
+        </div>
+
+        <!-- Table of contents -->
+        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5">
+            <h2 class="text-xs font-bold text-wa-text-secondary uppercase tracking-wider mb-3">En esta seccion</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <a href="#crear" class="text-sm text-wa-green hover:underline">Crear un bot</a>
+                <a href="#conectar" class="text-sm text-wa-green hover:underline">Conectar WhatsApp</a>
+                <a href="#detalle" class="text-sm text-wa-green hover:underline">Panel de control del bot</a>
+                <a href="#ia" class="text-sm text-wa-green hover:underline">Configurar IA</a>
+                <a href="#variables" class="text-sm text-wa-green hover:underline">Variables</a>
+                <a href="#herramientas" class="text-sm text-wa-green hover:underline">Herramientas (Tools)</a>
+                <a href="#clientes" class="text-sm text-wa-green hover:underline">Gestion de clientes</a>
+                <a href="#acciones" class="text-sm text-wa-green hover:underline">Pausar, clonar, eliminar</a>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Crear un bot                                           -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="crear" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Crear un bot</h2>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Ve a la seccion de Bots y haz clic en "+ Crear Bot"</p>
+                        <p class="text-xs text-wa-text-secondary">Desde la barra de navegacion inferior, toca "Bots". En la esquina superior derecha veras el boton verde.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Rellena los datos del bot</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">Se abrira un formulario donde debes indicar:</p>
+                        <!-- Example form -->
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-3 max-w-md">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Nombre del bot</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">Bot Ventas MX</div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Plataforma</label>
+                                <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white">WhatsApp</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium">Haz clic en "Guardar"</p>
+                        <p class="text-xs text-wa-text-secondary">El bot aparecera en tu lista como una tarjeta. Todavia no esta conectado — eso se hace en el siguiente paso.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Usa nombres descriptivos como "Bot Ventas MX" o "Soporte Licencias" para identificar rapidamente cada bot.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Conectar WhatsApp                                      -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="conectar" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Conectar WhatsApp</h2>
+
+            <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Entra al detalle del bot</p>
+                        <p class="text-xs text-wa-text-secondary">Haz clic en la tarjeta del bot que quieres conectar.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Haz clic en "Enlace Publico"</p>
+                        <p class="text-xs text-wa-text-secondary">Se abrira una nueva pagina con un codigo QR.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">3</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-2">Escanea el QR con WhatsApp</p>
+                        <p class="text-xs text-wa-text-secondary mb-3">En tu telefono: WhatsApp &gt; Menu (3 puntos) &gt; Dispositivos vinculados &gt; Vincular dispositivo. Escanea el codigo.</p>
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 max-w-xs">
+                            <div class="w-32 h-32 mx-auto bg-white rounded-lg flex items-center justify-center mb-3">
+                                <svg class="w-16 h-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4zm12 0h4v4h-4v-4zM10 4h4v4h-4V4zM4 10h4v4H4v-4zm12 0h4v4h-4v-4zM10 16h4v4h-4v-4zM10 10h4v4h-4v-4z" /></svg>
+                            </div>
+                            <p class="text-[10px] text-wa-text-secondary text-center">El codigo QR aparecera aqui</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <span class="w-7 h-7 rounded-full bg-wa-green text-white text-xs font-bold flex items-center justify-center shrink-0">4</span>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-medium mb-1">Alternativa: Codigo de emparejamiento</p>
+                        <p class="text-xs text-wa-text-secondary">Si prefieres no escanear QR, puedes usar un codigo numerico que se ingresa directamente en WhatsApp.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
+                <p class="text-xs text-yellow-300"><strong>Importante:</strong> El telefono debe tener conexion a internet para mantener la sesion activa. Si se desconecta, el bot dejara de responder hasta que se reconecte.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Panel de control                                       -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="detalle" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Panel de control del bot</h2>
+            <p class="text-sm text-wa-text-secondary">Al entrar a un bot, veras 8 pestanas con diferentes funciones:</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-emerald-400 mb-1">Flujos</h3>
+                    <p class="text-xs text-wa-text-secondary">Las automatizaciones del bot. Cada flujo tiene triggers (palabras clave) y pasos (respuestas). <a href="/help/flows" class="text-wa-green hover:underline">Ver tutorial de flujos</a></p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-1">Config IA</h3>
+                    <p class="text-xs text-wa-text-secondary">Personalidad y comportamiento del bot con IA. Tono, contexto e instrucciones. <a href="#ia" class="text-wa-green hover:underline">Ver abajo</a></p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-purple-400 mb-1">Herramientas</h3>
+                    <p class="text-xs text-wa-text-secondary">Funciones personalizadas que el bot puede ejecutar (webhooks, flujos, acciones). <a href="#herramientas" class="text-wa-green hover:underline">Ver abajo</a></p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-orange-400 mb-1">Automatizaciones</h3>
+                    <p class="text-xs text-wa-text-secondary">Reglas automaticas que se ejecutan en horarios o condiciones especificas.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-yellow-400 mb-1">Variables</h3>
+                    <p class="text-xs text-wa-text-secondary">Datos dinamicos del bot: textos, URLs, precios que puedes cambiar sin editar flujos. <a href="#variables" class="text-wa-green hover:underline">Ver abajo</a></p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-pink-400 mb-1">Notificaciones</h3>
+                    <p class="text-xs text-wa-text-secondary">Configura alertas cuando el bot recibe mensajes o se desconecta.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-cyan-400 mb-1">Clientes</h3>
+                    <p class="text-xs text-wa-text-secondary">Lista de contactos que han interactuado con el bot. Etiquetas, busqueda e importacion CSV. <a href="#clientes" class="text-wa-green hover:underline">Ver abajo</a></p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-wa-text-secondary mb-1">Logs</h3>
+                    <p class="text-xs text-wa-text-secondary">Registro de todo lo que el bot hace: mensajes enviados, flujos ejecutados, errores.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Configurar IA                                          -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="ia" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Configurar IA</h2>
+            <p class="text-sm text-wa-text-secondary">En la pestana "Config IA" puedes definir como se comporta el bot cuando usa inteligencia artificial para responder.</p>
+
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 space-y-3 max-w-lg">
+                <div>
+                    <label class="block text-[10px] text-wa-text-secondary mb-1">Tono de comunicacion</label>
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-xs text-white/70 italic">Ej: "Amigable y profesional. Tutea al cliente. Usa emojis con moderacion."</div>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-wa-text-secondary mb-1">Contexto del negocio</label>
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-xs text-white/70 italic">Ej: "Somos una gestoria de licencias de conducir en CDMX. Ofrecemos tramite express en 3 dias."</div>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-wa-text-secondary mb-1">Instrucciones especificas</label>
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-xs text-white/70 italic">Ej: "Siempre pregunta el tipo de licencia que necesitan. No des precios hasta que confirmen la zona."</div>
+                </div>
+            </div>
+
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
+                <p class="text-xs text-blue-300"><strong>Tip:</strong> Se lo mas especifico posible en las instrucciones. "Se amable" es vago. "Saluda por nombre, pregunta en que puedes ayudar, y ofrece las 3 opciones principales" es mucho mejor.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Variables                                              -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="variables" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Variables</h2>
+            <p class="text-sm text-wa-text-secondary">Las variables son datos que puedes cambiar sin necesidad de editar los flujos. Son utiles para precios, horarios, URLs, etc.</p>
+
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 max-w-lg">
+                <p class="text-xs text-wa-text-secondary mb-3">Ejemplo de variables:</p>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-xs text-wa-green font-mono">{{PRECIO_LICENCIA}}</span>
+                        <span class="text-xs text-white">$2,500 MXN</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-xs text-wa-green font-mono">{{HORARIO}}</span>
+                        <span class="text-xs text-white">Lunes a Viernes 9am-6pm</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
+                        <span class="text-xs text-wa-green font-mono">{{LINK_PAGO}}</span>
+                        <span class="text-xs text-white">https://pay.example.com/lic</span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-xs text-wa-text-secondary">En tus flujos, usa <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{{NOMBRE_VARIABLE}}</code> y el bot lo reemplazara automaticamente con el valor actual.</p>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Herramientas                                           -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="herramientas" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Herramientas (Tools)</h2>
+            <p class="text-sm text-wa-text-secondary">Las herramientas son funciones que el bot puede ejecutar durante una conversacion. Hay 3 tipos:</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mb-3">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-white mb-1">FLOW</h3>
+                    <p class="text-xs text-wa-text-secondary">Ejecuta otro flujo del bot. Util para redirigir la conversacion a un flujo especifico.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center mb-3">
+                        <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" /></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-white mb-1">WEBHOOK</h3>
+                    <p class="text-xs text-wa-text-secondary">Llama a una API externa. Ideal para consultar datos, crear registros o integrar con otros sistemas.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-3">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    </div>
+                    <h3 class="text-sm font-bold text-white mb-1">BUILTIN</h3>
+                    <p class="text-xs text-wa-text-secondary">Acciones internas del sistema como asignar etiquetas, guardar datos o enviar notificaciones.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Clientes                                               -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="clientes" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Gestion de clientes</h2>
+            <p class="text-sm text-wa-text-secondary">En la pestana "Clientes" puedes ver todos los contactos que han interactuado con el bot.</p>
+
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Etiquetas:</strong> Asigna etiquetas de colores para organizar clientes (ej: "Interesado", "Pagado", "Seguimiento").</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Busqueda:</strong> Filtra por nombre, numero o etiqueta.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-wa-green text-sm">&#9679;</span>
+                    <p class="text-sm text-wa-text-secondary"><strong class="text-white">Importar CSV:</strong> Sube un archivo con contactos para agregarlos masivamente.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- Acciones                                               -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <section id="acciones" class="space-y-4">
+            <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Pausar, clonar y eliminar</h2>
+
+            <div class="space-y-4">
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-yellow-400 mb-2">Pausar / Reanudar</h3>
+                    <p class="text-xs text-wa-text-secondary">En el detalle del bot, el boton "Pausar" detiene temporalmente todas las respuestas automaticas. El bot sigue conectado pero no responde. Haz clic en "Reanudar" para volver a activarlo.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-blue-400 mb-2">Clonar bot</h3>
+                    <p class="text-xs text-wa-text-secondary">Crea una copia exacta del bot con todos sus flujos, variables y configuracion. Util para crear bots similares rapidamente. El clon no hereda la conexion de WhatsApp — debes conectarlo por separado.</p>
+                </div>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
+                    <h3 class="text-sm font-bold text-red-400 mb-2">Eliminar bot</h3>
+                    <p class="text-xs text-wa-text-secondary">Elimina el bot permanentemente con todos sus flujos, variables y datos. Esta accion no se puede deshacer. Se te pedira confirmacion antes de eliminar.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation -->
+        <div class="flex items-center justify-between pt-4 border-t border-wa-border">
+            <a href="/help" class="text-sm text-wa-text-secondary hover:text-wa-green transition-colors">&larr; Volver al indice</a>
+            <a href="/help/flows" class="text-sm text-wa-green hover:underline">Siguiente: Flujos &rarr;</a>
+        </div>
+
+    </main>
+</Layout>

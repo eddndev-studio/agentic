@@ -1,0 +1,44 @@
+---
+interface Props {
+    currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+
+const sections = [
+    { href: "/help", label: "Inicio", icon: "home", exact: true },
+    { href: "/help/bots", label: "Bots", icon: "bot" },
+    { href: "/help/flows", label: "Flujos", icon: "flow" },
+    { href: "/help/templates", label: "Plantillas", icon: "template" },
+    { href: "/help/campaigns", label: "Campanas", icon: "campaign" },
+    { href: "/help/finance", label: "Finanzas", icon: "finance" },
+    { href: "/help/monitor", label: "Monitoreo", icon: "monitor" },
+];
+
+function isActive(href: string, exact?: boolean) {
+    if (exact) return currentPath === href || currentPath === href + "/";
+    return currentPath.startsWith(href);
+}
+---
+
+<nav class="flex items-center gap-1 overflow-x-auto pb-4 mb-2 border-b border-wa-border scrollbar-none">
+    <a href="/" class="text-wa-text-secondary hover:text-wa-green transition-colors mr-2 shrink-0" title="Volver a la app">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+    </a>
+    <span class="text-lg font-bold tracking-tight mr-4 shrink-0">Ayuda</span>
+    {sections.map(s => (
+        <a
+            href={s.href}
+            class:list={[
+                "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap shrink-0",
+                isActive(s.href, (s as any).exact)
+                    ? "bg-wa-green/15 text-wa-green font-medium"
+                    : "text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover"
+            ]}
+        >
+            {s.label}
+        </a>
+    ))}
+</nav>
