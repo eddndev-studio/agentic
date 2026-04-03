@@ -20,6 +20,7 @@ import Layout from "../../layouts/Layout.astro";
                     </svg>
                 </a>
                 <h1 class="text-base font-semibold flex-1" x-text="botName || $t('monitor')"></h1>
+                <span x-show="totalSessions > 0" class="text-[10px] text-wa-text-secondary bg-wa-bg-hover px-2 py-0.5 rounded-full" x-text="totalSessions + ' chats'"></span>
             </div>
 
             <!-- Search bar + label filter -->
