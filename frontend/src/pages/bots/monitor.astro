@@ -233,8 +233,24 @@ import Layout from "../../layouts/Layout.astro";
                                     @click="loadDebugContext(); menuOpen = false"
                                     class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
                                 >
-                                    <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                                    <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4"/></svg>
                                     <span>Debug AI</span>
+                                </button>
+                                <div class="border-t border-wa-border my-1"></div>
+                                <button
+                                    @click="toggleAI(); menuOpen = false"
+                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
+                                >
+                                    <svg class="w-4 h-4" :class="selectedSession.aiEnabled ? 'text-wa-green' : 'text-red-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                    <span x-text="selectedSession.aiEnabled ? 'Desactivar IA' : 'Activar IA'"></span>
+                                </button>
+                                <button
+                                    @click="showNotesPanel = !showNotesPanel; menuOpen = false"
+                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
+                                >
+                                    <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    <span>Notas</span>
+                                    <span x-show="selectedSession.notes" class="ml-auto w-2 h-2 rounded-full bg-purple-400 flex-shrink-0"></span>
                                 </button>
                                 <!-- Mobile-only labels option -->
                                 <div class="sm:hidden border-t border-wa-border mt-1 pt-1">
@@ -261,6 +277,22 @@ import Layout from "../../layouts/Layout.astro";
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Notes panel (collapsible) -->
+                    <div x-show="showNotesPanel" x-transition class="bg-wa-bg-deep border-b border-wa-border px-4 py-2.5 flex-shrink-0" style="display:none;">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            <span class="text-[10px] text-purple-400 uppercase tracking-wider font-medium">Notas</span>
+                            <button @click="showNotesPanel = false" class="ml-auto text-wa-text-secondary hover:text-white text-sm">&times;</button>
+                        </div>
+                        <textarea
+                            x-model="sessionNotes"
+                            @blur="saveNotes()"
+                            rows="2"
+                            class="w-full bg-wa-bg-hover border border-wa-border text-wa-text-primary text-xs p-2 rounded-lg focus:border-purple-400 focus:outline-none resize-y"
+                            placeholder="Escribe notas sobre este contacto..."
+                        ></textarea>
                     </div>
 
                     <!-- Messages area -->
@@ -681,6 +713,8 @@ import Layout from "../../layouts/Layout.astro";
             searchQuery: "",
             sending: false,
             unreadCounts: {} as Record<string, number>,
+            showNotesPanel: false,
+            sessionNotes: '',
             attachedFile: null as File | null,
             attachedUrl: '' as string,
             attachedMediaType: '' as string,
@@ -945,10 +979,14 @@ import Layout from "../../layouts/Layout.astro";
             async selectSession(session: any) {
                 this.selectedSession = session;
                 this.unreadCounts[session.id] = 0; // clear unread badge
+                this.sessionNotes = session.notes || '';
+                this.showNotesPanel = false;
                 this.messages = [];
                 this.hasMoreMessages = true;
                 this.loadingMore = false;
                 await this.loadMessages();
+                // Mark as read (fire-and-forget)
+                ApiClient.post(`/sessions/${session.id}/mark-read`, {}).catch(() => {});
             },
 
             async loadMessages() {
@@ -1080,6 +1118,32 @@ import Layout from "../../layouts/Layout.astro";
                 this.attachedFile = null;
                 this.attachedUrl = '';
                 this.attachedMediaType = '';
+            },
+
+            async saveNotes() {
+                if (!this.selectedSession) return;
+                try {
+                    await ApiClient.patch(`/sessions/${this.selectedSession.id}/notes`, { notes: this.sessionNotes });
+                    this.selectedSession.notes = this.sessionNotes;
+                    const s = this.sessions.find((s: any) => s.id === this.selectedSession.id);
+                    if (s) s.notes = this.sessionNotes;
+                } catch (e: any) {
+                    window.__toast.error("Failed to save notes");
+                }
+            },
+
+            async toggleAI() {
+                if (!this.selectedSession) return;
+                const newValue = !this.selectedSession.aiEnabled;
+                try {
+                    await ApiClient.patch(`/sessions/${this.selectedSession.id}/ai-enabled`, { enabled: newValue });
+                    this.selectedSession.aiEnabled = newValue;
+                    const s = this.sessions.find((s: any) => s.id === this.selectedSession.id);
+                    if (s) s.aiEnabled = newValue;
+                    window.__toast.info(newValue ? 'IA activada' : 'IA desactivada');
+                } catch (e: any) {
+                    window.__toast.error("Failed to toggle AI");
+                }
             },
 
             async forceAI() {
