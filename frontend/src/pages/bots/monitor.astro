@@ -461,7 +461,7 @@ import Layout from "../../layouts/Layout.astro";
 
                                         <!-- Text content -->
                                         <div :class="getMediaUrl(msg) && ['IMAGE', 'VIDEO', 'STICKER'].includes(msg.type) ? 'px-2.5 py-1.5' : ''" x-show="msg.type !== 'REACTION' || msg.content">
-                                            <span x-show="msg.content && msg.content !== '[media]'" x-text="msg.content" class="whitespace-pre-wrap"></span>
+                                            <span x-show="msg.content && msg.content !== '[media]'" x-html="formatMessage(msg.content)" class="whitespace-pre-wrap"></span>
                                             <span x-show="!msg.content && !getMediaUrl(msg) && msg.type !== 'TEXT'" class="text-wa-text-secondary italic">[media]</span>
                                             <span class="inline-flex items-center gap-1 float-right ml-2 mt-1 text-[11px] text-wa-text-secondary align-bottom leading-none translate-y-0.5">
                                                 <span x-text="shortTime(msg.createdAt)"></span>
@@ -1382,6 +1382,20 @@ import Layout from "../../layouts/Layout.astro";
                 const filename = url.split('/').pop();
                 const base = (import.meta.env.PUBLIC_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://agentic-api.w-gateway.cc'));
                 return `${base}/upload/files/${filename}`;
+            },
+
+            formatMessage(text: string): string {
+                if (!text) return '';
+                // Escape HTML first
+                let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                // WhatsApp formatting: *bold*, _italic_, ~strikethrough~, ```code```
+                s = s.replace(/```([\s\S]*?)```/g, '<code class="bg-white/10 px-1 py-0.5 rounded text-xs font-mono">$1</code>');
+                s = s.replace(/\*([^\s*](?:[^*]*[^\s*])?)\*/g, '<strong>$1</strong>');
+                s = s.replace(/(?<!\w)_([^\s_](?:[^_]*[^\s_])?)_(?!\w)/g, '<em>$1</em>');
+                s = s.replace(/~([^\s~](?:[^~]*[^\s~])?)~/g, '<del>$1</del>');
+                // URLs → clickable links
+                s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-blue-300 hover:underline break-all">$1</a>');
+                return s;
             },
 
             relativeTime(dateStr: string) {
