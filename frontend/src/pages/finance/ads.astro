@@ -681,20 +681,32 @@ import FinanceNav from "../../components/FinanceNav.astro";
 
                         <!-- Countries -->
                         <div>
-                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_location')">Paises</label>
-                            <select @change="if ($event.target.value && !adSetForm.countries.includes($event.target.value)) { adSetForm.countries.push($event.target.value); } $event.target.value = '';"
-                                class="w-full bg-wa-bg-panel border border-wa-border rounded-lg p-2 text-sm focus:border-wa-green focus:outline-none text-white">
-                                <option value="">+ Agregar pais</option>
-                                <option value="MX">Mexico</option><option value="US">Estados Unidos</option><option value="CO">Colombia</option>
-                                <option value="AR">Argentina</option><option value="ES">Espana</option><option value="PE">Peru</option>
-                                <option value="CL">Chile</option><option value="EC">Ecuador</option><option value="GT">Guatemala</option>
-                                <option value="VE">Venezuela</option><option value="BR">Brasil</option><option value="CR">Costa Rica</option>
-                            </select>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_location')">Ubicaciones</label>
+                            <input type="text" x-model="locationQuery" @input.debounce.300ms="searchLocations()"
+                                class="w-full bg-wa-bg-panel border border-wa-border rounded-lg p-2 text-sm focus:border-wa-green focus:outline-none text-white"
+                                placeholder="Buscar ciudad, region o pais..." />
+                            <!-- Location search results -->
+                            <div x-show="locationResults.length > 0" class="mt-1 bg-wa-bg-panel border border-wa-border rounded-lg max-h-40 overflow-y-auto" style="display:none;">
+                                <template x-for="loc in locationResults" :key="loc.key + loc.type">
+                                    <button @click="addLocation(loc)" class="w-full text-left px-3 py-2 text-xs text-white hover:bg-wa-bg-hover transition-colors flex justify-between items-center border-b border-wa-border/30 last:border-0">
+                                        <div>
+                                            <span x-text="loc.name" class="font-medium"></span>
+                                            <span x-show="loc.region && loc.type === 'city'" class="text-wa-text-secondary" x-text="', ' + loc.region"></span>
+                                            <span x-show="loc.countryName" class="text-wa-text-secondary" x-text="' — ' + loc.countryName"></span>
+                                        </div>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] bg-wa-bg-hover text-wa-text-secondary shrink-0 ml-2"
+                                            x-text="loc.type === 'city' ? 'Ciudad' : loc.type === 'region' ? 'Region' : 'Pais'"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <!-- Selected locations -->
                             <div class="flex flex-wrap gap-1 mt-2">
-                                <template x-for="(cc, idx) in adSetForm.countries" :key="cc">
-                                    <span class="px-2 py-0.5 bg-wa-green/10 text-wa-green text-xs rounded-full flex items-center gap-1">
-                                        <span x-text="cc"></span>
-                                        <button @click="adSetForm.countries.splice(idx, 1)" class="hover:text-red-400">&times;</button>
+                                <template x-for="(loc, idx) in adSetForm.locations" :key="loc.key + loc.type">
+                                    <span class="px-2 py-0.5 text-xs rounded-full flex items-center gap-1"
+                                        :class="loc.type === 'city' ? 'bg-blue-500/10 text-blue-400' : loc.type === 'region' ? 'bg-purple-500/10 text-purple-400' : 'bg-wa-green/10 text-wa-green'">
+                                        <span x-text="loc.name + (loc.type === 'city' && loc.region ? ', ' + loc.region : '')"></span>
+                                        <span class="text-[9px] opacity-60" x-text="'(' + (loc.type === 'city' ? 'C' : loc.type === 'region' ? 'R' : 'P') + ')'"></span>
+                                        <button @click="adSetForm.locations.splice(idx, 1)" class="hover:text-red-400">&times;</button>
                                     </span>
                                 </template>
                             </div>
@@ -915,13 +927,15 @@ import FinanceNav from "../../components/FinanceNav.astro";
             showAdSetModal: false,
             adSetTargetCampaignId: "",
             adSetForm: {
-                name: "", countries: [] as string[], ageMin: 18, ageMax: 65,
+                name: "", locations: [] as any[], ageMin: 18, ageMax: 65,
                 gender: 0, interests: [] as any[], dailyBudget: 0,
                 optimizationGoal: "REACH", startTime: "", endTime: "",
             },
             savingAdSet: false,
             interestQuery: "",
             interestResults: [] as any[],
+            locationQuery: "",
+            locationResults: [] as any[],
 
             // Boost posts
             boostPageId: "",
@@ -1318,13 +1332,30 @@ import FinanceNav from "../../components/FinanceNav.astro";
             openAdSetModal(campaignId: string) {
                 this.adSetTargetCampaignId = campaignId;
                 this.adSetForm = {
-                    name: "", countries: ["MX"], ageMin: 18, ageMax: 65,
+                    name: "", locations: [], ageMin: 18, ageMax: 65,
                     gender: 0, interests: [], dailyBudget: 0,
                     optimizationGoal: "REACH", startTime: "", endTime: "",
                 };
                 this.interestQuery = "";
                 this.interestResults = [];
+                this.locationQuery = "";
+                this.locationResults = [];
                 this.showAdSetModal = true;
+            },
+
+            async searchLocations() {
+                if (this.locationQuery.length < 2) { this.locationResults = []; return; }
+                try {
+                    this.locationResults = await ApiClient.get(`/finance/facebook/locations?q=${encodeURIComponent(this.locationQuery)}`);
+                } catch { this.locationResults = []; }
+            },
+
+            addLocation(loc: any) {
+                if (!this.adSetForm.locations.find((l: any) => l.key === loc.key && l.type === loc.type)) {
+                    this.adSetForm.locations.push(loc);
+                }
+                this.locationQuery = "";
+                this.locationResults = [];
             },
 
             async searchInterests() {
@@ -1343,11 +1374,20 @@ import FinanceNav from "../../components/FinanceNav.astro";
             },
 
             async saveAdSet() {
-                if (!this.adSetForm.name.trim() || this.adSetForm.countries.length === 0) return;
+                if (!this.adSetForm.name.trim() || this.adSetForm.locations.length === 0) return;
                 this.savingAdSet = true;
                 try {
+                    // Build geo_locations from selected locations
+                    const geoLocations: any = {};
+                    const countries = this.adSetForm.locations.filter((l: any) => l.type === "country");
+                    const regions = this.adSetForm.locations.filter((l: any) => l.type === "region");
+                    const cities = this.adSetForm.locations.filter((l: any) => l.type === "city");
+                    if (countries.length) geoLocations.countries = countries.map((c: any) => c.key);
+                    if (regions.length) geoLocations.regions = regions.map((r: any) => ({ key: r.key }));
+                    if (cities.length) geoLocations.cities = cities.map((c: any) => ({ key: c.key }));
+
                     const targeting: any = {
-                        geo_locations: { countries: this.adSetForm.countries },
+                        geo_locations: geoLocations,
                         age_min: this.adSetForm.ageMin,
                         age_max: this.adSetForm.ageMax,
                     };

@@ -905,6 +905,21 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }
     })
 
+    .get("/facebook/locations", async ({ query, set }) => {
+        const q = query.q as string;
+        if (!q || q.length < 2) {
+            set.status = 400;
+            return { error: "Query must be at least 2 characters" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.searchLocations(q);
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
     .get("/facebook/pages", async ({ set }) => {
         try {
             const { FacebookService } = await import("../services/facebook.service");

@@ -353,6 +353,22 @@ export class FacebookService {
         }));
     }
 
+    static async searchLocations(query: string, types?: string[]) {
+        const { token } = await this.getDecryptedToken();
+        const locationTypes = types || ["city", "region", "country"];
+        const typesParam = encodeURIComponent(JSON.stringify(locationTypes));
+        const result = await this.fbGet(token, `/search?type=adgeolocation&location_types=${typesParam}&q=${encodeURIComponent(query)}&limit=20`);
+        return (result.data || []).map((loc: any) => ({
+            key: loc.key,
+            name: loc.name,
+            type: loc.type,
+            countryCode: loc.country_code || null,
+            countryName: loc.country_name || null,
+            region: loc.region || null,
+            regionId: loc.region_id || null,
+        }));
+    }
+
     static async getPages() {
         const { token } = await this.getDecryptedToken();
         const result = await this.fbGet(token, `/me/accounts?fields=id,name,access_token&limit=50`);

@@ -487,6 +487,7 @@ export default {
     fin_fb_adset_created: "Conjunto de anuncios creado",
     fin_fb_ad_created: "Anuncio creado",
     fin_fb_select_page: "Seleccionar pagina",
+    fin_fb_search_location: "Buscar ciudad, region o pais...",
 
     // Finance - Boost Posts
     fin_fb_boost_posts: "Promover Publicaciones",
