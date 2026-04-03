@@ -83,11 +83,17 @@
 - [x] Migrar `notification.service.ts` — payload TEXT normalizado
 - [x] Eliminar guard `Platform.WHATSAPP` del StepProcessor (payloads ahora son platform-agnostic)
 
-### Fase 4: Implementar WhatsAppBusinessAPIProvider (3-5 días)
-- [ ] Implementar `IMessagingProvider` para la API oficial
-- [ ] Auth via OAuth2 / token (no QR)
-- [ ] Webhook receiver para mensajes entrantes
-- [ ] Mapeo de eventos webhook → `NormalizedMessage`
+### Fase 4: Implementar WhatsAppBusinessAPIProvider (completada 2026-04-03)
+- [x] Agregar `WHATSAPP_CLOUD` al enum Platform en Prisma + migración
+- [x] Agregar sección `waba` en `config.ts` (API version, timeouts)
+- [x] Extender `BotCredentialsSchema` con campos WABA (accessToken, phoneNumberId, businessAccountId, webhookVerifyToken)
+- [x] Crear `waba.types.ts` — tipos de webhook y API (WABAWebhookPayload, WABASendPayload, etc.)
+- [x] Crear `waba.service.ts` — cliente HTTP para Cloud API (send, markRead, downloadMedia, buildSendPayload)
+- [x] Crear `waba.normalizer.ts` — transformar webhook → NormalizedMessage (type detection, content extraction, media download)
+- [x] Crear `waba.adapter.ts` — implementar IMessagingProvider (stateless, credentials cache, persistOutgoingMessage)
+- [x] Registrar `wabaProvider` en ProviderRegistry para `Platform.WHATSAPP_CLOUD`
+- [x] Agregar webhook endpoints: GET `/webhook/waba/:botId` (Meta verification), POST `/webhook/waba/:botId` (incoming messages)
+- [x] Auth via access token (no QR) — `getQR()` returns null, `requestPairingCode()` throws
 
 ### Fase 5: Features platform-specific (1 día)
 - [ ] Labels → módulo separado con `WhatsAppLabelService`, extensible

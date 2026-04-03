@@ -61,6 +61,14 @@ export const config = {
         /** Bot config cache TTL (ms) */
         cacheTtl: envInt('NOTIFICATION_CACHE_TTL_MS', 30_000),
     },
+    // ── WhatsApp Cloud API (WABA) ──────────────────────────────────────────
+    waba: {
+        /** Graph API version */
+        apiVersion: env('WABA_API_VERSION', 'v21.0'),
+        /** Media download timeout (ms) */
+        mediaDownloadTimeout: envInt('WABA_MEDIA_DOWNLOAD_TIMEOUT_MS', 30_000),
+    },
+
     // ── Facebook Ads ──────────────────────────────────────────────────────
     facebook: {
         appId: env('FB_APP_ID', ''),

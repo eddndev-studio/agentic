@@ -296,6 +296,7 @@ model SessionLabel {
 
 enum Platform {
   WHATSAPP
+  WHATSAPP_CLOUD
   TELEGRAM
 }
 

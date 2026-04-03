@@ -94,6 +94,11 @@ export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;
 export const BotCredentialsSchema = z
     .object({
         webhookSecret: z.string().optional(),
+        // WhatsApp Cloud API (WABA) credentials
+        wabaAccessToken: z.string().optional(),
+        wabaPhoneNumberId: z.string().optional(),
+        wabaBusinessAccountId: z.string().optional(),
+        wabaWebhookVerifyToken: z.string().optional(),
     })
     .passthrough();
 

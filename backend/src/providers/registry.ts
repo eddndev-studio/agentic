@@ -14,10 +14,12 @@ import { Platform } from '@prisma/client';
 import { prisma } from '../services/postgres.service';
 import type { IMessagingProvider } from './types';
 import { baileysProvider } from './baileys.adapter';
+import { wabaProvider } from './waba.adapter';
 
 // ── Provider map ─────────────────────────────────────────────────────────────
 const providers = new Map<Platform, IMessagingProvider>();
 providers.set(Platform.WHATSAPP, baileysProvider);
+providers.set(Platform.WHATSAPP_CLOUD, wabaProvider);
 
 // ── Bot → Platform cache (platform rarely changes) ──────────────────────────
 const platformCache = new Map<string, Platform>();

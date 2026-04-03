@@ -4,6 +4,8 @@ import { aiEngine } from "../core/ai";
 import { MessageAccumulator } from "../services/accumulator.service";
 import { Platform, SessionStatus } from "@prisma/client";
 import { safeParseBotCredentials } from "../schemas";
+import { handleWABAWebhook } from "../providers/waba.adapter";
+import type { WABAWebhookPayload } from "../providers/waba.types";
 
 export const webhookController = new Elysia({ prefix: "/webhook" })
     .post("/:platform", async ({ params, body, headers, set }) => {
@@ -12,7 +14,7 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
 
         const { from, content, type = "text", fromMe = false } = body;
 
-        if (!['whatsapp', 'telegram'].includes(platform.toLowerCase())) {
+        if (!['whatsapp', 'whatsapp_cloud', 'telegram'].includes(platform.toLowerCase())) {
             set.status = 400;
             return "Invalid platform";
         }
@@ -132,4 +134,58 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
             botId: t.Optional(t.String()),
             fromMe: t.Optional(t.Boolean())
         })
+    })
+
+    // ── WhatsApp Cloud API (WABA) webhook ────────────────────────────────────
+    // GET  /webhook/waba/:botId — Meta verification challenge
+    // POST /webhook/waba/:botId — Incoming messages from Meta
+
+    .get("/waba/:botId", async ({ params, query, set }) => {
+        const mode = query['hub.mode'];
+        const token = query['hub.verify_token'];
+        const challenge = query['hub.challenge'];
+
+        if (mode !== 'subscribe' || !token || !challenge) {
+            set.status = 400;
+            return 'Missing verification parameters';
+        }
+
+        const bot = await prisma.bot.findUnique({
+            where: { id: params.botId },
+            select: { credentials: true },
+        });
+
+        const creds = safeParseBotCredentials(bot?.credentials);
+        if (token !== creds.wabaWebhookVerifyToken) {
+            set.status = 403;
+            return 'Invalid verify token';
+        }
+
+        console.log(`[WABA Webhook] Verification successful for bot ${params.botId}`);
+        return challenge;
+    }, {
+        params: t.Object({ botId: t.String() }),
+        query: t.Object({
+            'hub.mode': t.Optional(t.String()),
+            'hub.verify_token': t.Optional(t.String()),
+            'hub.challenge': t.Optional(t.String()),
+        }),
+    })
+
+    .post("/waba/:botId", async ({ params, body, set }) => {
+        const payload = body as unknown as WABAWebhookPayload;
+
+        if (payload.object !== 'whatsapp_business_account') {
+            set.status = 400;
+            return 'Invalid payload';
+        }
+
+        // Process asynchronously — Meta expects a quick 200
+        handleWABAWebhook(params.botId, payload).catch(err => {
+            console.error(`[WABA Webhook] Error processing for bot ${params.botId}:`, err);
+        });
+
+        return 'OK';
+    }, {
+        params: t.Object({ botId: t.String() }),
     });
