@@ -139,6 +139,15 @@ export class FacebookService {
         return prisma.ad.update({ where: { id: adId }, data: { status } });
     }
 
+    // ── Campaign Name ────────────────────────────────────────────────────
+
+    static async updateCampaignName(campaignId: string, name: string) {
+        const campaign = await prisma.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+        const { token } = await this.getDecryptedToken();
+        await this.fbPost(token, `/${campaign.fbCampaignId}`, { name });
+        return prisma.campaign.update({ where: { id: campaignId }, data: { name } });
+    }
+
     // ── Budget Management ───────────────────────────────────────────────
 
     static async updateCampaignBudget(campaignId: string, budget: { dailyBudget?: number; lifetimeBudget?: number }) {

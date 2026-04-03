@@ -772,6 +772,21 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }
     })
 
+    .put("/facebook/campaigns/:id/name", async ({ params: { id }, body, set }) => {
+        const { name } = body as any;
+        if (!name?.trim()) {
+            set.status = 400;
+            return { error: "Provide a campaign name" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.updateCampaignName(id, name.trim());
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
     .put("/facebook/campaigns/:id/budget", async ({ params: { id }, body, set }) => {
         const { dailyBudget, lifetimeBudget } = body as any;
         if (dailyBudget == null && lifetimeBudget == null) {

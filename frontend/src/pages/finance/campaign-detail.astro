@@ -26,7 +26,12 @@ import FinanceNav from "../../components/FinanceNav.astro";
             <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h1 class="text-xl font-bold text-white mb-2" x-text="campaign.name"></h1>
+                        <div class="flex items-center gap-2 mb-2">
+                            <h1 class="text-xl font-bold text-white" x-text="campaign.name"></h1>
+                            <button @click="openNameModal()" class="p-1 text-wa-text-secondary hover:text-wa-green transition-colors" title="Editar nombre">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                        </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-wa-bg-hover text-wa-text-secondary"
                                 x-text="campaign.objective?.replace('OUTCOME_', '') || '—'"></span>
@@ -156,6 +161,30 @@ import FinanceNav from "../../components/FinanceNav.astro";
                     </div>
                 </div>
             </template>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Campaign Name Edit Modal                                       -->
+        <!-- ============================================================== -->
+        <div x-show="showNameModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            @keydown.escape.window="showNameModal = false" style="display:none;">
+            <div class="bg-wa-bg-panel border border-wa-border rounded-xl w-full max-w-sm mx-4 p-6" @click.outside="showNameModal = false">
+                <h3 class="text-lg font-bold mb-4">Editar Nombre</h3>
+                <div>
+                    <label class="block text-xs text-wa-text-secondary mb-1">Nombre de la campaña</label>
+                    <input type="text" x-model="nameForm.name"
+                        @keydown.enter.prevent="saveName()"
+                        class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white"
+                        placeholder="Nombre de la campaña" />
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button @click="showNameModal = false" class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors">Cancelar</button>
+                    <button @click="saveName()" class="px-4 py-2 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-medium rounded-lg transition-colors" :disabled="savingName || !nameForm.name.trim()" x-text="savingName ? '...' : 'Guardar'">Guardar</button>
+                </div>
+            </div>
         </div>
 
         <!-- ============================================================== -->
@@ -369,6 +398,11 @@ import FinanceNav from "../../components/FinanceNav.astro";
             togglingAdSetStatus: {} as Record<string, boolean>,
             togglingAdStatus: {} as Record<string, boolean>,
 
+            // Campaign name
+            showNameModal: false,
+            nameForm: { name: "" },
+            savingName: false,
+
             // Budget
             showBudgetModal: false,
             budgetForm: { dailyBudget: 0 },
@@ -498,6 +532,27 @@ import FinanceNav from "../../components/FinanceNav.astro";
                     (window as any).__toast.error(e.message);
                 } finally {
                     this.togglingAdStatus[ad.id] = false;
+                }
+            },
+
+            // Campaign name
+            openNameModal() {
+                this.nameForm = { name: this.campaign.name || "" };
+                this.showNameModal = true;
+            },
+
+            async saveName() {
+                if (!this.nameForm.name.trim()) return;
+                this.savingName = true;
+                try {
+                    await ApiClient.put(`/finance/facebook/campaigns/${this.campaignId}/name`, this.nameForm);
+                    this.campaign.name = this.nameForm.name.trim();
+                    (window as any).__toast.success("Nombre actualizado");
+                    this.showNameModal = false;
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.savingName = false;
                 }
             },
 
