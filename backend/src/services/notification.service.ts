@@ -1,6 +1,6 @@
 import { eventBus, type BotEvent } from "./event-bus";
 import { prisma } from "./postgres.service";
-import { BaileysService } from "./baileys.service";
+import { providerRegistry } from "../providers/registry";
 import { config } from "../config";
 import { safeParseNotificationChannels } from "../schemas";
 
@@ -104,7 +104,8 @@ class NotificationService {
             if (!session) continue;
 
             try {
-                await BaileysService.sendMessage(event.botId, session.identifier, { text: message });
+                const provider = await providerRegistry.forBot(event.botId);
+                await provider.sendMessage(event.botId, session.identifier, { text: message });
 
                 await prisma.message.create({
                     data: {

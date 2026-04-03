@@ -35,13 +35,14 @@ async function gracefulShutdown(signal: string) {
     if (automationTimer) clearInterval(automationTimer);
     if (fbSyncTimer) clearInterval(fbSyncTimer);
 
-    // 2. Stop accepting new WhatsApp messages + cancel reconnect timers
+    // 2. Stop accepting new messages + cancel reconnect timers (all providers)
     try {
-        console.log("[Shutdown] Shutting down Baileys sessions...");
-        await BaileysService.shutdownAll();
-        console.log("[Shutdown] Baileys sessions closed.");
+        console.log("[Shutdown] Shutting down messaging providers...");
+        const { providerRegistry } = await import("./providers/registry");
+        await providerRegistry.shutdownAll();
+        console.log("[Shutdown] Messaging providers closed.");
     } catch (e) {
-        console.error("[Shutdown] Error shutting down Baileys:", e);
+        console.error("[Shutdown] Error shutting down providers:", e);
     }
 
     // 3. Flush pending message accumulator buffers → enqueue for worker
@@ -90,9 +91,9 @@ async function gracefulShutdown(signal: string) {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-// --- Baileys Init ---
+// --- Provider Init ---
 import { prisma } from "./services/postgres.service";
-import { BaileysService } from "./services/baileys.service";
+import { providerRegistry } from "./providers/registry";
 import { ToolExecutor } from "./core/ai/ToolExecutor";
 import { eventBus, type BotEvent } from "./services/event-bus";
 import { Platform } from "@prisma/client";
@@ -107,13 +108,18 @@ MessageAccumulator.flushAll((sid, msgs) => {
     console.error("[Init] Accumulator recovery error:", err);
 });
 
-// Reconnect WhatsApp Sessions
-prisma.bot.findMany({ where: { platform: Platform.WHATSAPP } }).then(bots => {
-    console.log(`[Init] Found ${bots.length} WhatsApp bots to reconnect...`);
+// Reconnect messaging sessions for all platforms
+prisma.bot.findMany().then(bots => {
+    console.log(`[Init] Found ${bots.length} bot(s) to reconnect...`);
     for (const bot of bots) {
-        BaileysService.startSession(bot.id).catch(err => {
-            console.error(`[Init] Failed to start session for ${bot.name}:`, err);
-        });
+        try {
+            const provider = providerRegistry.get(bot.platform);
+            provider.startSession(bot.id).catch(err => {
+                console.error(`[Init] Failed to start session for ${bot.name}:`, err);
+            });
+        } catch (err) {
+            console.warn(`[Init] No provider for ${bot.name} (${bot.platform}), skipping`);
+        }
     }
 });
 
@@ -194,11 +200,12 @@ const app = new Elysia({ adapter: node() })
             return '';
         }
     })
-    // Internal endpoint for the standalone worker to send messages via Baileys
+    // Internal endpoint for the standalone worker to send messages via provider
     .post("/internal/send", async ({ body, set }) => {
         const { botId, target, payload } = body as { botId: string; target: string; payload: Record<string, unknown> };
         try {
-            await BaileysService.sendMessage(botId, target, payload);
+            const provider = await providerRegistry.forBot(botId);
+            await provider.sendMessage(botId, target, payload);
             return { ok: true };
         } catch (e: unknown) {
             set.status = 500;
@@ -224,7 +231,8 @@ const app = new Elysia({ adapter: node() })
     .post("/internal/mark-read", async ({ body, set }) => {
         const { botId, chatJid, messageIds } = body as { botId: string; chatJid: string; messageIds: string[] };
         try {
-            await BaileysService.markRead(botId, chatJid, messageIds);
+            const provider = await providerRegistry.forBot(botId);
+            await provider.markRead(botId, chatJid, messageIds);
             return { ok: true };
         } catch (e: unknown) {
             set.status = 500;
@@ -235,7 +243,8 @@ const app = new Elysia({ adapter: node() })
     .post("/internal/presence", async ({ body, set }) => {
         const { botId, chatJid, presence } = body as { botId: string; chatJid: string; presence: string };
         try {
-            await BaileysService.sendPresence(botId, chatJid, presence as "composing" | "paused");
+            const provider = await providerRegistry.forBot(botId);
+            await provider.sendPresence(botId, chatJid, presence as "composing" | "paused");
             return { ok: true };
         } catch (e: unknown) {
             set.status = 500;

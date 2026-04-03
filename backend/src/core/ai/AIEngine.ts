@@ -2,7 +2,7 @@ import { prisma } from "../../services/postgres.service";
 import { redis } from "../../services/redis.service";
 import { getAIProvider } from "../../services/ai";
 import { ConversationService } from "../../services/conversation.service";
-import { BaileysService } from "../../services/baileys.service";
+import { providerRegistry } from "../../providers/registry";
 import { BotConfigService } from "../../services/bot-config.service";
 import { flowEngine } from "../flow";
 import { ToolExecutor } from "./ToolExecutor";
@@ -93,10 +93,11 @@ export class AIEngine {
         try {
             // 4. Mark all messages as read + show typing indicator
             const msgIds = messages.map(m => m.externalId).filter(Boolean);
+            const provider = await providerRegistry.forBot(bot.id);
             if (msgIds.length > 0) {
-                await BaileysService.markRead(bot.id, session.identifier, msgIds);
+                await provider.markRead(bot.id, session.identifier, msgIds);
             }
-            await BaileysService.sendPresence(bot.id, session.identifier, "composing");
+            await provider.sendPresence(bot.id, session.identifier, "composing");
 
             // 5. Preprocess multimodal content for each message in the batch
             const contentParts: string[] = [];
@@ -353,7 +354,8 @@ export class AIEngine {
             }
 
             // 9. Stop typing + send final response
-            await BaileysService.sendPresence(bot.id, session.identifier, "paused");
+            const presenceProvider = await providerRegistry.forBot(bot.id);
+            await presenceProvider.sendPresence(bot.id, session.identifier, "paused");
 
             // AI is tool/flow-oriented: NEVER send the LLM's text response to the user.
             // Only tools (reply_to_message, flows, etc.) can send messages to the end user.

@@ -1,5 +1,5 @@
 import { prisma } from "../../services/postgres.service";
-import { BaileysService } from "../../services/baileys.service";
+import { providerRegistry } from "../../providers/registry";
 import { BotConfigService, type BotWithTemplate } from "../../services/bot-config.service";
 import { isBuiltinTool } from "./builtin-tools";
 import { eventBus } from "../../services/event-bus";
@@ -160,6 +160,8 @@ export class ToolExecutor {
         let sentCount = 0;
         let failCount = 0;
 
+        const flowProvider = await providerRegistry.forBot(botId);
+
         for (const step of flow.steps) {
             let content = step.content || "";
 
@@ -193,24 +195,24 @@ export class ToolExecutor {
                     }
                     console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (TOOL:${toolName}) done:`, toolResult.data);
                 } else if (step.type === "TEXT" && content) {
-                    await BaileysService.sendMessage(botId, session.identifier, { text: content });
+                    await flowProvider.sendMessage(botId, session.identifier, { text: content });
                 } else if (step.type === "IMAGE" && mediaUrl) {
-                    await BaileysService.sendMessage(botId, session.identifier, {
+                    await flowProvider.sendMessage(botId, session.identifier, {
                         image: { url: mediaUrl },
                         caption: content || undefined,
                     });
                 } else if (step.type === "VIDEO" && mediaUrl) {
-                    await BaileysService.sendMessage(botId, session.identifier, {
+                    await flowProvider.sendMessage(botId, session.identifier, {
                         video: { url: mediaUrl },
                         caption: content || undefined,
                     });
                 } else if ((step.type === "AUDIO" || step.type === "PTT") && mediaUrl) {
-                    await BaileysService.sendMessage(botId, session.identifier, {
+                    await flowProvider.sendMessage(botId, session.identifier, {
                         audio: { url: mediaUrl },
                         ptt: step.type === "PTT",
                     });
                 } else if (step.type === "DOCUMENT" && mediaUrl) {
-                    await BaileysService.sendMessage(botId, session.identifier, {
+                    await flowProvider.sendMessage(botId, session.identifier, {
                         document: { url: mediaUrl },
                         caption: content || undefined,
                     });
@@ -366,10 +368,11 @@ export class ToolExecutor {
                     select: { externalId: true },
                 });
                 const extIds = recentMsgs.map(m => m.externalId).filter(Boolean) as string[];
+                const markReadProvider = await providerRegistry.forBot(botId);
                 if (extIds.length > 0) {
-                    await BaileysService.markRead(botId, session.identifier, extIds);
+                    await markReadProvider.markRead(botId, session.identifier, extIds);
                 }
-                await BaileysService.sendPresence(botId, session.identifier, "composing");
+                await markReadProvider.sendPresence(botId, session.identifier, "composing");
                 return { success: true, data: "Mensajes marcados como leídos." };
             }
 
@@ -423,7 +426,8 @@ export class ToolExecutor {
                 }
 
                 // Sync with WhatsApp
-                await BaileysService.addChatLabel(botId, session.identifier, label.waLabelId);
+                const assignLabelProvider = await providerRegistry.forBot(botId);
+                await assignLabelProvider.addChatLabel(botId, session.identifier, label.waLabelId);
 
                 // Upsert in DB
                 await prisma.sessionLabel.upsert({
@@ -433,7 +437,7 @@ export class ToolExecutor {
                 });
 
                 // Mark as handled to prevent duplicate from Baileys labels.association
-                BaileysService.markLabelEventHandled(botId, session.id, label.id, 'add');
+                await assignLabelProvider.markLabelEventHandled(botId, session.id, label.id, 'add');
 
                 // Emit event for notifications + flow triggers
                 const addedLabels = await prisma.sessionLabel.findMany({
@@ -489,13 +493,14 @@ export class ToolExecutor {
                 }
 
                 // Sync with WhatsApp
-                await BaileysService.removeChatLabel(botId, session.identifier, labelToRemove.waLabelId);
+                const removeLabelProvider = await providerRegistry.forBot(botId);
+                await removeLabelProvider.removeChatLabel(botId, session.identifier, labelToRemove.waLabelId);
 
                 // Remove from DB
                 await prisma.sessionLabel.delete({ where: { id: existingAssoc.id } });
 
                 // Mark as handled to prevent duplicate from Baileys labels.association
-                BaileysService.markLabelEventHandled(botId, session.id, labelToRemove.id, 'remove');
+                await removeLabelProvider.markLabelEventHandled(botId, session.id, labelToRemove.id, 'remove');
 
                 // Emit event for notifications + flow triggers
                 const remainingLabels = await prisma.sessionLabel.findMany({
@@ -598,7 +603,8 @@ export class ToolExecutor {
                     return { success: false, data: "El mensaje no pertenece a este bot." };
                 }
 
-                await BaileysService.sendMessage(botId, session.identifier, {
+                const replyProvider = await providerRegistry.forBot(botId);
+                await replyProvider.sendMessage(botId, session.identifier, {
                     text: replyText,
                     contextInfo: {
                         stanzaId: messageId,
@@ -627,7 +633,8 @@ export class ToolExecutor {
                 }
 
                 // Send message via WhatsApp
-                await BaileysService.sendMessage(botId, targetSession.identifier, { text: messageText });
+                const followupProvider = await providerRegistry.forBot(botId);
+                await followupProvider.sendMessage(botId, targetSession.identifier, { text: messageText });
 
                 // Persist message in DB
                 await prisma.message.create({
@@ -720,12 +727,13 @@ export class ToolExecutor {
                 const formattedMsg = `${prefix} *Notificación*\n\n${notifyMessage}`;
 
                 // Send to all notification channels
+                const notifyProvider = await providerRegistry.forBot(botId);
                 let sentCount = 0;
                 for (const ch of channels) {
                     const notifSession = await prisma.session.findUnique({ where: { id: ch.sessionId } });
                     if (!notifSession) continue;
 
-                    await BaileysService.sendMessage(botId, notifSession.identifier, { text: formattedMsg });
+                    await notifyProvider.sendMessage(botId, notifSession.identifier, { text: formattedMsg });
 
                     await prisma.message.create({
                         data: {

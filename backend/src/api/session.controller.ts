@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
-import { BaileysService } from "../services/baileys.service";
+import { providerRegistry } from "../providers/registry";
 import { aiEngine } from "../core/ai";
 import { flowEngine } from "../core/flow";
 import { ToolExecutor } from "../core/ai/ToolExecutor";
@@ -118,7 +118,8 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     .post("/labels/sync", async ({ body, set }) => {
         const { botId } = body;
         try {
-            await BaileysService.syncLabels(botId);
+            const provider = await providerRegistry.forBot(botId);
+            await provider.syncLabels(botId);
             return { success: true };
         } catch (e: unknown) {
             set.status = 500;
@@ -192,11 +193,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Label not found" };
         }
 
-        // Call Baileys to sync with WhatsApp
+        // Sync with messaging provider
         try {
-            await BaileysService.addChatLabel(session.botId, session.identifier, label.waLabelId);
+            const provider = await providerRegistry.forBot(session.botId);
+            await provider.addChatLabel(session.botId, session.identifier, label.waLabelId);
         } catch (e: unknown) {
-            console.warn(`[SessionController] addChatLabel WA sync failed:`, (e instanceof Error ? e.message : e));
+            console.warn(`[SessionController] addChatLabel sync failed:`, (e instanceof Error ? e.message : e));
         }
 
         // Persist in DB
@@ -206,8 +208,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             create: { sessionId: id, labelId: label.id },
         });
 
-        // Mark as handled to prevent duplicate from Baileys labels.association
-        BaileysService.markLabelEventHandled(session.botId, id, label.id, 'add');
+        // Mark as handled to prevent duplicate from provider labels.association
+        const addProvider = await providerRegistry.forBot(session.botId);
+        addProvider.markLabelEventHandled(session.botId, id, label.id, 'add');
 
         // Emit event for notifications + flow triggers
         const updatedLabels = await prisma.sessionLabel.findMany({
@@ -263,11 +266,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Label not found" };
         }
 
-        // Call Baileys to sync with WhatsApp
+        // Sync with messaging provider
         try {
-            await BaileysService.removeChatLabel(session.botId, session.identifier, label.waLabelId);
+            const provider = await providerRegistry.forBot(session.botId);
+            await provider.removeChatLabel(session.botId, session.identifier, label.waLabelId);
         } catch (e: unknown) {
-            console.warn(`[SessionController] removeChatLabel WA sync failed:`, (e instanceof Error ? e.message : e));
+            console.warn(`[SessionController] removeChatLabel sync failed:`, (e instanceof Error ? e.message : e));
         }
 
         // Remove from DB
@@ -275,8 +279,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             where: { sessionId: id, labelId: label.id },
         });
 
-        // Mark as handled to prevent duplicate from Baileys labels.association
-        BaileysService.markLabelEventHandled(session.botId, id, label.id, 'remove');
+        // Mark as handled to prevent duplicate from provider labels.association
+        const removeProvider = await providerRegistry.forBot(session.botId);
+        removeProvider.markLabelEventHandled(session.botId, id, label.id, 'remove');
 
         // Emit event for notifications + flow triggers
         const remainingLabels = await prisma.sessionLabel.findMany({
@@ -390,7 +395,8 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             content = { text: textContent };
         }
 
-        const sent = await BaileysService.sendMessage(
+        const sendProvider = await providerRegistry.forBot(session.botId);
+        const sent = await sendProvider.sendMessage(
             session.botId,
             session.identifier,
             content
@@ -401,9 +407,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Failed to send message — bot may not be connected" };
         }
 
-        // Don't persist here — BaileysService.sendMessage already calls
+        // Don't persist here — provider.sendMessage already calls
         // persistOutgoingMessage() which saves the message with the real
-        // Baileys externalId and emits message:received via SSE.
+        // externalId and emits message:received via SSE.
         return { success: true };
     }, {
         params: t.Object({ id: t.String() }),
@@ -576,7 +582,8 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
 
             if (messageIds.length > 0) {
                 try {
-                    await BaileysService.markRead(session.botId, session.identifier, messageIds);
+                    const readProvider = await providerRegistry.forBot(session.botId);
+                    await readProvider.markRead(session.botId, session.identifier, messageIds);
                 } catch (e: unknown) {
                     console.warn('[SessionController] markRead failed:', (e instanceof Error ? e.message : e));
                 }
@@ -598,7 +605,8 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         const message = await prisma.message.findUnique({ where: { id: body.messageId } });
         if (!message) { set.status = 404; return { error: "Message not found" }; }
 
-        const sent = await BaileysService.sendMessage(session.botId, session.identifier, {
+        const reactProvider = await providerRegistry.forBot(session.botId);
+        const sent = await reactProvider.sendMessage(session.botId, session.identifier, {
             react: {
                 text: body.emoji,
                 key: {

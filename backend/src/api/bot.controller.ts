@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 import crypto from "node:crypto";
 import { prisma } from "../services/postgres.service";
 import { Platform, AIProvider } from "@prisma/client";
-import { BaileysService } from "../services/baileys.service";
+import { providerRegistry } from "../providers/registry";
 import { ConversationService } from "../services/conversation.service";
 import { authMiddleware } from "../middleware/auth.middleware";
 
@@ -73,10 +73,11 @@ export const botController = new Elysia({ prefix: "/bots" })
             // ipv6Address removed from input validation as it is auto-generated
         })
     })
-    // Baileys Management
+    // Connection Management (provider-agnostic)
     .post("/:id/connect", async ({ params: { id }, set }) => {
         try {
-            await BaileysService.startSession(id);
+            const provider = await providerRegistry.forBot(id);
+            await provider.startSession(id);
             return { success: true, message: "Session initialization started" };
         } catch (e: unknown) {
             set.status = 500;
@@ -84,7 +85,8 @@ export const botController = new Elysia({ prefix: "/bots" })
         }
     })
     .get("/:id/qr", async ({ params: { id }, set }) => {
-        const qr = BaileysService.getQR(id);
+        const provider = await providerRegistry.forBot(id);
+        const qr = provider.getQR(id);
         if (!qr) {
             set.status = 404;
             return { message: "QR not generated or session already connected" };
@@ -92,18 +94,13 @@ export const botController = new Elysia({ prefix: "/bots" })
         return { qr };
     })
     .get("/:id/status", async ({ params: { id } }) => {
-        const session = BaileysService.getSession(id);
-        const qr = BaileysService.getQR(id);
-
-        return {
-            connected: !!session?.user,
-            hasQr: !!qr,
-            user: session?.user
-        };
+        const provider = await providerRegistry.forBot(id);
+        return provider.getStatus(id);
     })
     .post("/:id/disconnect", async ({ params: { id }, set }) => {
         try {
-            await BaileysService.stopSession(id);
+            const provider = await providerRegistry.forBot(id);
+            await provider.stopSession(id);
             return { success: true, message: "Session disconnected successfully" };
         } catch (e: unknown) {
             set.status = 500;

@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import crypto from "node:crypto";
 import { prisma } from "../services/postgres.service";
-import { BaileysService } from "../services/baileys.service";
+import { providerRegistry } from "../providers/registry";
 import { eventBus } from "../services/event-bus";
 
 // ── Token validation helper ─────────────────────────────────────────────────
@@ -37,7 +37,7 @@ export const publicController = new Elysia({ prefix: "/public" })
         query: t.Object({ token: t.String() }),
     })
 
-    // Start a WhatsApp session via connect token
+    // Start a session via connect token
     .post("/connect/start", async ({ body, set }) => {
         const record = await validateConnectToken(body.token);
         if (!record) {
@@ -45,7 +45,8 @@ export const publicController = new Elysia({ prefix: "/public" })
             return { error: "Token invalid, expired, or already used" };
         }
         try {
-            await BaileysService.startSession(record.botId);
+            const provider = await providerRegistry.forBot(record.botId);
+            await provider.startSession(record.botId);
             return { success: true, botId: record.botId };
         } catch (e: unknown) {
             set.status = 500;
@@ -62,7 +63,8 @@ export const publicController = new Elysia({ prefix: "/public" })
             set.status = 403;
             return { error: "Token invalid, expired, or already used" };
         }
-        const qr = BaileysService.getQR(record.botId);
+        const provider = await providerRegistry.forBot(record.botId);
+        const qr = provider.getQR(record.botId);
         if (!qr) {
             set.status = 404;
             return { message: "QR not generated or session already connected" };
@@ -79,13 +81,8 @@ export const publicController = new Elysia({ prefix: "/public" })
             set.status = 403;
             return { error: "Token invalid, expired, or already used" };
         }
-        const session = BaileysService.getSession(record.botId);
-        const qr = BaileysService.getQR(record.botId);
-        return {
-            connected: !!session?.user,
-            hasQr: !!qr,
-            user: session?.user,
-        };
+        const provider = await providerRegistry.forBot(record.botId);
+        return provider.getStatus(record.botId);
     }, {
         query: t.Object({ token: t.String() }),
     })
@@ -98,7 +95,8 @@ export const publicController = new Elysia({ prefix: "/public" })
             return { error: "Token invalid, expired, or already used" };
         }
         try {
-            const code = await BaileysService.requestPairingCode(record.botId, body.phoneNumber);
+            const provider = await providerRegistry.forBot(record.botId);
+            const code = await provider.requestPairingCode(record.botId, body.phoneNumber);
             // Format as XXXX-XXXX
             const formatted = code.length === 8
                 ? `${code.slice(0, 4)}-${code.slice(4)}`
