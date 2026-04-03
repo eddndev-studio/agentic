@@ -427,29 +427,31 @@ import FinanceNav from "../../components/FinanceNav.astro";
             fbLogin() {
                 const FB = (window as any).FB;
                 if (!FB) return;
+                const self = this;
                 FB.login(
-                    async (response: any) => {
+                    (response: any) => {
                         if (response.authResponse) {
                             const { accessToken, userID } = response.authResponse;
-                            // Get user name from Graph
-                            let userName = "";
-                            try {
-                                const res = await fetch(`https://graph.facebook.com/v21.0/me?fields=name&access_token=${accessToken}`);
-                                const data = await res.json();
-                                userName = data.name || "";
-                            } catch {}
+                            (async () => {
+                                let userName = "";
+                                try {
+                                    const res = await fetch(`https://graph.facebook.com/v21.0/me?fields=name&access_token=${accessToken}`);
+                                    const data = await res.json();
+                                    userName = data.name || "";
+                                } catch {}
 
-                            try {
-                                this.connection = await ApiClient.post("/finance/facebook/connect", {
-                                    shortLivedToken: accessToken,
-                                    fbUserId: userID,
-                                    fbUserName: userName,
-                                });
-                                (window as any).__toast.success("Facebook conectado");
-                                await this.loadAdAccounts();
-                            } catch (e: any) {
-                                (window as any).__toast.error(e.message);
-                            }
+                                try {
+                                    self.connection = await ApiClient.post("/finance/facebook/connect", {
+                                        shortLivedToken: accessToken,
+                                        fbUserId: userID,
+                                        fbUserName: userName,
+                                    });
+                                    (window as any).__toast.success("Facebook conectado");
+                                    await self.loadAdAccounts();
+                                } catch (e: any) {
+                                    (window as any).__toast.error(e.message);
+                                }
+                            })();
                         }
                     },
                     { scope: "ads_read,ads_management" }
