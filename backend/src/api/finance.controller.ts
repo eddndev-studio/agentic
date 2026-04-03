@@ -829,4 +829,98 @@ export const financeController = new Elysia({ prefix: "/finance" })
             set.status = 500;
             return { error: e.message };
         }
+    })
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // AdSet & Ad Management
+    // ═══════════════════════════════════════════════════════════════════════
+
+    .post("/facebook/adsets/create", async ({ body, set }) => {
+        const { campaignId, name, targeting, dailyBudget, lifetimeBudget, billingEvent, optimizationGoal, bidAmount, startTime, endTime, status } = body as any;
+        if (!campaignId || !name || !targeting) {
+            set.status = 400;
+            return { error: "campaignId, name, and targeting are required" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.createAdSet(campaignId, {
+                name, status, targeting, dailyBudget, lifetimeBudget,
+                billingEvent, optimizationGoal, bidAmount, startTime, endTime,
+            });
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .delete("/facebook/adsets/:id", async ({ params: { id }, set }) => {
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            await FacebookService.deleteAdSet(id);
+            return { success: true };
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .post("/facebook/ads/create", async ({ body, set }) => {
+        const { adSetId, name, status, creative } = body as any;
+        if (!adSetId || !name || !creative) {
+            set.status = 400;
+            return { error: "adSetId, name, and creative are required" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.createAd(adSetId, { name, status, creative });
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .delete("/facebook/ads/:id", async ({ params: { id }, set }) => {
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            await FacebookService.deleteAd(id);
+            return { success: true };
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .get("/facebook/interests", async ({ query, set }) => {
+        const q = query.q as string;
+        if (!q || q.length < 2) {
+            set.status = 400;
+            return { error: "Query must be at least 2 characters" };
+        }
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.searchInterests(q);
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .get("/facebook/pages", async ({ set }) => {
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.getPages();
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
+    })
+
+    .get("/facebook/pages/:pageId/posts", async ({ params: { pageId }, set }) => {
+        try {
+            const { FacebookService } = await import("../services/facebook.service");
+            return await FacebookService.getPagePosts(pageId);
+        } catch (e: any) {
+            set.status = 500;
+            return { error: e.message };
+        }
     });

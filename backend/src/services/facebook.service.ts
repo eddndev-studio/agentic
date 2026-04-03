@@ -220,6 +220,171 @@ export class FacebookService {
         await prisma.campaign.delete({ where: { id: campaignId } });
     }
 
+    // ── AdSet CRUD ──────────────────────────────────────────────────────
+
+    static async createAdSet(campaignId: string, params: {
+        name: string;
+        status?: string;
+        targeting: any;
+        dailyBudget?: number;
+        lifetimeBudget?: number;
+        billingEvent?: string;
+        optimizationGoal?: string;
+        bidAmount?: number;
+        startTime?: string;
+        endTime?: string;
+    }) {
+        const campaign = await prisma.campaign.findUniqueOrThrow({
+            where: { id: campaignId },
+            include: { adAccount: true },
+        });
+        const { token } = await this.getDecryptedToken();
+
+        const fbParams: Record<string, any> = {
+            campaign_id: campaign.fbCampaignId,
+            name: params.name,
+            status: params.status || "PAUSED",
+            targeting: params.targeting,
+            billing_event: params.billingEvent || "IMPRESSIONS",
+            optimization_goal: params.optimizationGoal || "REACH",
+        };
+
+        if (params.dailyBudget) fbParams.daily_budget = toCents(params.dailyBudget);
+        if (params.lifetimeBudget) fbParams.lifetime_budget = toCents(params.lifetimeBudget);
+        if (params.bidAmount) fbParams.bid_amount = toCents(params.bidAmount);
+        if (params.startTime) fbParams.start_time = params.startTime;
+        if (params.endTime) fbParams.end_time = params.endTime;
+
+        const result = await this.fbPost(token, `/${campaign.adAccount.fbAccountId}/adsets`, fbParams);
+
+        return prisma.adSet.create({
+            data: {
+                fbAdSetId: result.id,
+                name: params.name,
+                status: params.status || "PAUSED",
+                targeting: params.targeting,
+                targetingDescription: JSON.stringify(params.targeting).substring(0, 500),
+                dailyBudget: params.dailyBudget || null,
+                lifetimeBudget: params.lifetimeBudget || null,
+                optimizationGoal: params.optimizationGoal || "REACH",
+                billingEvent: params.billingEvent || "IMPRESSIONS",
+                bidAmount: params.bidAmount || null,
+                startTime: params.startTime ? new Date(params.startTime) : null,
+                endTime: params.endTime ? new Date(params.endTime) : null,
+                campaignId,
+            },
+        });
+    }
+
+    static async deleteAdSet(adSetId: string) {
+        const adSet = await prisma.adSet.findUniqueOrThrow({ where: { id: adSetId } });
+        const { token } = await this.getDecryptedToken();
+        await this.fbDelete(token, `/${adSet.fbAdSetId}`);
+        await prisma.adSet.delete({ where: { id: adSetId } });
+    }
+
+    // ── Ad CRUD ─────────────────────────────────────────────────────────
+
+    static async createAd(adSetId: string, params: {
+        name: string;
+        status?: string;
+        creative: {
+            objectStorySpec: {
+                page_id: string;
+                link_data: {
+                    link: string;
+                    message: string;
+                    name?: string;
+                    description?: string;
+                    call_to_action?: { type: string; value?: { link: string } };
+                    image_hash?: string;
+                };
+            };
+        };
+    }) {
+        const adSet = await prisma.adSet.findUniqueOrThrow({
+            where: { id: adSetId },
+            include: { campaign: { include: { adAccount: true } } },
+        });
+        const { token } = await this.getDecryptedToken();
+        const fbAccountId = adSet.campaign.adAccount.fbAccountId;
+
+        // Step 1: Create ad creative
+        const creativeResult = await this.fbPost(token, `/${fbAccountId}/adcreatives`, {
+            name: `Creative - ${params.name}`,
+            object_story_spec: params.creative.objectStorySpec,
+        });
+
+        // Step 2: Create ad with the creative
+        const adResult = await this.fbPost(token, `/${fbAccountId}/ads`, {
+            name: params.name,
+            adset_id: adSet.fbAdSetId,
+            creative: { creative_id: creativeResult.id },
+            status: params.status || "PAUSED",
+        });
+
+        return prisma.ad.create({
+            data: {
+                fbAdId: adResult.id,
+                name: params.name,
+                status: params.status || "PAUSED",
+                creativeId: creativeResult.id,
+                adSetId,
+            },
+        });
+    }
+
+    static async deleteAd(adId: string) {
+        const ad = await prisma.ad.findUniqueOrThrow({ where: { id: adId } });
+        const { token } = await this.getDecryptedToken();
+        await this.fbDelete(token, `/${ad.fbAdId}`);
+        await prisma.ad.delete({ where: { id: adId } });
+    }
+
+    // ── Search & Pages ──────────────────────────────────────────────────
+
+    static async searchInterests(query: string) {
+        const { token } = await this.getDecryptedToken();
+        const result = await this.fbGet(token, `/search?type=adinterest&q=${encodeURIComponent(query)}&limit=20`);
+        return (result.data || []).map((i: any) => ({
+            id: i.id,
+            name: i.name,
+            audienceSize: i.audience_size || 0,
+        }));
+    }
+
+    static async getPages() {
+        const { token } = await this.getDecryptedToken();
+        const result = await this.fbGet(token, `/me/accounts?fields=id,name,access_token&limit=50`);
+        return (result.data || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+        }));
+    }
+
+    static async getPagePosts(pageId: string) {
+        const { token } = await this.getDecryptedToken();
+        // Get page access token first
+        const pageRes = await this.fbGet(token, `/${pageId}?fields=access_token`);
+        const pageToken = pageRes.access_token || token;
+        const result = await this.fbGet(pageToken, `/${pageId}/posts?fields=id,message,created_time,full_picture&limit=25`);
+        return (result.data || []).map((p: any) => ({
+            id: p.id,
+            message: (p.message || "").substring(0, 200),
+            createdTime: p.created_time,
+            picture: p.full_picture || null,
+        }));
+    }
+
+    static async uploadAdImage(adAccountId: string, imageUrl: string) {
+        const adAccount = await prisma.adAccount.findUniqueOrThrow({ where: { id: adAccountId } });
+        const { token } = await this.getDecryptedToken();
+        const result = await this.fbPost(token, `/${adAccount.fbAccountId}/adimages`, { url: imageUrl });
+        const images = result.images || {};
+        const firstKey = Object.keys(images)[0];
+        return firstKey ? { hash: images[firstKey].hash } : null;
+    }
+
     // ── Sync ────────────────────────────────────────────────────────────
 
     static async syncAll() {
