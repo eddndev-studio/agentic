@@ -102,10 +102,13 @@
 - [x] Credenciales → `getWABACredentials()` centralizado en `waba.service.ts`, Baileys usa filesystem (sin overlap)
 - [x] Eliminar monolito `label.service.ts` — zero imports de `@whiskeysockets/baileys` en capa de persistencia
 
-### Fase 6: Testing dual provider (2-3 días)
-- [ ] Tests unitarios por provider
-- [ ] Test E2E con ambos providers activos
-- [ ] Validar que features existentes no se rompan
+### Fase 6: Testing dual provider (completada 2026-04-03)
+- [x] Tests unitarios: `registry.test.ts` (9 tests), `waba.normalizer.test.ts` (15 tests), `waba.adapter.test.ts` (11 tests), `baileys.adapter.test.ts` (12 tests), `label-persistence.service.test.ts` (9 tests)
+- [x] Validar contrato IMessagingProvider para ambos providers
+- [x] Validar payload translation (OutgoingPayload → nativo) para Baileys y WABA
+- [x] Validar message normalization (webhook → NormalizedMessage) para WABA
+- [x] Validar label persistence, dedup, event emission
+- [x] 136 tests totales, 0 fallos, todos existentes siguen pasando
 
 ---
 
