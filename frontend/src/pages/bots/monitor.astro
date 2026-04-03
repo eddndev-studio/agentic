@@ -460,8 +460,8 @@ import Layout from "../../layouts/Layout.astro";
                                             </div>
                                         </template>
 
-                                        <!-- Text content -->
-                                        <div :class="getMediaUrl(msg) && ['IMAGE', 'VIDEO', 'STICKER'].includes(msg.type) ? 'px-2.5 py-1.5' : ''" x-show="msg.type !== 'REACTION' || msg.content">
+                                        <!-- Text content / caption -->
+                                        <div :class="getMediaUrl(msg) && ['IMAGE', 'VIDEO', 'STICKER'].includes(msg.type) ? (msg.content ? 'px-2.5 pt-1.5 pb-1.5 border-t border-white/5' : 'px-2.5 py-1') : ''" x-show="msg.type !== 'REACTION' || msg.content">
                                             <span x-show="msg.content && msg.content !== '[media]'" x-html="formatMessage(msg.content)" class="whitespace-pre-wrap"></span>
                                             <span x-show="!msg.content && !getMediaUrl(msg) && msg.type !== 'TEXT'" class="text-wa-text-secondary italic">[media]</span>
                                             <span class="inline-flex items-center gap-1 float-right ml-2 mt-1 text-[11px] text-wa-text-secondary align-bottom leading-none translate-y-0.5">
