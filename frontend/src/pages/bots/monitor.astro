@@ -1199,7 +1199,8 @@ import Layout from "../../layouts/Layout.astro";
                     await ApiClient.post(`/sessions/${this.selectedSession.id}/send`, payload);
                     this.messageInput = "";
                     this.clearAttachment();
-                    await this.loadMessages();
+                    // Don't call loadMessages() — the SSE message:received event
+                    // from persistOutgoingMessage will add the message to the array
                 } catch (e: any) {
                     window.__toast.error("Send failed: " + (e.message || "Unknown error"));
                 } finally {

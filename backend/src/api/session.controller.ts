@@ -401,22 +401,10 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Failed to send message — bot may not be connected" };
         }
 
-        // Persist the sent message (BaileysService.sendMessage also calls persistOutgoingMessage,
-        // but we persist here for manual sends to have the message returned immediately)
-        const msg = await prisma.message.create({
-            data: {
-                externalId: `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                sessionId: id,
-                sender: session.bot.identifier || "bot",
-                content: textContent,
-                type: msgType,
-                fromMe: true,
-                isProcessed: true,
-                ...(body.mediaUrl ? { metadata: { mediaUrl: body.mediaUrl } } : {}),
-            },
-        }).catch(() => null); // ignore P2002 if persistOutgoingMessage already saved it
-
-        return { success: true, message: msg };
+        // Don't persist here — BaileysService.sendMessage already calls
+        // persistOutgoingMessage() which saves the message with the real
+        // Baileys externalId and emits message:received via SSE.
+        return { success: true };
     }, {
         params: t.Object({ id: t.String() }),
         body: t.Object({
