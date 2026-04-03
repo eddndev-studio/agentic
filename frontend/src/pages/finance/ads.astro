@@ -3,6 +3,8 @@ import Layout from "../../layouts/Layout.astro";
 import FinanceNav from "../../components/FinanceNav.astro";
 ---
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <Layout title="Finance - Ads">
     <FinanceNav currentPath="/finance/ads" />
     <main class="space-y-6" x-data="financeAds">
@@ -699,16 +701,29 @@ import FinanceNav from "../../components/FinanceNav.astro";
                                     </button>
                                 </template>
                             </div>
-                            <!-- Selected locations -->
-                            <div class="flex flex-wrap gap-1 mt-2">
+                            <!-- Selected locations with radius -->
+                            <div class="space-y-1.5 mt-2">
                                 <template x-for="(loc, idx) in adSetForm.locations" :key="loc.key + loc.type">
-                                    <span class="px-2 py-0.5 text-xs rounded-full flex items-center gap-1"
-                                        :class="loc.type === 'city' ? 'bg-blue-500/10 text-blue-400' : loc.type === 'region' ? 'bg-purple-500/10 text-purple-400' : 'bg-wa-green/10 text-wa-green'">
-                                        <span x-text="loc.name + (loc.type === 'city' && loc.region ? ', ' + loc.region : '')"></span>
-                                        <span class="text-[9px] opacity-60" x-text="'(' + (loc.type === 'city' ? 'C' : loc.type === 'region' ? 'R' : 'P') + ')'"></span>
-                                        <button @click="adSetForm.locations.splice(idx, 1)" class="hover:text-red-400">&times;</button>
-                                    </span>
+                                    <div class="flex items-center gap-2 bg-wa-bg-panel/50 rounded-lg px-2 py-1.5">
+                                        <span class="w-2 h-2 rounded-full shrink-0"
+                                            :class="loc.type === 'city' ? 'bg-blue-400' : loc.type === 'region' ? 'bg-purple-400' : 'bg-wa-green'"></span>
+                                        <span class="text-xs text-white flex-1 truncate" x-text="loc.name + (loc.type === 'city' && loc.region ? ', ' + loc.region : '') + (loc.countryName ? ' — ' + loc.countryName : '')"></span>
+                                        <template x-if="loc.type === 'city'">
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <input type="number" min="1" max="80" :value="loc.radius || 40"
+                                                    @change="loc.radius = Number($event.target.value); updateMap()"
+                                                    class="w-14 bg-wa-bg-deep border border-wa-border rounded p-1 text-[10px] text-white text-center" />
+                                                <span class="text-[10px] text-wa-text-secondary">km</span>
+                                            </div>
+                                        </template>
+                                        <button @click="adSetForm.locations.splice(idx, 1); updateMap()" class="text-wa-text-secondary hover:text-red-400 text-xs shrink-0">&times;</button>
+                                    </div>
                                 </template>
+                            </div>
+
+                            <!-- Map -->
+                            <div x-show="adSetForm.locations.length > 0" class="mt-3 rounded-lg overflow-hidden border border-wa-border" style="display:none;">
+                                <div id="targeting-map" style="height: 220px; width: 100%; background: #1a1a2e;"></div>
                             </div>
                         </div>
 
@@ -1340,6 +1355,9 @@ import FinanceNav from "../../components/FinanceNav.astro";
                 this.interestResults = [];
                 this.locationQuery = "";
                 this.locationResults = [];
+                // Reset map
+                if (this._map) { this._map.remove(); this._map = null; }
+                this._mapMarkers = [];
                 this.showAdSetModal = true;
             },
 
@@ -1350,12 +1368,90 @@ import FinanceNav from "../../components/FinanceNav.astro";
                 } catch { this.locationResults = []; }
             },
 
+            _map: null as any,
+            _mapMarkers: [] as any[],
+
             addLocation(loc: any) {
                 if (!this.adSetForm.locations.find((l: any) => l.key === loc.key && l.type === loc.type)) {
+                    loc.radius = loc.type === "city" ? 40 : 0;
                     this.adSetForm.locations.push(loc);
+                    this.geocodeAndMap(loc);
                 }
                 this.locationQuery = "";
                 this.locationResults = [];
+            },
+
+            geocodeAndMap(loc: any) {
+                // Geocode via Nominatim for map display
+                const q = loc.name + (loc.region ? ", " + loc.region : "") + (loc.countryName ? ", " + loc.countryName : "");
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`)
+                    .then(r => r.json())
+                    .then(results => {
+                        if (results[0]) {
+                            loc.lat = parseFloat(results[0].lat);
+                            loc.lng = parseFloat(results[0].lon);
+                            this.updateMap();
+                        }
+                    }).catch(() => {});
+            },
+
+            updateMap() {
+                const L = (window as any).L;
+                if (!L) return;
+
+                const locs = this.adSetForm.locations.filter((l: any) => l.lat && l.lng);
+                if (locs.length === 0) return;
+
+                // Init map if needed
+                if (!this._map) {
+                    const el = document.getElementById("targeting-map");
+                    if (!el) return;
+                    this._map = L.map(el, { zoomControl: true, attributionControl: false });
+                    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+                        maxZoom: 18,
+                    }).addTo(this._map);
+                }
+
+                // Clear existing markers
+                this._mapMarkers.forEach((m: any) => m.remove());
+                this._mapMarkers = [];
+
+                // Add markers and circles
+                const bounds: any[] = [];
+                for (const loc of locs) {
+                    const color = loc.type === "city" ? "#60a5fa" : loc.type === "region" ? "#a78bfa" : "#25D366";
+
+                    // Circle for radius
+                    if (loc.radius && loc.radius > 0) {
+                        const circle = L.circle([loc.lat, loc.lng], {
+                            radius: loc.radius * 1000,
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.12,
+                            weight: 1.5,
+                        }).addTo(this._map);
+                        this._mapMarkers.push(circle);
+                    }
+
+                    // Marker
+                    const marker = L.circleMarker([loc.lat, loc.lng], {
+                        radius: 5,
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 1,
+                        weight: 2,
+                    }).bindTooltip(loc.name + (loc.radius ? ` (${loc.radius}km)` : ""), { permanent: false }).addTo(this._map);
+                    this._mapMarkers.push(marker);
+
+                    bounds.push([loc.lat, loc.lng]);
+                }
+
+                // Fit bounds
+                if (bounds.length === 1) {
+                    this._map.setView(bounds[0], 10);
+                } else if (bounds.length > 1) {
+                    this._map.fitBounds(bounds, { padding: [30, 30] });
+                }
             },
 
             async searchInterests() {
@@ -1384,7 +1480,11 @@ import FinanceNav from "../../components/FinanceNav.astro";
                     const cities = this.adSetForm.locations.filter((l: any) => l.type === "city");
                     if (countries.length) geoLocations.countries = countries.map((c: any) => c.key);
                     if (regions.length) geoLocations.regions = regions.map((r: any) => ({ key: r.key }));
-                    if (cities.length) geoLocations.cities = cities.map((c: any) => ({ key: c.key }));
+                    if (cities.length) geoLocations.cities = cities.map((c: any) => ({
+                        key: c.key,
+                        radius: c.radius || 40,
+                        distance_unit: "kilometer",
+                    }));
 
                     const targeting: any = {
                         geo_locations: geoLocations,
