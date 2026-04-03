@@ -686,6 +686,8 @@ import Layout from "../../layouts/Layout.astro";
             sseClient: null as BotEventSource | null,
             pollInterval: null as ReturnType<typeof setInterval> | null,
             lastMessageCount: 0,
+            timeTick: 0, // increments every 30s to force Alpine to re-evaluate relativeTime
+            timeTickInterval: null as ReturnType<typeof setInterval> | null,
 
             async init() {
                 const params = new URLSearchParams(window.location.search);
@@ -760,11 +762,15 @@ import Layout from "../../layouts/Layout.astro";
 
                 // Slow fallback poll (60s)
                 this.pollInterval = setInterval(() => this.poll(), 60000);
+
+                // Tick every 30s to keep relativeTime() reactive
+                this.timeTickInterval = setInterval(() => { this.timeTick++; }, 30000);
             },
 
             destroy() {
                 if (this.sseClient) this.sseClient.close();
                 if (this.pollInterval) clearInterval(this.pollInterval);
+                if (this.timeTickInterval) clearInterval(this.timeTickInterval);
             },
 
             goBack() {
@@ -1133,6 +1139,7 @@ import Layout from "../../layouts/Layout.astro";
 
             relativeTime(dateStr: string) {
                 if (!dateStr) return "";
+                void this.timeTick; // reactive dependency — forces re-evaluation every 30s
                 const now = Date.now();
                 const then = new Date(dateStr).getTime();
                 const diff = now - then;
