@@ -334,7 +334,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         }),
     })
 
-    // POST /sessions/:id/send — Send message as bot
+    // POST /sessions/:id/send — Send message as bot (text or media)
     .post("/:id/send", async ({ params: { id }, body, set }) => {
         const session = await prisma.session.findUnique({
             where: { id },
@@ -346,10 +346,48 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Session not found" };
         }
 
+        // Build Baileys content based on mediaType
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys content varies by type
+        let content: any;
+        let msgType = 'TEXT';
+        let textContent = body.text || '';
+
+        if (body.mediaUrl && body.mediaType) {
+            const url = body.mediaUrl;
+            const caption = body.text || undefined;
+            switch (body.mediaType) {
+                case 'IMAGE':
+                    content = { image: { url }, caption };
+                    msgType = 'IMAGE';
+                    break;
+                case 'VIDEO':
+                    content = { video: { url }, caption };
+                    msgType = 'VIDEO';
+                    break;
+                case 'AUDIO':
+                    content = { audio: { url }, mimetype: 'audio/mpeg' };
+                    msgType = 'AUDIO';
+                    break;
+                case 'PTT':
+                    content = { audio: { url }, ptt: true, mimetype: 'audio/ogg; codecs=opus' };
+                    msgType = 'PTT';
+                    break;
+                case 'DOCUMENT':
+                    content = { document: { url }, mimetype: 'application/octet-stream', fileName: body.fileName || 'file', caption };
+                    msgType = 'DOCUMENT';
+                    break;
+                default:
+                    content = { text: textContent };
+            }
+            textContent = caption || '';
+        } else {
+            content = { text: textContent };
+        }
+
         const sent = await BaileysService.sendMessage(
             session.botId,
             session.identifier,
-            { text: body.text }
+            content
         );
 
         if (!sent) {
@@ -357,23 +395,30 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Failed to send message — bot may not be connected" };
         }
 
-        // Persist the sent message
+        // Persist the sent message (BaileysService.sendMessage also calls persistOutgoingMessage,
+        // but we persist here for manual sends to have the message returned immediately)
         const msg = await prisma.message.create({
             data: {
                 externalId: `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
                 sessionId: id,
                 sender: session.bot.identifier || "bot",
-                content: body.text,
-                type: "TEXT",
+                content: textContent,
+                type: msgType,
                 fromMe: true,
                 isProcessed: true,
+                ...(body.mediaUrl ? { metadata: { mediaUrl: body.mediaUrl } } : {}),
             },
-        });
+        }).catch(() => null); // ignore P2002 if persistOutgoingMessage already saved it
 
         return { success: true, message: msg };
     }, {
         params: t.Object({ id: t.String() }),
-        body: t.Object({ text: t.String() }),
+        body: t.Object({
+            text: t.Optional(t.String()),
+            mediaUrl: t.Optional(t.String()),
+            mediaType: t.Optional(t.String()),
+            fileName: t.Optional(t.String()),
+        }),
     })
 
     // POST /sessions/:id/force-ai — Create synthetic message + trigger AI
