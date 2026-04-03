@@ -1,0 +1,523 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FinanceNav from "../../components/FinanceNav.astro";
+---
+
+<Layout title="Finance - Campañas">
+    <FinanceNav currentPath="/finance/campaigns" />
+    <main class="space-y-6" x-data="financeCampaigns">
+
+        <!-- Loading -->
+        <div x-show="loading" class="flex items-center justify-center py-24">
+            <div class="animate-spin w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full"></div>
+        </div>
+
+        <div x-show="!loading" style="display:none;">
+
+            <!-- FB Connection Bar (condensed) -->
+            <div x-show="connection" class="flex flex-wrap items-center gap-3 bg-wa-bg-panel border border-wa-border rounded-xl px-4 py-2.5 text-xs" style="display:none;">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    <span class="text-white font-medium" x-text="connection?.fbUserName"></span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-medium"
+                        :class="connection?.syncStatus === 'OK' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-400'"
+                        x-text="connection?.syncStatus || 'PENDING'"></span>
+                    <span x-show="connection?.lastSyncAt" class="text-wa-text-secondary" x-text="'Sync: ' + (connection?.lastSyncAt ? new Date(connection.lastSyncAt).toLocaleString() : '')"></span>
+                </div>
+                <div class="flex items-center gap-2 ml-auto">
+                    <button @click="syncFacebook()" class="text-wa-green hover:underline" :disabled="syncing" x-text="syncing ? 'Sincronizando...' : 'Sincronizar'">Sincronizar</button>
+                </div>
+            </div>
+
+            <!-- Not connected -->
+            <div x-show="!connection" class="bg-wa-bg-panel border border-wa-border rounded-xl p-6 text-center" style="display:none;">
+                <p class="text-sm text-wa-text-secondary mb-3">Conecta Facebook desde <a href="/finance/settings" class="text-wa-green hover:underline">Configuración</a> para gestionar campañas.</p>
+            </div>
+
+            <!-- Controls -->
+            <div x-show="connection" class="flex flex-wrap items-center gap-3" style="display:none;">
+                <!-- Ad account selector -->
+                <select x-model="selectedAdAccountId" @change="loadCampaigns()"
+                    class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green">
+                    <option value="">-- Cuenta --</option>
+                    <template x-for="acc in adAccounts" :key="acc.id">
+                        <option :value="acc.id" x-text="acc.name"></option>
+                    </template>
+                </select>
+
+                <!-- Date range -->
+                <div class="flex bg-wa-bg-panel border border-wa-border rounded-lg overflow-hidden">
+                    <button @click="setDatePreset('last_7d')" class="px-3 py-2 text-xs transition-colors"
+                        :class="datePreset === 'last_7d' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'">7d</button>
+                    <button @click="setDatePreset('last_30d')" class="px-3 py-2 text-xs transition-colors"
+                        :class="datePreset === 'last_30d' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'">30d</button>
+                </div>
+
+                <!-- Status filter -->
+                <div class="flex bg-wa-bg-panel border border-wa-border rounded-lg overflow-hidden">
+                    <button @click="statusFilter = 'all'" class="px-3 py-2 text-xs transition-colors"
+                        :class="statusFilter === 'all' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('fin_campaigns_filter_all')">Todas</button>
+                    <button @click="statusFilter = 'ACTIVE'" class="px-3 py-2 text-xs transition-colors"
+                        :class="statusFilter === 'ACTIVE' ? 'bg-emerald-500 text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('fin_campaigns_filter_active')">Activas</button>
+                    <button @click="statusFilter = 'PAUSED'" class="px-3 py-2 text-xs transition-colors"
+                        :class="statusFilter === 'PAUSED' ? 'bg-yellow-500 text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('fin_campaigns_filter_paused')">Pausadas</button>
+                </div>
+
+                <!-- New Campaign -->
+                <a x-show="selectedAdAccountId"
+                    :href="'/finance/campaign-create?adAccountId=' + selectedAdAccountId"
+                    class="ml-auto px-4 py-2 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                    style="display:none;">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span x-text="$t('fin_campaigns_new')">Nueva Campana</span>
+                </a>
+            </div>
+
+            <!-- Worker Spend Summary -->
+            <div x-show="workerSpend.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-3" style="display:none;">
+                <template x-for="ws in workerSpend" :key="ws.workerName">
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-lg p-3">
+                        <div class="text-xs text-wa-text-secondary mb-1" x-text="ws.workerName"></div>
+                        <div class="text-sm font-medium text-purple-400" x-text="'$' + Number(ws.spend).toFixed(2)"></div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Loading campaigns -->
+            <div x-show="loadingCampaigns" class="flex items-center justify-center py-12" style="display:none;">
+                <div class="animate-spin w-6 h-6 border-2 border-wa-green border-t-transparent rounded-full"></div>
+            </div>
+
+            <!-- Empty state -->
+            <div x-show="selectedAdAccountId && !loadingCampaigns && filteredCampaigns.length === 0" class="text-center py-16 text-wa-text-secondary text-sm" style="display:none;">
+                <svg class="w-12 h-12 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <p x-text="$t('fin_campaigns_empty')">No hay campanas.</p>
+            </div>
+
+            <!-- Campaign Cards Grid -->
+            <div x-show="filteredCampaigns.length > 0 && !loadingCampaigns" class="grid grid-cols-1 md:grid-cols-2 gap-4" style="display:none;">
+                <template x-for="c in filteredCampaigns" :key="c.id">
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4 hover:border-wa-green/30 transition-colors group">
+                        <!-- Header -->
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-sm font-medium text-white truncate" x-text="c.name"></h3>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-medium bg-wa-bg-hover text-wa-text-secondary"
+                                        x-text="c.objective?.replace('OUTCOME_', '') || c.buyingType || '—'"></span>
+                                    <span x-show="c.dailyBudget" class="text-[10px] text-wa-text-secondary" x-text="'$' + Number(c.dailyBudget || 0).toFixed(0) + '/dia'"></span>
+                                </div>
+                            </div>
+                            <!-- Status toggle -->
+                            <button @click.prevent="toggleStatus(c)"
+                                class="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-colors"
+                                :class="c.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20'"
+                                :disabled="togglingStatus[c.id]">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="c.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-yellow-400'"></span>
+                                <span x-text="c.status"></span>
+                            </button>
+                        </div>
+
+                        <!-- Metrics -->
+                        <div class="grid grid-cols-3 gap-3 mb-3">
+                            <div>
+                                <div class="text-[10px] text-wa-text-secondary">Gasto</div>
+                                <div class="text-sm font-medium text-white" x-text="'$' + Number(c.spend || 0).toFixed(2)"></div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] text-wa-text-secondary">Impressions</div>
+                                <div class="text-sm font-medium text-white" x-text="Number(c.impressions || 0).toLocaleString()"></div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] text-wa-text-secondary">Clicks</div>
+                                <div class="text-sm font-medium text-white" x-text="Number(c.clicks || 0).toLocaleString()"></div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-center gap-2 pt-3 border-t border-wa-border/50">
+                            <a :href="'/finance/campaign-detail?id=' + c.id + '&adAccountId=' + selectedAdAccountId"
+                                class="flex-1 text-center px-3 py-1.5 bg-wa-bg-hover hover:bg-wa-bg-deep text-white text-xs rounded-lg transition-colors"
+                                x-text="$t('fin_campaigns_view_detail')">Ver detalle</a>
+                            <button @click.prevent="openBudgetModal(c)" class="p-1.5 text-wa-text-secondary hover:text-wa-green transition-colors" title="Editar presupuesto">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                            <button @click.prevent="deleteCampaign(c)" class="p-1.5 text-wa-text-secondary hover:text-red-400 transition-colors" title="Eliminar">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- ========================================================== -->
+            <!-- Boost Posts Section                                        -->
+            <!-- ========================================================== -->
+            <div x-show="connection" class="bg-wa-bg-panel border border-wa-border rounded-xl p-5" style="display:none;">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold" x-text="$t('fin_fb_boost_posts')">Promover Publicaciones</h3>
+                    <div class="flex items-center gap-2">
+                        <select x-model="boostPageId" @change="loadPagePosts()"
+                            class="bg-wa-bg-deep border border-wa-border rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-wa-green">
+                            <option value="">-- Pagina --</option>
+                            <template x-for="page in fbPages" :key="page.id">
+                                <option :value="page.id" x-text="page.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <div x-show="loadingPosts" class="flex items-center gap-2 text-wa-text-secondary text-xs py-6 justify-center" style="display:none;">
+                    <div class="animate-spin w-4 h-4 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                </div>
+
+                <div x-show="!boostPageId && !loadingPosts" class="text-center py-6 text-wa-text-secondary text-sm" style="display:none;">
+                    <p x-text="$t('fin_fb_select_page')">Selecciona una pagina</p>
+                </div>
+
+                <div x-show="pagePosts.length > 0 && !loadingPosts" class="grid grid-cols-1 md:grid-cols-2 gap-3" style="display:none;">
+                    <template x-for="post in pagePosts" :key="post.id">
+                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 flex gap-3">
+                            <div x-show="post.picture" class="w-16 h-16 rounded-lg bg-wa-bg-hover shrink-0 overflow-hidden" style="display:none;">
+                                <img :src="post.picture" class="w-full h-full object-cover" loading="lazy" />
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs text-white line-clamp-2 mb-1" x-text="post.message || '(sin texto)'"></p>
+                                <p class="text-[10px] text-wa-text-secondary" x-text="new Date(post.createdTime).toLocaleDateString()"></p>
+                            </div>
+                            <button @click="openBoostModal(post)"
+                                class="shrink-0 self-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors"
+                                x-text="$t('fin_fb_boost')">Promover</button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Budget Edit Modal                                              -->
+        <!-- ============================================================== -->
+        <div x-show="showBudgetModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            @keydown.escape.window="showBudgetModal = false" style="display:none;">
+            <div class="bg-wa-bg-panel border border-wa-border rounded-xl w-full max-w-sm mx-4 p-6" @click.outside="showBudgetModal = false">
+                <h3 class="text-lg font-bold mb-1" x-text="$t('fin_fb_edit_budget')">Editar Presupuesto</h3>
+                <p class="text-xs text-wa-text-secondary mb-4" x-text="budgetTarget?.name || ''"></p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_daily_budget')">Presupuesto Diario</label>
+                        <input type="number" step="0.01" x-model.number="budgetForm.dailyBudget"
+                            class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="0.00" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_lifetime_budget')">Presupuesto Total</label>
+                        <input type="number" step="0.01" x-model.number="budgetForm.lifetimeBudget"
+                            class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="0.00" />
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button @click="showBudgetModal = false" class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors" x-text="$t('fin_cancel')">Cancelar</button>
+                    <button @click="saveBudget()" class="px-4 py-2 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-medium rounded-lg transition-colors" :disabled="savingBudget" x-text="savingBudget ? '...' : $t('fin_save')">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Boost Modal                                                    -->
+        <!-- ============================================================== -->
+        <div x-show="showBoostModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            @keydown.escape.window="showBoostModal = false" style="display:none;">
+            <div class="bg-wa-bg-panel border border-wa-border rounded-xl w-full max-w-md mx-4 p-6" @click.outside="showBoostModal = false">
+                <h3 class="text-lg font-bold mb-1" x-text="$t('fin_fb_boost')">Promover</h3>
+                <p class="text-xs text-wa-text-secondary mb-4 line-clamp-2" x-text="boostPost?.message || ''"></p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_select_ad_account')">Cuenta</label>
+                        <select x-model="boostForm.adAccountId" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                            <option value="">-- Seleccionar --</option>
+                            <template x-for="acc in adAccounts" :key="acc.id">
+                                <option :value="acc.id" x-text="acc.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_daily_budget')">Presupuesto/dia</label>
+                            <input type="number" step="0.01" x-model.number="boostForm.dailyBudget" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="300" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_fb_duration_days')">Dias</label>
+                            <input type="number" min="1" max="30" x-model.number="boostForm.duration" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="7" />
+                        </div>
+                    </div>
+                    <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 space-y-3">
+                        <h4 class="text-xs font-bold text-wa-text-secondary" x-text="$t('fin_fb_targeting')">Segmentacion</h4>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Pais</label>
+                                <select x-model="boostForm.country" class="w-full bg-wa-bg-panel border border-wa-border rounded p-1.5 text-xs text-white focus:outline-none">
+                                    <option value="MX">Mexico</option><option value="US">USA</option><option value="CO">Colombia</option>
+                                    <option value="AR">Argentina</option><option value="ES">Espana</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1">Edad</label>
+                                <div class="flex gap-1">
+                                    <input type="number" x-model.number="boostForm.ageMin" min="18" max="65" class="w-full bg-wa-bg-panel border border-wa-border rounded p-1.5 text-xs text-white" />
+                                    <input type="number" x-model.number="boostForm.ageMax" min="18" max="65" class="w-full bg-wa-bg-panel border border-wa-border rounded p-1.5 text-xs text-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-wa-text-secondary mb-1" x-text="$t('fin_fb_gender')">Genero</label>
+                                <select x-model.number="boostForm.gender" class="w-full bg-wa-bg-panel border border-wa-border rounded p-1.5 text-xs text-white focus:outline-none">
+                                    <option value="0">Todos</option><option value="1">Hombre</option><option value="2">Mujer</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center py-2 text-sm">
+                        <span class="text-wa-text-secondary">Total estimado: </span>
+                        <span class="text-white font-bold" x-text="'$' + ((boostForm.dailyBudget || 0) * (boostForm.duration || 0)).toFixed(2)"></span>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-4">
+                    <button @click="showBoostModal = false" class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors" x-text="$t('fin_cancel')">Cancelar</button>
+                    <button @click="submitBoost()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors" :disabled="boosting" x-text="boosting ? $t('fin_fb_boosting') : $t('fin_fb_boost')">Promover</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</Layout>
+
+<script>
+    import { ApiClient } from "../../lib/api";
+
+    document.addEventListener("alpine:init", () => {
+        const Alpine = (window as any).Alpine;
+
+        Alpine.data("financeCampaigns", () => ({
+            loading: true,
+            connection: null as any,
+            syncing: false,
+            adAccounts: [] as any[],
+            selectedAdAccountId: "",
+
+            // Campaigns
+            campaigns: [] as any[],
+            loadingCampaigns: false,
+            statusFilter: "all",
+            workerSpend: [] as any[],
+
+            // Date range
+            datePreset: "last_7d" as "last_7d" | "last_30d",
+
+            // Status toggle
+            togglingStatus: {} as Record<string, boolean>,
+
+            // Budget
+            showBudgetModal: false,
+            budgetTarget: null as any,
+            budgetForm: { dailyBudget: 0, lifetimeBudget: 0 },
+            savingBudget: false,
+
+            // Boost
+            boostPageId: "",
+            pagePosts: [] as any[],
+            loadingPosts: false,
+            showBoostModal: false,
+            boostPost: null as any,
+            boostForm: { adAccountId: "", dailyBudget: 300, duration: 7, country: "MX", ageMin: 18, ageMax: 65, gender: 0 },
+            boosting: false,
+            fbPages: [] as any[],
+
+            get filteredCampaigns(): any[] {
+                if (this.statusFilter === "all") return this.campaigns;
+                return this.campaigns.filter((c: any) => c.status === this.statusFilter);
+            },
+
+            async init() {
+                try {
+                    const [conn, accounts] = await Promise.all([
+                        ApiClient.get("/finance/facebook/connection").catch(() => null),
+                        ApiClient.get("/finance/facebook/ad-accounts").catch(() => []),
+                    ]);
+                    this.connection = conn?.connected ? conn : null;
+                    this.adAccounts = accounts || [];
+
+                    if (this.connection) {
+                        ApiClient.get("/finance/facebook/pages").then((p: any) => { this.fbPages = p; }).catch(() => {});
+                    }
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            setDatePreset(preset: "last_7d" | "last_30d") {
+                this.datePreset = preset;
+                if (this.selectedAdAccountId) this.loadCampaigns();
+            },
+
+            buildDateRange(): { since: string; until: string } {
+                const today = new Date();
+                const fmt = (d: Date) => d.toISOString().split("T")[0];
+                const days = this.datePreset === "last_30d" ? 30 : 7;
+                const since = new Date(today);
+                since.setDate(since.getDate() - days);
+                return { since: fmt(since), until: fmt(today) };
+            },
+
+            async loadCampaigns() {
+                if (!this.selectedAdAccountId) return;
+                this.loadingCampaigns = true;
+                this.campaigns = [];
+                this.workerSpend = [];
+
+                const { since, until } = this.buildDateRange();
+                try {
+                    const [campaigns, insights, spend] = await Promise.all([
+                        ApiClient.get(`/finance/facebook/campaigns?adAccountId=${this.selectedAdAccountId}`),
+                        ApiClient.get(`/finance/facebook/insights?adAccountId=${this.selectedAdAccountId}&since=${since}&until=${until}&level=CAMPAIGN`).catch(() => []),
+                        ApiClient.get(`/finance/facebook/worker-spend?since=${since}&until=${until}`).catch(() => []),
+                    ]);
+
+                    const insightMap: Record<string, any> = {};
+                    (insights || []).forEach((i: any) => { insightMap[i.campaignId || i.id] = i; });
+
+                    this.campaigns = (campaigns || []).map((c: any) => {
+                        const ins = insightMap[c.id] || {};
+                        return { ...c, spend: ins.spend || 0, impressions: ins.impressions || 0, clicks: ins.clicks || 0 };
+                    });
+
+                    this.workerSpend = spend || [];
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loadingCampaigns = false;
+                }
+            },
+
+            async syncFacebook() {
+                this.syncing = true;
+                try {
+                    await ApiClient.post("/finance/facebook/sync", {});
+                    const conn = await ApiClient.get("/finance/facebook/connection").catch(() => null);
+                    this.connection = conn?.connected ? conn : this.connection;
+                    (window as any).__toast.success("Sincronizacion completada");
+                    if (this.selectedAdAccountId) await this.loadCampaigns();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.syncing = false;
+                }
+            },
+
+            // Status toggle
+            async toggleStatus(c: any) {
+                const newStatus = c.status === "ACTIVE" ? "PAUSED" : "ACTIVE";
+                const oldStatus = c.status;
+                this.togglingStatus[c.id] = true;
+                c.status = newStatus;
+                try {
+                    await ApiClient.post(`/finance/facebook/campaigns/${c.id}/status`, { status: newStatus });
+                    (window as any).__toast.success("Estado actualizado");
+                } catch (e: any) {
+                    c.status = oldStatus;
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.togglingStatus[c.id] = false;
+                }
+            },
+
+            // Budget
+            openBudgetModal(c: any) {
+                this.budgetTarget = { type: "campaigns", id: c.id, name: c.name };
+                this.budgetForm = { dailyBudget: c.dailyBudget || 0, lifetimeBudget: c.lifetimeBudget || 0 };
+                this.showBudgetModal = true;
+            },
+
+            async saveBudget() {
+                if (!this.budgetTarget) return;
+                this.savingBudget = true;
+                try {
+                    await ApiClient.put(`/finance/facebook/${this.budgetTarget.type}/${this.budgetTarget.id}/budget`, this.budgetForm);
+                    (window as any).__toast.success("Presupuesto actualizado");
+                    this.showBudgetModal = false;
+                    await this.loadCampaigns();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.savingBudget = false;
+                }
+            },
+
+            // Delete
+            async deleteCampaign(c: any) {
+                if (!confirm("Eliminar esta campana? Se eliminara tambien en Facebook.")) return;
+                try {
+                    await ApiClient.delete(`/finance/facebook/campaigns/${c.id}`);
+                    (window as any).__toast.success("Campana eliminada");
+                    await this.loadCampaigns();
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                }
+            },
+
+            // Boost
+            async loadPagePosts() {
+                if (!this.boostPageId) { this.pagePosts = []; return; }
+                this.loadingPosts = true;
+                try {
+                    this.pagePosts = await ApiClient.get(`/finance/facebook/pages/${this.boostPageId}/posts`);
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loadingPosts = false;
+                }
+            },
+
+            openBoostModal(post: any) {
+                this.boostPost = post;
+                this.boostForm = { adAccountId: this.adAccounts[0]?.id || "", dailyBudget: 300, duration: 7, country: "MX", ageMin: 18, ageMax: 65, gender: 0 };
+                this.showBoostModal = true;
+            },
+
+            async submitBoost() {
+                if (!this.boostForm.adAccountId || !this.boostForm.dailyBudget || !this.boostForm.duration) return;
+                this.boosting = true;
+                try {
+                    await ApiClient.post("/finance/facebook/boost", {
+                        adAccountId: this.boostForm.adAccountId,
+                        postId: this.boostPost.id,
+                        pageId: this.boostPageId,
+                        dailyBudget: this.boostForm.dailyBudget,
+                        duration: this.boostForm.duration,
+                        targeting: { countries: [this.boostForm.country], ageMin: this.boostForm.ageMin, ageMax: this.boostForm.ageMax, gender: this.boostForm.gender },
+                    });
+                    (window as any).__toast.success("Publicacion promovida exitosamente");
+                    this.showBoostModal = false;
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.boosting = false;
+                }
+            },
+        }));
+    });
+</script>
