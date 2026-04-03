@@ -1,0 +1,484 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import FinanceNav from "../../components/FinanceNav.astro";
+---
+
+<Layout title="Finance - Finanzas">
+    <FinanceNav currentPath="/finance/financials" />
+    <main class="space-y-6" x-data="financeFinancials">
+
+        <!-- Loading -->
+        <div x-show="loading" class="flex items-center justify-center py-24">
+            <div class="animate-spin w-8 h-8 border-2 border-wa-green border-t-transparent rounded-full"></div>
+        </div>
+
+        <div x-show="!loading" style="display:none;">
+
+            <!-- Period selector + internal tabs -->
+            <div class="flex flex-wrap items-center gap-4 mb-4">
+                <select x-model="selectedPeriodId" @change="onPeriodChange()"
+                    class="bg-wa-bg-panel border border-wa-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green">
+                    <option value="">-- Periodo --</option>
+                    <template x-for="p in periods" :key="p.id">
+                        <option :value="p.id" x-text="p.type + ': ' + p.startDate?.split('T')[0] + ' → ' + p.endDate?.split('T')[0] + (p.status === 'CLOSED' ? ' (Cerrado)' : '')"></option>
+                    </template>
+                </select>
+
+                <div class="flex bg-wa-bg-panel border border-wa-border rounded-lg overflow-hidden">
+                    <button @click="switchTab('income')" class="px-4 py-2 text-xs font-medium transition-colors"
+                        :class="activeTab === 'income' ? 'bg-wa-green text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('fin_financials_tab_income')">Ingresos</button>
+                    <button @click="switchTab('expenses')" class="px-4 py-2 text-xs font-medium transition-colors"
+                        :class="activeTab === 'expenses' ? 'bg-orange-500 text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('fin_financials_tab_expenses')">Gastos</button>
+                    <button @click="switchTab('pnl')" class="px-4 py-2 text-xs font-medium transition-colors"
+                        :class="activeTab === 'pnl' ? 'bg-blue-500 text-white' : 'text-wa-text-secondary hover:text-white'"
+                        x-text="$t('fin_financials_tab_pnl')">P&L</button>
+                </div>
+            </div>
+
+            <!-- No period selected -->
+            <div x-show="!selectedPeriodId" class="text-center py-16 text-wa-text-secondary text-sm" style="display:none;">
+                <p x-text="$t('fin_select_period')">Selecciona un periodo</p>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!-- TAB: Ingresos                                  -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div x-show="activeTab === 'income' && selectedPeriodId" style="display:none;">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-bold" x-text="$t('fin_financials_tab_income')">Ingresos</h2>
+                    <button @click="openIncomeModal()"
+                        class="px-3 py-1.5 bg-wa-green hover:bg-wa-green-hover text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        Agregar
+                    </button>
+                </div>
+
+                <div x-show="loadingIncomes" class="flex items-center justify-center py-8" style="display:none;">
+                    <div class="animate-spin w-5 h-5 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                </div>
+
+                <div x-show="!loadingIncomes && incomes.length === 0" class="text-center py-12 text-wa-text-secondary text-sm" style="display:none;">
+                    <p x-text="$t('fin_no_incomes')">Sin ingresos registrados</p>
+                </div>
+
+                <div x-show="!loadingIncomes && incomes.length > 0" class="border border-wa-border rounded-xl overflow-clip" style="display:none;">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                <th class="text-left px-4 py-3 font-medium">Fecha</th>
+                                <th class="text-left px-4 py-3 font-medium">Trabajador</th>
+                                <th class="text-left px-4 py-3 font-medium">Cuenta</th>
+                                <th class="text-right px-4 py-3 font-medium">Monto</th>
+                                <th class="text-left px-4 py-3 font-medium">Notas</th>
+                                <th class="px-4 py-3 w-20"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="inc in incomes" :key="inc.id">
+                                <tr class="border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors">
+                                    <td class="px-4 py-3 text-wa-text-secondary" x-text="inc.date?.split('T')[0]"></td>
+                                    <td class="px-4 py-3 font-medium text-white" x-text="inc.worker?.name || '—'"></td>
+                                    <td class="px-4 py-3 text-wa-text-secondary text-xs" x-text="inc.bankAccount?.name || '—'"></td>
+                                    <td class="px-4 py-3 text-right text-emerald-400 font-medium" x-text="'$' + Number(inc.amount).toFixed(2)"></td>
+                                    <td class="px-4 py-3 text-wa-text-secondary text-xs max-w-[150px] truncate" x-text="inc.notes || '—'"></td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-1 justify-end">
+                                            <button @click="openIncomeModal(inc)" class="p-1 text-wa-text-secondary hover:text-wa-green transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                            </button>
+                                            <button @click="deleteIncome(inc)" class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="border-t border-wa-border bg-wa-bg-hover px-4 py-3 flex justify-between items-center">
+                        <span class="text-xs text-wa-text-secondary" x-text="incomes.length + ' registros'"></span>
+                        <span class="text-sm font-bold text-emerald-400" x-text="'Total: $' + incomes.reduce((s, i) => s + Number(i.amount), 0).toFixed(2)"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!-- TAB: Gastos                                    -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div x-show="activeTab === 'expenses' && selectedPeriodId" style="display:none;">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-bold" x-text="$t('fin_financials_tab_expenses')">Gastos</h2>
+                    <button @click="openExpenseModal()"
+                        class="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        Agregar
+                    </button>
+                </div>
+
+                <div x-show="loadingExpenses" class="flex items-center justify-center py-8" style="display:none;">
+                    <div class="animate-spin w-5 h-5 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                </div>
+
+                <div x-show="!loadingExpenses && expenses.length === 0" class="text-center py-12 text-wa-text-secondary text-sm" style="display:none;">
+                    <p x-text="$t('fin_no_expenses')">Sin gastos registrados</p>
+                </div>
+
+                <div x-show="!loadingExpenses && expenses.length > 0" class="border border-wa-border rounded-xl overflow-clip" style="display:none;">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                <th class="text-left px-4 py-3 font-medium">Descripcion</th>
+                                <th class="text-right px-4 py-3 font-medium">Monto</th>
+                                <th class="text-left px-4 py-3 font-medium">Fecha</th>
+                                <th class="px-4 py-3 w-20"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="exp in expenses" :key="exp.id">
+                                <tr class="border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-white" x-text="exp.description"></td>
+                                    <td class="px-4 py-3 text-right text-orange-400 font-medium" x-text="'$' + Number(exp.amount).toFixed(2)"></td>
+                                    <td class="px-4 py-3 text-wa-text-secondary" x-text="exp.date?.split('T')[0]"></td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-1 justify-end">
+                                            <button @click="openExpenseModal(exp)" class="p-1 text-wa-text-secondary hover:text-wa-green transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                            </button>
+                                            <button @click="deleteExpense(exp)" class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="border-t border-wa-border bg-wa-bg-hover px-4 py-3 flex justify-between items-center">
+                        <span class="text-xs text-wa-text-secondary" x-text="expenses.length + ' gastos'"></span>
+                        <span class="text-sm font-bold text-orange-400" x-text="'Total: $' + expenses.reduce((s, e) => s + Number(e.amount), 0).toFixed(2)"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!-- TAB: P&L                                       -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div x-show="activeTab === 'pnl' && selectedPeriodId" style="display:none;">
+                <div x-show="loadingPnl" class="flex items-center justify-center py-8" style="display:none;">
+                    <div class="animate-spin w-5 h-5 border-2 border-wa-green border-t-transparent rounded-full"></div>
+                </div>
+
+                <div x-show="!loadingPnl && summary" style="display:none;">
+                    <!-- Summary cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                            <div class="text-xs text-emerald-400 font-medium mb-1">Ingresos</div>
+                            <div class="text-lg font-medium text-white" x-text="fmt(summary?.totalIncome)"></div>
+                        </div>
+                        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                            <div class="text-xs text-red-400 font-medium mb-1">Costos Totales</div>
+                            <div class="text-lg font-medium text-white" x-text="fmt(summary?.totalCosts)"></div>
+                        </div>
+                        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                            <div class="text-xs text-orange-400 font-medium mb-1">Gastos Fijos</div>
+                            <div class="text-lg font-medium text-white" x-text="fmt(summary?.totalExpenses)"></div>
+                        </div>
+                        <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
+                            <div class="text-xs font-medium mb-1" :class="summary?.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'">Ganancia Neta</div>
+                            <div class="text-lg font-bold" :class="summary?.netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="fmt(summary?.netProfit)"></div>
+                        </div>
+                    </div>
+
+                    <!-- Per-worker table -->
+                    <div x-show="workerReports.length > 0" class="border border-wa-border rounded-xl overflow-clip" style="display:none;">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                    <th class="text-left px-4 py-3 font-medium">Trabajador</th>
+                                    <th class="text-right px-4 py-3 font-medium">Ingreso</th>
+                                    <th class="text-right px-4 py-3 font-medium">Ads</th>
+                                    <th class="text-right px-4 py-3 font-medium">Salario</th>
+                                    <th class="text-right px-4 py-3 font-medium">Deuda</th>
+                                    <th class="text-right px-4 py-3 font-medium">Balance</th>
+                                    <th class="text-right px-4 py-3 font-medium">Bono</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="r in workerReports" :key="r.workerId">
+                                    <tr class="border-t border-wa-border" :class="r.balance >= 0 ? 'hover:bg-emerald-500/5' : 'hover:bg-red-500/5'">
+                                        <td class="px-4 py-3 font-medium text-white" x-text="r.workerName"></td>
+                                        <td class="px-4 py-3 text-right text-emerald-400" x-text="fmt(r.income)"></td>
+                                        <td class="px-4 py-3 text-right text-purple-400" x-text="fmt(r.adSpend)"></td>
+                                        <td class="px-4 py-3 text-right text-blue-400" x-text="fmt(r.salary)"></td>
+                                        <td class="px-4 py-3 text-right" :class="r.debtCarry > 0 ? 'text-red-400' : 'text-wa-text-secondary'" x-text="fmt(r.debtCarry)"></td>
+                                        <td class="px-4 py-3 text-right font-bold" :class="r.balance >= 0 ? 'text-emerald-400' : 'text-red-400'" x-text="fmt(r.balance)"></td>
+                                        <td class="px-4 py-3 text-right" :class="r.bonus > 0 ? 'text-yellow-400' : 'text-wa-text-secondary'" x-text="fmt(r.bonus)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div x-show="workerReports.length === 0" class="text-center py-10 text-wa-text-secondary text-sm" style="display:none;">
+                        <p x-text="$t('fin_no_worker_data')">Sin datos de trabajadores</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Income Modal                                                   -->
+        <!-- ============================================================== -->
+        <div x-show="showIncomeModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            @keydown.escape.window="showIncomeModal = false" style="display:none;">
+            <div class="bg-wa-bg-panel border border-wa-border rounded-xl w-full max-w-md mx-4 p-6" @click.outside="showIncomeModal = false">
+                <h3 class="text-lg font-bold mb-4" x-text="editingIncome ? $t('fin_edit_income') : $t('fin_new_income')">Ingreso</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_worker')">Trabajador</label>
+                        <select x-model="incomeForm.workerId" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                            <option value="">-- Seleccionar --</option>
+                            <template x-for="w in activeWorkers" :key="w.id"><option :value="w.id" x-text="w.name"></option></template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_bank_account')">Cuenta</label>
+                        <select x-model="incomeForm.bankAccountId" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
+                            <option value="">-- Seleccionar --</option>
+                            <template x-for="b in bankAccounts" :key="b.id"><option :value="b.id" x-text="b.name + ' (' + b.bankName + ')'"></option></template>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_amount')">Monto</label>
+                            <input type="number" step="0.01" x-model.number="incomeForm.amount" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="0.00" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_date')">Fecha</label>
+                            <input type="date" x-model="incomeForm.date" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_notes')">Notas</label>
+                        <input type="text" x-model="incomeForm.notes" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="Opcional" />
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button @click="showIncomeModal = false" class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors">Cancelar</button>
+                    <button @click="saveIncome()" class="px-4 py-2 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-medium rounded-lg transition-colors" :disabled="savingIncome" x-text="savingIncome ? '...' : $t('fin_save')">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Expense Modal                                                  -->
+        <!-- ============================================================== -->
+        <div x-show="showExpenseModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            @keydown.escape.window="showExpenseModal = false" style="display:none;">
+            <div class="bg-wa-bg-panel border border-wa-border rounded-xl w-full max-w-md mx-4 p-6" @click.outside="showExpenseModal = false">
+                <h3 class="text-lg font-bold mb-4" x-text="editingExpense ? $t('fin_edit_expense') : $t('fin_new_expense')">Gasto</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_description')">Descripcion</label>
+                        <input type="text" x-model="expenseForm.description" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="ej: Hosting VPS" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_amount')">Monto</label>
+                            <input type="number" step="0.01" x-model.number="expenseForm.amount" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="0.00" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_date')">Fecha</label>
+                            <input type="date" x-model="expenseForm.date" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button @click="showExpenseModal = false" class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors">Cancelar</button>
+                    <button @click="saveExpense()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors" :disabled="savingExpense" x-text="savingExpense ? '...' : $t('fin_save')">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</Layout>
+
+<script>
+    import { ApiClient } from "../../lib/api";
+
+    document.addEventListener("alpine:init", () => {
+        const Alpine = (window as any).Alpine;
+
+        Alpine.data("financeFinancials", () => ({
+            loading: true,
+            activeTab: "income",
+            periods: [] as any[],
+            selectedPeriodId: "",
+            activeWorkers: [] as any[],
+            bankAccounts: [] as any[],
+
+            // Income
+            incomes: [] as any[],
+            loadingIncomes: false,
+            showIncomeModal: false,
+            editingIncome: null as any,
+            savingIncome: false,
+            incomeForm: { workerId: "", bankAccountId: "", amount: 0, date: "", notes: "" },
+
+            // Expenses
+            expenses: [] as any[],
+            loadingExpenses: false,
+            showExpenseModal: false,
+            editingExpense: null as any,
+            savingExpense: false,
+            expenseForm: { description: "", amount: 0, date: "" },
+
+            // P&L
+            summary: null as any,
+            workerReports: [] as any[],
+            loadingPnl: false,
+
+            fmt(n: number): string {
+                if (n == null) return "$0.00";
+                return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+
+            async init() {
+                try {
+                    const [periods, workers, banks] = await Promise.all([
+                        ApiClient.get("/finance/periods"),
+                        ApiClient.get("/finance/workers?active=true"),
+                        ApiClient.get("/finance/bank-accounts"),
+                    ]);
+                    this.periods = periods;
+                    this.activeWorkers = workers;
+                    this.bankAccounts = banks;
+
+                    const open = this.periods.find((p: any) => p.status === "OPEN");
+                    if (open) {
+                        this.selectedPeriodId = open.id;
+                        await this.loadTabData();
+                    }
+                } catch (e: any) {
+                    (window as any).__toast.error(e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async onPeriodChange() {
+                await this.loadTabData();
+            },
+
+            async switchTab(tab: string) {
+                this.activeTab = tab;
+                await this.loadTabData();
+            },
+
+            async loadTabData() {
+                if (!this.selectedPeriodId) return;
+                if (this.activeTab === "income") await this.loadIncomes();
+                else if (this.activeTab === "expenses") await this.loadExpenses();
+                else if (this.activeTab === "pnl") await this.loadPnl();
+            },
+
+            // ── Income ──────────────────────────────────────
+            async loadIncomes() {
+                this.loadingIncomes = true;
+                try { this.incomes = await ApiClient.get(`/finance/incomes?periodId=${this.selectedPeriodId}`); }
+                catch (e: any) { (window as any).__toast.error(e.message); }
+                finally { this.loadingIncomes = false; }
+            },
+
+            openIncomeModal(income?: any) {
+                if (income) {
+                    this.editingIncome = income;
+                    this.incomeForm = { workerId: income.workerId || "", bankAccountId: income.bankAccountId || "", amount: income.amount, date: income.date?.split("T")[0] || "", notes: income.notes || "" };
+                } else {
+                    this.editingIncome = null;
+                    this.incomeForm = { workerId: "", bankAccountId: "", amount: 0, date: new Date().toISOString().split("T")[0], notes: "" };
+                }
+                this.showIncomeModal = true;
+            },
+
+            async saveIncome() {
+                if (!this.incomeForm.workerId || !this.incomeForm.amount) return;
+                this.savingIncome = true;
+                try {
+                    const payload = { ...this.incomeForm, periodId: this.selectedPeriodId };
+                    if (this.editingIncome) { await ApiClient.put(`/finance/incomes/${this.editingIncome.id}`, payload); (window as any).__toast.success("Ingreso actualizado"); }
+                    else { await ApiClient.post("/finance/incomes", payload); (window as any).__toast.success("Ingreso registrado"); }
+                    this.showIncomeModal = false;
+                    await this.loadIncomes();
+                } catch (e: any) { (window as any).__toast.error(e.message); }
+                finally { this.savingIncome = false; }
+            },
+
+            async deleteIncome(income: any) {
+                if (!confirm("Eliminar este ingreso?")) return;
+                try { await ApiClient.delete(`/finance/incomes/${income.id}`); (window as any).__toast.success("Ingreso eliminado"); await this.loadIncomes(); }
+                catch (e: any) { (window as any).__toast.error(e.message); }
+            },
+
+            // ── Expenses ────────────────────────────────────
+            async loadExpenses() {
+                this.loadingExpenses = true;
+                try { this.expenses = await ApiClient.get(`/finance/expenses?periodId=${this.selectedPeriodId}`); }
+                catch (e: any) { (window as any).__toast.error(e.message); }
+                finally { this.loadingExpenses = false; }
+            },
+
+            openExpenseModal(expense?: any) {
+                if (expense) {
+                    this.editingExpense = expense;
+                    this.expenseForm = { description: expense.description, amount: expense.amount, date: expense.date?.split("T")[0] || "" };
+                } else {
+                    this.editingExpense = null;
+                    this.expenseForm = { description: "", amount: 0, date: new Date().toISOString().split("T")[0] };
+                }
+                this.showExpenseModal = true;
+            },
+
+            async saveExpense() {
+                if (!this.expenseForm.description.trim() || !this.expenseForm.amount) return;
+                this.savingExpense = true;
+                try {
+                    const payload = { ...this.expenseForm, periodId: this.selectedPeriodId };
+                    if (this.editingExpense) { await ApiClient.put(`/finance/expenses/${this.editingExpense.id}`, payload); (window as any).__toast.success("Gasto actualizado"); }
+                    else { await ApiClient.post("/finance/expenses", payload); (window as any).__toast.success("Gasto registrado"); }
+                    this.showExpenseModal = false;
+                    await this.loadExpenses();
+                } catch (e: any) { (window as any).__toast.error(e.message); }
+                finally { this.savingExpense = false; }
+            },
+
+            async deleteExpense(expense: any) {
+                if (!confirm("Eliminar este gasto?")) return;
+                try { await ApiClient.delete(`/finance/expenses/${expense.id}`); (window as any).__toast.success("Gasto eliminado"); await this.loadExpenses(); }
+                catch (e: any) { (window as any).__toast.error(e.message); }
+            },
+
+            // ── P&L ─────────────────────────────────────────
+            async loadPnl() {
+                this.loadingPnl = true;
+                try {
+                    const [summary, workers] = await Promise.all([
+                        ApiClient.get(`/finance/dashboard/reports/summary?periodId=${this.selectedPeriodId}`),
+                        ApiClient.get(`/finance/dashboard/reports/workers?periodId=${this.selectedPeriodId}`),
+                    ]);
+                    this.summary = summary;
+                    this.workerReports = workers;
+                } catch (e: any) { (window as any).__toast.error(e.message); }
+                finally { this.loadingPnl = false; }
+            },
+        }));
+    });
+</script>

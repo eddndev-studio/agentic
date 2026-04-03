@@ -137,90 +137,68 @@ import FinanceNav from "../../components/FinanceNav.astro";
             </section>
 
             <!-- ========================================================== -->
-            <!-- SECTION 3: Expenses                                        -->
+            <!-- SECTION 3: Facebook Connection                             -->
             <!-- ========================================================== -->
             <section class="bg-wa-bg-panel border border-wa-border rounded-xl p-5">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-3">
-                        <h3 class="text-sm font-bold" x-text="$t('fin_expenses')">Gastos Fijos</h3>
-                        <select
-                            x-model="expensePeriodId"
-                            @change="loadExpenses()"
-                            class="bg-wa-bg-deep border border-wa-border rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-wa-green"
-                        >
-                            <option value="">-- Periodo --</option>
-                            <template x-for="p in periods" :key="p.id">
-                                <option :value="p.id" x-text="p.type + ': ' + p.startDate?.split('T')[0] + ' → ' + p.endDate?.split('T')[0]"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <button
-                        @click="openExpenseModal()"
-                        class="px-3 py-1.5 bg-wa-green hover:bg-wa-green-hover text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-                        :disabled="!expensePeriodId"
-                        :class="!expensePeriodId && 'opacity-50 cursor-not-allowed'"
-                    >
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span x-text="$t('fin_add')">Agregar</span>
+                <h3 class="text-sm font-bold mb-4 flex items-center gap-2" x-text="$t('fin_settings_fb_section')">
+                    Conexion Facebook
+                </h3>
+
+                <!-- Not connected -->
+                <div x-show="!fbConnection" class="flex flex-col sm:flex-row items-center gap-4" style="display:none;">
+                    <p class="text-sm text-wa-text-secondary">No conectado. Inicia sesion con Facebook para sincronizar campanas.</p>
+                    <button @click="fbLogin()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shrink-0">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                        Conectar Facebook
                     </button>
                 </div>
 
-                <!-- No period -->
-                <div x-show="!expensePeriodId" class="text-center py-6 text-wa-text-secondary text-xs" style="display:none;">
-                    <p>Selecciona un periodo</p>
-                </div>
+                <!-- Connected -->
+                <div x-show="fbConnection" class="space-y-4" style="display:none;">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                                <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            </div>
+                            <div>
+                                <span class="text-sm font-medium text-white" x-text="fbConnection?.fbUserName"></span>
+                                <div class="text-[10px] text-wa-text-secondary" x-text="'Token expira: ' + (fbConnection?.tokenExpiry ? new Date(fbConnection.tokenExpiry).toLocaleDateString() : '—')"></div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                            :class="fbConnection?.syncStatus === 'OK' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-400'"
+                            x-text="fbConnection?.syncStatus || 'PENDING'"></span>
+                        <div class="flex items-center gap-2 ml-auto">
+                            <button @click="disconnectFb()" class="px-3 py-1.5 border border-red-500/30 text-red-400 text-xs rounded-lg hover:bg-red-500/10 transition-colors">Desconectar</button>
+                        </div>
+                    </div>
 
-                <!-- Loading expenses -->
-                <div x-show="loadingExpenses" class="flex items-center gap-2 text-wa-text-secondary text-sm py-6 justify-center" style="display:none;">
-                    <div class="animate-spin w-4 h-4 border-2 border-wa-green border-t-transparent rounded-full"></div>
-                </div>
-
-                <!-- Empty -->
-                <div x-show="expensePeriodId && !loadingExpenses && expenses.length === 0" class="text-center py-6 text-wa-text-secondary text-xs" style="display:none;">
-                    <p x-text="$t('fin_no_expenses')">No hay gastos</p>
-                </div>
-
-                <!-- Table -->
-                <div x-show="expensePeriodId && !loadingExpenses && expenses.length > 0" class="border border-wa-border rounded-xl overflow-hidden" style="display:none;">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
-                                <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_description')">Descripcion</th>
-                                <th class="text-right px-4 py-3 font-medium" x-text="$t('fin_amount')">Monto</th>
-                                <th class="text-left px-4 py-3 font-medium" x-text="$t('fin_date')">Fecha</th>
-                                <th class="px-4 py-3 font-medium w-24"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="exp in expenses" :key="exp.id">
-                                <tr class="border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors">
-                                    <td class="px-4 py-3 font-medium text-white" x-text="exp.description"></td>
-                                    <td class="px-4 py-3 text-right text-orange-400 font-medium" x-text="'$' + Number(exp.amount).toFixed(2)"></td>
-                                    <td class="px-4 py-3 text-wa-text-secondary" x-text="exp.date?.split('T')[0]"></td>
-                                    <td class="px-4 py-3">
-                                        <div class="flex items-center gap-2 justify-end">
-                                            <button @click="openExpenseModal(exp)" class="p-1.5 text-wa-text-secondary hover:text-wa-green transition-colors">
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                            </button>
-                                            <button @click="deleteExpense(exp)" class="p-1.5 text-wa-text-secondary hover:text-red-400 transition-colors">
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
+                    <!-- Ad Account Assignment -->
+                    <div x-show="fbAdAccounts.length > 0" class="border border-wa-border rounded-xl overflow-clip" style="display:none;">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-wa-bg-hover text-wa-text-secondary text-xs">
+                                    <th class="text-left px-4 py-3 font-medium">Cuenta</th>
+                                    <th class="text-left px-4 py-3 font-medium">FB ID</th>
+                                    <th class="text-left px-4 py-3 font-medium">Trabajador</th>
                                 </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    <!-- Total -->
-                    <div class="border-t border-wa-border bg-wa-bg-hover px-4 py-3 flex justify-between items-center">
-                        <span class="text-xs text-wa-text-secondary" x-text="expenses.length + ' gastos'"></span>
-                        <span class="text-sm font-bold text-orange-400" x-text="'Total: $' + expenses.reduce((s, e) => s + Number(e.amount), 0).toFixed(2)"></span>
+                            </thead>
+                            <tbody>
+                                <template x-for="acc in fbAdAccounts" :key="acc.id">
+                                    <tr class="border-t border-wa-border hover:bg-wa-bg-hover/50 transition-colors">
+                                        <td class="px-4 py-3 font-medium text-white" x-text="acc.name"></td>
+                                        <td class="px-4 py-3 text-xs text-wa-text-secondary font-mono" x-text="acc.fbAccountId"></td>
+                                        <td class="px-4 py-3">
+                                            <select :value="acc.workerId || ''" @change="assignFbWorker(acc.id, $event.target.value)"
+                                                class="bg-wa-bg-deep border border-wa-border rounded-lg px-2 py-1.5 text-xs text-white w-full max-w-[180px]">
+                                                <option value="">— Sin asignar —</option>
+                                                <template x-for="w in activeWorkers" :key="w.id"><option :value="w.id" x-text="w.name" :selected="w.id === acc.workerId"></option></template>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -308,44 +286,7 @@ import FinanceNav from "../../components/FinanceNav.astro";
             </div>
         </div>
 
-        <!-- ============================================================== -->
-        <!-- Expense Modal                                                  -->
-        <!-- ============================================================== -->
-        <div
-            x-show="showExpenseModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100"
-            x-transition:leave="transition ease-in duration-150"
-            x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0"
-            @keydown.escape.window="showExpenseModal = false"
-            style="display:none;"
-        >
-            <div class="bg-wa-bg-panel border border-wa-border rounded-xl w-full max-w-md mx-4 p-6" @click.outside="showExpenseModal = false">
-                <h3 class="text-lg font-bold mb-4" x-text="editingExpense ? $t('fin_edit_expense') : $t('fin_add_expense')">Gasto</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_description')">Descripcion</label>
-                        <input type="text" x-model="expenseForm.description" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="ej: Hosting VPS" />
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_amount')">Monto</label>
-                            <input type="number" step="0.01" x-model.number="expenseForm.amount" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="0.00" />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-wa-text-secondary mb-1" x-text="$t('fin_date')">Fecha</label>
-                            <input type="date" x-model="expenseForm.date" class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white" />
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button @click="showExpenseModal = false" class="px-4 py-2 border border-wa-border text-sm text-wa-text-secondary rounded-lg hover:bg-wa-bg-hover transition-colors" x-text="$t('fin_cancel')">Cancelar</button>
-                    <button @click="saveExpense()" class="px-4 py-2 bg-wa-green hover:bg-wa-green-hover text-white text-sm font-medium rounded-lg transition-colors" :disabled="savingExpense" x-text="savingExpense ? '...' : $t('fin_save')">Guardar</button>
-                </div>
-            </div>
+        <!-- Expense Modal removed - moved to /finance/financials -->
         </div>
 
     </main>
@@ -373,27 +314,82 @@ import FinanceNav from "../../components/FinanceNav.astro";
             periodForm: { type: "WEEKLY", startDate: "", endDate: "" },
 
             // Expenses
-            expenses: [] as any[],
-            expensePeriodId: "",
-            loadingExpenses: false,
-            showExpenseModal: false,
-            editingExpense: null as any,
-            savingExpense: false,
-            expenseForm: { description: "", amount: 0, date: "" },
+            // Facebook
+            fbConnection: null as any,
+            fbAdAccounts: [] as any[],
+            activeWorkers: [] as any[],
 
             async init() {
                 try {
-                    const [banks, periods] = await Promise.all([
+                    const [banks, periods, conn, adAccounts, workers] = await Promise.all([
                         ApiClient.get("/finance/bank-accounts"),
                         ApiClient.get("/finance/periods"),
+                        ApiClient.get("/finance/facebook/connection").catch(() => null),
+                        ApiClient.get("/finance/facebook/ad-accounts").catch(() => []),
+                        ApiClient.get("/finance/workers?active=true").catch(() => []),
                     ]);
                     this.bankAccounts = banks;
                     this.periods = periods;
+                    this.fbConnection = conn?.connected ? conn : null;
+                    this.fbAdAccounts = adAccounts || [];
+                    this.activeWorkers = workers || [];
+
+                    // Init FB SDK in background
+                    this.initFbSdk();
                 } catch (e: any) {
                     (window as any).__toast.error(e.message);
                 } finally {
                     this.loading = false;
                 }
+            },
+
+            // ── Facebook ───────────────────────────────────────
+            initFbSdk() {
+                const FB_APP_ID = "1184660606783733";
+                if ((window as any).FB) { (window as any).FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: "v21.0" }); return; }
+                (window as any).fbAsyncInit = function () { (window as any).FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: "v21.0" }); };
+                if (!document.querySelector('script[src*="connect.facebook.net"]')) {
+                    const s = document.createElement("script"); s.src = "https://connect.facebook.net/en_US/sdk.js"; s.async = true; document.head.appendChild(s);
+                }
+            },
+
+            fbLogin() {
+                const FB = (window as any).FB;
+                if (!FB) return;
+                const self = this;
+                FB.login((response: any) => {
+                    if (response.authResponse) {
+                        const { accessToken, userID } = response.authResponse;
+                        (async () => {
+                            let userName = "";
+                            try { const res = await fetch(`https://graph.facebook.com/v21.0/me?fields=name&access_token=${accessToken}`); const data = await res.json(); userName = data.name || ""; } catch {}
+                            try {
+                                self.fbConnection = await ApiClient.post("/finance/facebook/connect", { shortLivedToken: accessToken, fbUserId: userID, fbUserName: userName });
+                                self.fbAdAccounts = await ApiClient.get("/finance/facebook/ad-accounts").catch(() => []);
+                                (window as any).__toast.success("Facebook conectado");
+                            } catch (e: any) { (window as any).__toast.error(e.message); }
+                        })();
+                    }
+                }, { scope: "ads_read,ads_management" });
+            },
+
+            async disconnectFb() {
+                if (!confirm("Desconectar Facebook?")) return;
+                try {
+                    await ApiClient.post("/finance/facebook/disconnect", {});
+                    this.fbConnection = null;
+                    this.fbAdAccounts = [];
+                    (window as any).__toast.success("Facebook desconectado");
+                } catch (e: any) { (window as any).__toast.error(e.message); }
+            },
+
+            async assignFbWorker(adAccountId: string, workerId: string) {
+                try {
+                    if (workerId) { await ApiClient.put(`/finance/facebook/ad-accounts/${adAccountId}/assign`, { workerId }); }
+                    else { await ApiClient.put(`/finance/facebook/ad-accounts/${adAccountId}/unassign`, {}); }
+                    this.fbAdAccounts = await ApiClient.get("/finance/facebook/ad-accounts").catch(() => []);
+                    (window as any).__toast.success("Worker actualizado");
+                } catch (e: any) { (window as any).__toast.error(e.message); }
             },
 
             // ── Bank Accounts ───────────────────────────────────
@@ -473,69 +469,7 @@ import FinanceNav from "../../components/FinanceNav.astro";
                 }
             },
 
-            // ── Expenses ────────────────────────────────────────
-            async loadExpenses() {
-                if (!this.expensePeriodId) { this.expenses = []; return; }
-                this.loadingExpenses = true;
-                try {
-                    this.expenses = await ApiClient.get(`/finance/expenses?periodId=${this.expensePeriodId}`);
-                } catch (e: any) {
-                    (window as any).__toast.error(e.message);
-                } finally {
-                    this.loadingExpenses = false;
-                }
-            },
-
-            openExpenseModal(expense?: any) {
-                if (expense) {
-                    this.editingExpense = expense;
-                    this.expenseForm = {
-                        description: expense.description,
-                        amount: expense.amount,
-                        date: expense.date?.split("T")[0] || "",
-                    };
-                } else {
-                    this.editingExpense = null;
-                    this.expenseForm = {
-                        description: "",
-                        amount: 0,
-                        date: new Date().toISOString().split("T")[0],
-                    };
-                }
-                this.showExpenseModal = true;
-            },
-
-            async saveExpense() {
-                if (!this.expenseForm.description.trim() || !this.expenseForm.amount) return;
-                this.savingExpense = true;
-                try {
-                    const payload = { ...this.expenseForm, periodId: this.expensePeriodId };
-                    if (this.editingExpense) {
-                        await ApiClient.put(`/finance/expenses/${this.editingExpense.id}`, payload);
-                        (window as any).__toast.success("Gasto actualizado");
-                    } else {
-                        await ApiClient.post("/finance/expenses", payload);
-                        (window as any).__toast.success("Gasto registrado");
-                    }
-                    this.showExpenseModal = false;
-                    await this.loadExpenses();
-                } catch (e: any) {
-                    (window as any).__toast.error(e.message);
-                } finally {
-                    this.savingExpense = false;
-                }
-            },
-
-            async deleteExpense(expense: any) {
-                if (!confirm("Eliminar este gasto?")) return;
-                try {
-                    await ApiClient.delete(`/finance/expenses/${expense.id}`);
-                    (window as any).__toast.success("Gasto eliminado");
-                    await this.loadExpenses();
-                } catch (e: any) {
-                    (window as any).__toast.error(e.message);
-                }
-            },
+            // Expenses removed - moved to /finance/financials
         }));
     });
 </script>
