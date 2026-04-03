@@ -5,6 +5,7 @@ import { BotConfigService, type BotWithTemplate } from "../../services/bot-confi
 import { isBuiltinTool } from "./builtin-tools";
 import { eventBus } from "../../services/event-bus";
 import { flowEngine } from "../flow";
+import { LabelPersistenceService } from "../../services/labels/label-persistence.service";
 import { safeParseStepMetadata, safeParseToolActionConfig, safeParseNotificationChannels } from "../../schemas";
 import type { Session, Tool } from "@prisma/client";
 
@@ -414,49 +415,11 @@ export class ToolExecutor {
                     return { success: false, data: `Etiqueta '${labelName}' no encontrada.` };
                 }
 
-                // Sync with WhatsApp
+                // Sync with provider + persist + emit events + trigger flows
                 const assignLabelProvider = await providerRegistry.forBot(botId);
                 await assignLabelProvider.addChatLabel(botId, session.identifier, label.waLabelId);
-
-                // Upsert in DB
-                await prisma.sessionLabel.upsert({
-                    where: { sessionId_labelId: { sessionId: session.id, labelId: label.id } },
-                    update: {},
-                    create: { sessionId: session.id, labelId: label.id },
-                });
-
-                // Mark as handled to prevent duplicate from Baileys labels.association
-                await assignLabelProvider.markLabelEventHandled(botId, session.id, label.id, 'add');
-
-                // Emit event for notifications + flow triggers
-                const addedLabels = await prisma.sessionLabel.findMany({
-                    where: { sessionId: session.id },
-                    include: { label: true },
-                });
-                const assignLabelPayload = addedLabels.map(sl => ({
-                    id: sl.label.id, name: sl.label.name,
-                    color: sl.label.color, waLabelId: sl.label.waLabelId,
-                }));
-                eventBus.emitBotEvent({
-                    type: 'session:labels:add',
-                    botId,
-                    sessionId: session.id,
-                    labels: assignLabelPayload,
-                    changedLabelId: label.id,
-                    changedLabelName: label.name,
-                });
-                eventBus.emitBotEvent({
-                    type: 'session:labels',
-                    botId,
-                    sessionId: session.id,
-                    labels: assignLabelPayload,
-                    changedLabelId: label.id,
-                    changedLabelName: label.name,
-                    action: 'add',
-                });
-                flowEngine.processLabelEvent(session.id, botId, label.name, 'add', sourceFlowId).catch(err => {
-                    console.error(`[ToolExecutor] FlowEngine label trigger error:`, err);
-                });
+                assignLabelProvider.markLabelEventHandled(botId, session.id, label.id, 'add');
+                await LabelPersistenceService.persistLabelAssociation(botId, session.id, label.id, 'add', sourceFlowId);
 
                 return { success: true, data: `Etiqueta '${label.name}' asignada al chat.` };
             }
@@ -481,45 +444,11 @@ export class ToolExecutor {
                     return { success: true, data: `El chat no tiene la etiqueta '${labelToRemove.name}', se omitió.` };
                 }
 
-                // Sync with WhatsApp
+                // Sync with provider + persist + emit events + trigger flows
                 const removeLabelProvider = await providerRegistry.forBot(botId);
                 await removeLabelProvider.removeChatLabel(botId, session.identifier, labelToRemove.waLabelId);
-
-                // Remove from DB
-                await prisma.sessionLabel.delete({ where: { id: existingAssoc.id } });
-
-                // Mark as handled to prevent duplicate from Baileys labels.association
-                await removeLabelProvider.markLabelEventHandled(botId, session.id, labelToRemove.id, 'remove');
-
-                // Emit event for notifications + flow triggers
-                const remainingLabels = await prisma.sessionLabel.findMany({
-                    where: { sessionId: session.id },
-                    include: { label: true },
-                });
-                const removeLabelPayload = remainingLabels.map(sl => ({
-                    id: sl.label.id, name: sl.label.name,
-                    color: sl.label.color, waLabelId: sl.label.waLabelId,
-                }));
-                eventBus.emitBotEvent({
-                    type: 'session:labels:remove',
-                    botId,
-                    sessionId: session.id,
-                    labels: removeLabelPayload,
-                    changedLabelId: labelToRemove.id,
-                    changedLabelName: labelToRemove.name,
-                });
-                eventBus.emitBotEvent({
-                    type: 'session:labels',
-                    botId,
-                    sessionId: session.id,
-                    labels: removeLabelPayload,
-                    changedLabelId: labelToRemove.id,
-                    changedLabelName: labelToRemove.name,
-                    action: 'remove',
-                });
-                flowEngine.processLabelEvent(session.id, botId, labelToRemove.name, 'remove', sourceFlowId).catch(err => {
-                    console.error(`[ToolExecutor] FlowEngine label trigger error:`, err);
-                });
+                removeLabelProvider.markLabelEventHandled(botId, session.id, labelToRemove.id, 'remove');
+                await LabelPersistenceService.persistLabelAssociation(botId, session.id, labelToRemove.id, 'remove', sourceFlowId);
 
                 return { success: true, data: `Etiqueta '${labelToRemove.name}' removida del chat.` };
             }

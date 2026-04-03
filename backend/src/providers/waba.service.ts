@@ -2,6 +2,8 @@
  * WhatsApp Cloud API service — handles HTTP communication with Meta's Graph API.
  * Stateless: credentials come from bot config, no persistent connections.
  */
+import { prisma } from '../services/postgres.service';
+import { safeParseBotCredentials } from '../schemas';
 import { config } from '../config';
 import { createLogger } from '../logger';
 import type { WABASendPayload, WABASendResponse, WABAMediaUrlResponse } from './waba.types';
@@ -13,6 +15,41 @@ const API_BASE = `https://graph.facebook.com/${config.waba.apiVersion}`;
 export interface WABACredentials {
     accessToken: string;
     phoneNumberId: string;
+}
+
+// ── Credentials management ──────────────────────────────────────────────────
+// WABA credentials live in Bot.credentials JSON — fetched from DB with short TTL cache.
+// Baileys credentials are file-system managed by useMultiFileAuthState (no overlap).
+
+const credentialsCache = new Map<string, { creds: WABACredentials; expiresAt: number }>();
+const CREDS_CACHE_TTL = 60_000; // 1 minute
+
+export async function getWABACredentials(botId: string): Promise<WABACredentials> {
+    const cached = credentialsCache.get(botId);
+    if (cached && cached.expiresAt > Date.now()) return cached.creds;
+
+    const bot = await prisma.bot.findUnique({
+        where: { id: botId },
+        select: { credentials: true },
+    });
+
+    const parsed = safeParseBotCredentials(bot?.credentials);
+    if (!parsed.wabaAccessToken || !parsed.wabaPhoneNumberId) {
+        throw new Error(`Bot ${botId} missing WABA credentials (wabaAccessToken, wabaPhoneNumberId)`);
+    }
+
+    const creds: WABACredentials = {
+        accessToken: parsed.wabaAccessToken,
+        phoneNumberId: parsed.wabaPhoneNumberId,
+    };
+
+    credentialsCache.set(botId, { creds, expiresAt: Date.now() + CREDS_CACHE_TTL });
+    return creds;
+}
+
+export function clearWABACredentialsCache(botId?: string): void {
+    if (botId) credentialsCache.delete(botId);
+    else credentialsCache.clear();
 }
 
 /**

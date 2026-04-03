@@ -95,10 +95,12 @@
 - [x] Agregar webhook endpoints: GET `/webhook/waba/:botId` (Meta verification), POST `/webhook/waba/:botId` (incoming messages)
 - [x] Auth via access token (no QR) — `getQR()` returns null, `requestPairingCode()` throws
 
-### Fase 5: Features platform-specific (1 día)
-- [ ] Labels → módulo separado con `WhatsAppLabelService`, extensible
-- [ ] QR → solo BaileysProvider
-- [ ] Credenciales → strategy per platform
+### Fase 5: Features platform-specific (completada 2026-04-03)
+- [x] Labels → split en `labels/label-persistence.service.ts` (provider-agnostic) + `labels/baileys-label.service.ts` (Baileys-specific)
+- [x] Consolidar patrón triplicado persist+emit+trigger en `LabelPersistenceService.persistLabelAssociation()`
+- [x] QR → ya estaba correctamente abstraído via `IMessagingProvider.getQR()`, sin cambios necesarios
+- [x] Credenciales → `getWABACredentials()` centralizado en `waba.service.ts`, Baileys usa filesystem (sin overlap)
+- [x] Eliminar monolito `label.service.ts` — zero imports de `@whiskeysockets/baileys` en capa de persistencia
 
 ### Fase 6: Testing dual provider (2-3 días)
 - [ ] Tests unitarios por provider

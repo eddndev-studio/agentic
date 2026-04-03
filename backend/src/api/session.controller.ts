@@ -4,7 +4,7 @@ import { providerRegistry } from "../providers/registry";
 import { aiEngine } from "../core/ai";
 import { flowEngine } from "../core/flow";
 import { ToolExecutor } from "../core/ai/ToolExecutor";
-import { eventBus } from "../services/event-bus";
+import { LabelPersistenceService } from "../services/labels/label-persistence.service";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const sessionController = new Elysia({ prefix: "/sessions" })
@@ -201,48 +201,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             console.warn(`[SessionController] addChatLabel sync failed:`, (e instanceof Error ? e.message : e));
         }
 
-        // Persist in DB
-        const sessionLabel = await prisma.sessionLabel.upsert({
-            where: { sessionId_labelId: { sessionId: id, labelId: label.id } },
-            update: {},
-            create: { sessionId: id, labelId: label.id },
-        });
-
-        // Mark as handled to prevent duplicate from provider labels.association
+        // Mark as handled + persist + emit events + trigger flows
         const addProvider = await providerRegistry.forBot(session.botId);
         addProvider.markLabelEventHandled(session.botId, id, label.id, 'add');
+        await LabelPersistenceService.persistLabelAssociation(session.botId, id, label.id, 'add');
 
-        // Emit event for notifications + flow triggers
-        const updatedLabels = await prisma.sessionLabel.findMany({
-            where: { sessionId: id },
-            include: { label: true },
-        });
-        const addLabelPayload = updatedLabels.map(sl => ({
-            id: sl.label.id, name: sl.label.name,
-            color: sl.label.color, waLabelId: sl.label.waLabelId,
-        }));
-        eventBus.emitBotEvent({
-            type: 'session:labels:add',
-            botId: session.botId,
-            sessionId: id,
-            labels: addLabelPayload,
-            changedLabelId: label.id,
-            changedLabelName: label.name,
-        });
-        eventBus.emitBotEvent({
-            type: 'session:labels',
-            botId: session.botId,
-            sessionId: id,
-            labels: addLabelPayload,
-            changedLabelId: label.id,
-            changedLabelName: label.name,
-            action: 'add',
-        });
-        flowEngine.processLabelEvent(id, session.botId, label.name, 'add').catch(err => {
-            console.error(`[SessionController] FlowEngine label trigger error:`, err);
-        });
-
-        return { success: true, sessionLabel };
+        return { success: true };
     }, {
         params: t.Object({ id: t.String() }),
         body: t.Object({ labelId: t.String() }),
@@ -274,44 +238,10 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             console.warn(`[SessionController] removeChatLabel sync failed:`, (e instanceof Error ? e.message : e));
         }
 
-        // Remove from DB
-        await prisma.sessionLabel.deleteMany({
-            where: { sessionId: id, labelId: label.id },
-        });
-
-        // Mark as handled to prevent duplicate from provider labels.association
+        // Mark as handled + persist + emit events + trigger flows
         const removeProvider = await providerRegistry.forBot(session.botId);
         removeProvider.markLabelEventHandled(session.botId, id, label.id, 'remove');
-
-        // Emit event for notifications + flow triggers
-        const remainingLabels = await prisma.sessionLabel.findMany({
-            where: { sessionId: id },
-            include: { label: true },
-        });
-        const removeLabelPayload = remainingLabels.map(sl => ({
-            id: sl.label.id, name: sl.label.name,
-            color: sl.label.color, waLabelId: sl.label.waLabelId,
-        }));
-        eventBus.emitBotEvent({
-            type: 'session:labels:remove',
-            botId: session.botId,
-            sessionId: id,
-            labels: removeLabelPayload,
-            changedLabelId: label.id,
-            changedLabelName: label.name,
-        });
-        eventBus.emitBotEvent({
-            type: 'session:labels',
-            botId: session.botId,
-            sessionId: id,
-            labels: removeLabelPayload,
-            changedLabelId: label.id,
-            changedLabelName: label.name,
-            action: 'remove',
-        });
-        flowEngine.processLabelEvent(id, session.botId, label.name, 'remove').catch(err => {
-            console.error(`[SessionController] FlowEngine label trigger error:`, err);
-        });
+        await LabelPersistenceService.persistLabelAssociation(session.botId, id, label.id, 'remove');
 
         return { success: true };
     }, {

@@ -18,7 +18,8 @@ import { BotConfigService } from './bot-config.service';
 import { eventBus } from './event-bus';
 import { generateLinkPreview } from './link-preview.service';
 import pino from 'pino';
-import { LabelService } from './label.service';
+import { BaileysLabelService } from './labels/baileys-label.service';
+import { LabelPersistenceService } from './labels/label-persistence.service';
 import { MessageIngestService, isMessageDuplicate } from './message-ingest.service';
 import { normalizeWAMessage } from '../providers/baileys.normalizer';
 import { upsertSessionFromChat, updateContactName } from './session-helpers';
@@ -228,7 +229,7 @@ export class BaileysService {
                     qrCodes.delete(botId);
                     stopWatchdog(botId);
                     connectionTimestamps.delete(botId);
-                    LabelService.stopLabelReconciliation(botId);
+                    BaileysLabelService.stopLabelReconciliation(botId);
                     eventBus.emitBotEvent({ type: 'bot:disconnected', botId, statusCode });
 
                     if (shouldReconnect && !shuttingDown) {
@@ -263,14 +264,14 @@ export class BaileysService {
                     setTimeout(async () => {
                         try {
                             const s = sessions.get(botId);
-                            if (s) await LabelService.syncLabels(s, botId);
+                            if (s) await BaileysLabelService.syncLabels(s, botId);
                             log.info(`Full label sync completed for Bot ${botId}`);
                         } catch (e: unknown) {
                             log.warn(`Label sync failed for Bot ${botId}:`, (e as Error).message);
                         }
 
                         // Start periodic label reconciliation after initial sync
-                        LabelService.startLabelReconciliation(botId, () => sessions.get(botId));
+                        BaileysLabelService.startLabelReconciliation(botId, () => sessions.get(botId));
                     }, 5000);
                 }
             });
@@ -324,11 +325,11 @@ export class BaileysService {
             });
 
             sock.ev.on('labels.edit', async (label) => {
-                await LabelService.handleLabelEdit(botId, label);
+                await LabelPersistenceService.handleLabelEdit(botId, label);
             });
 
             sock.ev.on('labels.association', async (event) => {
-                await LabelService.handleLabelAssociation(botId, event, sock);
+                await BaileysLabelService.handleBaileysLabelAssociation(botId, event, sock);
             });
 
             // --- presence.update: emit typing indicators to frontend ---
@@ -717,7 +718,7 @@ export class BaileysService {
         qrCodes.delete(botId);
         stopWatchdog(botId);
         connectionTimestamps.delete(botId);
-        LabelService.stopLabelReconciliation(botId);
+        BaileysLabelService.stopLabelReconciliation(botId);
 
         // Optionally clear auth data to require new QR scan
         const sessionDir = path.join(AUTH_DIR, botId);
@@ -838,30 +839,30 @@ export class BaileysService {
         }
     }
 
-    // ─── Thin wrappers for backward compatibility (delegate to LabelService) ───
+    // ─── Thin wrappers for backward compatibility (delegate to label services) ───
 
     static async syncLabels(botId: string): Promise<void> {
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
-        return LabelService.syncLabels(sock, botId);
+        return BaileysLabelService.syncLabels(sock, botId);
     }
 
     static async addChatLabel(botId: string, chatJid: string, waLabelId: string): Promise<void> {
         if (chatJid.startsWith('emu://')) return; // No-op for emulator
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
-        return LabelService.addChatLabel(sock, botId, chatJid, waLabelId);
+        return BaileysLabelService.addChatLabel(sock, botId, chatJid, waLabelId);
     }
 
     static async removeChatLabel(botId: string, chatJid: string, waLabelId: string): Promise<void> {
         if (chatJid.startsWith('emu://')) return; // No-op for emulator
         const sock = sessions.get(botId);
         if (!sock) throw new Error(`Bot ${botId} not connected`);
-        return LabelService.removeChatLabel(sock, botId, chatJid, waLabelId);
+        return BaileysLabelService.removeChatLabel(sock, botId, chatJid, waLabelId);
     }
 
     static markLabelEventHandled(botId: string, sessionId: string, labelId: string, action: 'add' | 'remove'): void {
-        LabelService.markLabelEventHandled(botId, sessionId, labelId, action);
+        LabelPersistenceService.markLabelEventHandled(botId, sessionId, labelId, action);
     }
 
     /**
@@ -871,7 +872,7 @@ export class BaileysService {
         shuttingDown = true;
 
         // Cancel all label reconciliation timers
-        LabelService.stopAllReconciliation();
+        BaileysLabelService.stopAllReconciliation();
 
         // Cancel all watchdog timers
         for (const [botId] of watchdogTimers) {
