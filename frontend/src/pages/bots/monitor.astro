@@ -5,7 +5,7 @@ import Layout from "../../layouts/Layout.astro";
 <Layout title="Monitor" fullWidth>
     <div
         x-data="botMonitor"
-        @keydown.escape.window="if (showNotesPanel) { showNotesPanel = false } else if (showQuickReplies) { showQuickReplies = false } else if (selectedSession) { selectedSession = null }"
+        @keydown.escape.window="if (showEmojiPicker) { showEmojiPicker = false } else if (showNotesPanel) { showNotesPanel = false } else if (showQuickReplies) { showQuickReplies = false } else if (selectedSession) { selectedSession = null }"
         @keydown.ctrl.f.prevent.window="$refs.searchInput?.focus()"
         class="h-[calc(100vh-1rem)] flex overflow-hidden rounded-lg"
     >
@@ -521,11 +521,28 @@ import Layout from "../../layouts/Layout.astro";
                         </template>
                     </div>
 
+                    <!-- Emoji picker grid -->
+                    <div x-show="showEmojiPicker" x-transition class="bg-wa-bg-deep border-t border-wa-border px-3 py-2 flex-shrink-0" style="display:none;">
+                        <div class="grid grid-cols-8 gap-1 max-h-36 overflow-y-auto">
+                            <template x-for="emoji in ['😀','😁','😂','🤣','😊','😍','🥰','😘','😜','🤔','😎','🥳','😢','😭','😤','🤬','👍','👎','👏','🙏','❤️','🔥','⭐','✅','❌','💯','🎉','🎊','💪','🤝','👋','🫡','💀','🤯','🥺','😱','🙄','😴','🤮','🤑','💰','📱','📸','🎁','🏆','⚡','💡','🔔','📌']" :key="emoji">
+                                <button @click="messageInput += emoji; $refs.messageInputEl.focus()" class="w-9 h-9 flex items-center justify-center text-xl hover:bg-wa-bg-hover rounded transition-colors" x-text="emoji"></button>
+                            </template>
+                        </div>
+                    </div>
+
                     <!-- Input area -->
                     <div class="bg-wa-bg-header px-4 py-2.5 flex items-center gap-2 flex-shrink-0">
+                        <!-- Emoji button -->
+                        <button
+                            @click="showEmojiPicker = !showEmojiPicker; showQuickReplies = false"
+                            class="w-10 h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover flex items-center justify-center transition-colors flex-shrink-0"
+                            :class="showEmojiPicker ? 'text-wa-green' : ''"
+                        >
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </button>
                         <!-- Quick replies button -->
                         <button
-                            @click="showQuickReplies = !showQuickReplies"
+                            @click="showQuickReplies = !showQuickReplies; showEmojiPicker = false"
                             class="w-10 h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover flex items-center justify-center transition-colors flex-shrink-0"
                             :class="showQuickReplies ? 'text-wa-green' : ''"
                         >
@@ -788,6 +805,7 @@ import Layout from "../../layouts/Layout.astro";
             attachedMediaType: '' as string,
             uploadingFile: false,
             showQuickReplies: false,
+            showEmojiPicker: false,
             quickReplies: [
                 'Hola, gracias por tu mensaje. En un momento te atiendo.',
                 'Gracias por tu compra, en breve te envio los detalles.',
