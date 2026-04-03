@@ -39,7 +39,7 @@ import Layout from "../../layouts/Layout.astro";
             </div>
 
             <!-- Session items -->
-            <div class="flex-1 overflow-y-auto">
+            <div class="flex-1 overflow-y-auto" @scroll.debounce.100ms="onSessionsScroll($event)">
                 <template x-if="sessions.length === 0">
                     <div class="p-6 text-center text-sm text-wa-text-secondary" x-text="$t('no_sessions')"></div>
                 </template>
@@ -86,6 +86,16 @@ import Layout from "../../layouts/Layout.astro";
                             </div>
                         </div>
                     </button>
+                </template>
+
+                <!-- Load more indicator -->
+                <template x-if="loadingMoreSessions">
+                    <div class="p-3 text-center">
+                        <div class="inline-block w-5 h-5 border-2 border-wa-green/30 border-t-wa-green rounded-full animate-spin"></div>
+                    </div>
+                </template>
+                <template x-if="!loadingMoreSessions && hasMoreSessions">
+                    <div class="p-2 text-center text-xs text-wa-text-secondary cursor-pointer hover:text-wa-green" @click="loadMoreSessions()">Cargar mas...</div>
                 </template>
             </div>
         </div>
@@ -660,10 +670,17 @@ import Layout from "../../layouts/Layout.astro";
             // Labels
             botLabels: [] as any[],
 
-            // Pagination
+            // Message pagination
             loadingMore: false,
             hasMoreMessages: true,
             messageLimit: 80,
+
+            // Session pagination
+            sessionLimit: 50,
+            sessionOffset: 0,
+            hasMoreSessions: false,
+            loadingMoreSessions: false,
+            totalSessions: 0,
 
             // SSE + fallback polling
             sseClient: null as BotEventSource | null,
@@ -689,8 +706,11 @@ import Layout from "../../layouts/Layout.astro";
                 this.sseClient
                     .on('message:received', (data: any) => {
                         if (this.selectedSession && data.sessionId === this.selectedSession.id) {
-                            this.messages.push(data.message);
-                            this.$nextTick(() => this.scrollToBottom());
+                            // Deduplicate: skip if message ID already exists in the array
+                            if (data.message?.id && !this.messages.some((m: any) => m.id === data.message.id)) {
+                                this.messages.push(data.message);
+                                this.$nextTick(() => this.scrollToBottom());
+                            }
                         }
                         // Update session list lastMessage + move to top
                         const s = this.sessions.find((s: any) => s.id === data.sessionId);
@@ -705,15 +725,16 @@ import Layout from "../../layouts/Layout.astro";
                         }
                     })
                     .on('message:sent', (data: any) => {
-                        if (this.selectedSession && data.sessionId === this.selectedSession.id) {
-                            this.messages.push({
-                                id: `sent_${Date.now()}`,
-                                content: data.content,
-                                fromMe: true,
-                                type: 'TEXT',
-                                createdAt: new Date().toISOString(),
-                            });
-                            this.$nextTick(() => this.scrollToBottom());
+                        // message:sent is a fallback event (fires only when DB persist fails)
+                        // Only update session sidebar — message:received handles the actual message
+                        const s = this.sessions.find((s: any) => s.id === data.sessionId);
+                        if (s) {
+                            s.lastMessage = { content: data.content, fromMe: true, type: 'TEXT', createdAt: new Date().toISOString() };
+                            const idx = this.sessions.indexOf(s);
+                            if (idx > 0) {
+                                this.sessions.splice(idx, 1);
+                                this.sessions.unshift(s);
+                            }
                         }
                     })
                     .on('session:created', (data: any) => {
@@ -826,14 +847,54 @@ import Layout from "../../layouts/Layout.astro";
             // --- Data Loading ---
 
             async loadSessions() {
+                // Reset pagination on fresh load (initial or search change)
+                this.sessionOffset = 0;
                 try {
                     const params = new URLSearchParams();
                     if (this.botId) params.append("botId", this.botId);
                     if (this.searchQuery) params.append("search", this.searchQuery);
+                    params.append("limit", String(this.sessionLimit));
+                    params.append("offset", "0");
                     const res = await ApiClient.get(`/sessions?${params.toString()}`);
                     this.sessions = res.data || [];
+                    this.totalSessions = res.pagination?.total || 0;
+                    this.hasMoreSessions = this.sessions.length < this.totalSessions;
                 } catch (e) {
                     console.error("Failed to load sessions", e);
+                }
+            },
+
+            async loadMoreSessions() {
+                if (this.loadingMoreSessions || !this.hasMoreSessions) return;
+                this.loadingMoreSessions = true;
+                try {
+                    this.sessionOffset += this.sessionLimit;
+                    const params = new URLSearchParams();
+                    if (this.botId) params.append("botId", this.botId);
+                    if (this.searchQuery) params.append("search", this.searchQuery);
+                    params.append("limit", String(this.sessionLimit));
+                    params.append("offset", String(this.sessionOffset));
+                    const res = await ApiClient.get(`/sessions?${params.toString()}`);
+                    const newSessions = res.data || [];
+                    // Avoid duplicates (SSE may have added new sessions)
+                    const existingIds = new Set(this.sessions.map((s: any) => s.id));
+                    for (const s of newSessions) {
+                        if (!existingIds.has(s.id)) this.sessions.push(s);
+                    }
+                    this.totalSessions = res.pagination?.total || this.totalSessions;
+                    this.hasMoreSessions = this.sessions.length < this.totalSessions;
+                } catch (e) {
+                    console.error("Failed to load more sessions", e);
+                    this.sessionOffset -= this.sessionLimit; // rollback offset on failure
+                } finally {
+                    this.loadingMoreSessions = false;
+                }
+            },
+
+            onSessionsScroll(e: Event) {
+                const el = e.target as HTMLElement;
+                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+                    this.loadMoreSessions();
                 }
             },
 
