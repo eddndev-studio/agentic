@@ -72,10 +72,16 @@
 - [x] Imports de `@whiskeysockets/baileys` eliminados de: `message-ingest.service.ts`, `media.service.ts`, `session-helpers.ts`
 - [x] Imports restantes solo en: `baileys.service.ts`, `baileys.normalizer.ts` (provider), `label.service.ts` (fase 5)
 
-### Fase 3: Generalizar StepProcessor (1-2 días)
-- [ ] Crear `NormalizedPayload` para tipos de mensaje (text, image, audio, video, document)
-- [ ] Cada provider implementa `buildPayload(type, content)` → formato nativo
-- [ ] StepProcessor construye `NormalizedPayload`, provider lo traduce
+### Fase 3: Generalizar payloads de salida (completada 2026-04-03)
+- [x] Crear `OutgoingPayload` (discriminated union) en `providers/types.ts` — TEXT, IMAGE, VIDEO, AUDIO, DOCUMENT, REACTION, REPLY
+- [x] Agregar `toNativePayload()` en `baileys.adapter.ts` — traduce OutgoingPayload → formato nativo Baileys
+- [x] Cambiar `IMessagingProvider.sendMessage` para aceptar `OutgoingPayload` en vez de `Record<string, unknown>`
+- [x] Migrar `StepProcessor.ts` — payloads genéricos, extraer helper `buildStepPayload()`
+- [x] Migrar `ToolExecutor.ts` — flow steps, reply_to_message, send_followup, notify
+- [x] Migrar `session.controller.ts` — send endpoint y react endpoint
+- [x] Migrar `main-process-client.ts` y `/internal/send` — tipado OutgoingPayload end-to-end
+- [x] Migrar `notification.service.ts` — payload TEXT normalizado
+- [x] Eliminar guard `Platform.WHATSAPP` del StepProcessor (payloads ahora son platform-agnostic)
 
 ### Fase 4: Implementar WhatsAppBusinessAPIProvider (3-5 días)
 - [ ] Implementar `IMessagingProvider` para la API oficial

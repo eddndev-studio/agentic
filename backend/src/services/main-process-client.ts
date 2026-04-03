@@ -57,8 +57,7 @@ async function post(path: string, body: Record<string, unknown>): Promise<any> {
 }
 
 export const mainProcessClient = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys content structure
-    async sendMessage(botId: string, target: string, payload: any): Promise<void> {
+    async sendMessage(botId: string, target: string, payload: import('../providers/types').OutgoingPayload): Promise<void> {
         await post("/internal/send", { botId, target, payload });
     },
 
@@ -96,7 +95,6 @@ export const mainProcessClient = {
  * Standalone sendMessage function for backward compatibility.
  * Delegates to mainProcessClient.sendMessage.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys content structure
-export async function sendMessage(botId: string, target: string, payload: any): Promise<void> {
+export async function sendMessage(botId: string, target: string, payload: import('../providers/types').OutgoingPayload): Promise<void> {
     await mainProcessClient.sendMessage(botId, target, payload);
 }

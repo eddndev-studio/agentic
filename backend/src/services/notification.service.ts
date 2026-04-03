@@ -105,7 +105,7 @@ class NotificationService {
 
             try {
                 const provider = await providerRegistry.forBot(event.botId);
-                await provider.sendMessage(event.botId, session.identifier, { text: message });
+                await provider.sendMessage(event.botId, session.identifier, { type: 'TEXT', text: message });
 
                 await prisma.message.create({
                     data: {

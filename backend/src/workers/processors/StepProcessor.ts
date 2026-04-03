@@ -2,10 +2,11 @@ import { Job } from "bullmq";
 import { prisma } from "../../services/postgres.service";
 import { flowEngine } from "../../core/flow";
 import { BotConfigService } from "../../services/bot-config.service";
-import { Step, Execution, Session, Platform } from "@prisma/client";
+import { Step, Execution, Session } from "@prisma/client";
 import { sendMessage } from "../../services/message-sender";
 import { safeParseStepMetadata } from "../../schemas";
 import { createLogger } from "../../logger";
+import type { OutgoingPayload } from "../../providers/types";
 
 const log = createLogger('StepProcessor');
 
@@ -81,64 +82,60 @@ export class StepProcessor {
 
         log.info(`Executing step type ${step.type} for ${target} on ${platform}`);
 
-        if (platform === Platform.WHATSAPP) {
-            switch (step.type) {
-                case 'TEXT': {
-                    const textPayload: Record<string, unknown> = { text: interpolate(step.content || "") };
-                    if (safeParseStepMetadata(step.metadata).linkPreview === false) {
-                        textPayload.skipLinkPreview = true;
-                    }
-                    await sendMessage(botId, target, textPayload);
-                    break;
-                }
-                case 'IMAGE': {
-                    const imageUrl = resolveMedia(step.mediaUrl);
-                    if (imageUrl) {
-                        await sendMessage(botId, target, { image: { url: imageUrl }, caption: interpolate(step.content || "") });
-                    } else {
-                        log.warn(`IMAGE step ${step.id} has no mediaUrl after interpolation, skipping`);
-                    }
-                    break;
-                }
-                case 'VIDEO': {
-                    const videoUrl = resolveMedia(step.mediaUrl);
-                    if (videoUrl) {
-                        await sendMessage(botId, target, { video: { url: videoUrl }, caption: interpolate(step.content || "") });
-                    } else {
-                        log.warn(`VIDEO step ${step.id} has no mediaUrl after interpolation, skipping`);
-                    }
-                    break;
-                }
-                case 'AUDIO':
-                case 'PTT': {
-                    const audioUrl = resolveMedia(step.mediaUrl);
-                    if (audioUrl) {
-                        await sendMessage(botId, target, { audio: { url: audioUrl }, ptt: step.type === 'PTT' });
-                    } else {
-                        log.warn(`${step.type} step ${step.id} has no mediaUrl after interpolation, skipping`);
-                    }
-                    break;
-                }
-                case 'DOCUMENT': {
-                    const docUrl = resolveMedia(step.mediaUrl);
-                    if (docUrl) {
-                        await sendMessage(botId, target, { document: { url: docUrl }, caption: interpolate(step.content || "") });
-                    } else {
-                        log.warn(`DOCUMENT step ${step.id} has no mediaUrl after interpolation, skipping`);
-                    }
-                    break;
-                }
-
-                case 'CONDITIONAL_TIME':
-                    await this.executeConditionalTime(botId, target, step, botVars, resolvedVars);
-                    break;
-
-                default:
-                    log.warn(`Unsupported step type ${step.type} for WhatsApp`);
+        switch (step.type) {
+            case 'TEXT': {
+                const payload: OutgoingPayload = {
+                    type: 'TEXT',
+                    text: interpolate(step.content || ""),
+                    ...(safeParseStepMetadata(step.metadata).linkPreview === false ? { skipLinkPreview: true } : {}),
+                };
+                await sendMessage(botId, target, payload);
+                break;
             }
-        } else {
-            // Fallback for other platforms (Telegram, etc.)
-            log.info(`[${platform}] Sending to ${target}: ${step.type}`);
+            case 'IMAGE': {
+                const imageUrl = resolveMedia(step.mediaUrl);
+                if (imageUrl) {
+                    await sendMessage(botId, target, { type: 'IMAGE', url: imageUrl, caption: interpolate(step.content || "") });
+                } else {
+                    log.warn(`IMAGE step ${step.id} has no mediaUrl after interpolation, skipping`);
+                }
+                break;
+            }
+            case 'VIDEO': {
+                const videoUrl = resolveMedia(step.mediaUrl);
+                if (videoUrl) {
+                    await sendMessage(botId, target, { type: 'VIDEO', url: videoUrl, caption: interpolate(step.content || "") });
+                } else {
+                    log.warn(`VIDEO step ${step.id} has no mediaUrl after interpolation, skipping`);
+                }
+                break;
+            }
+            case 'AUDIO':
+            case 'PTT': {
+                const audioUrl = resolveMedia(step.mediaUrl);
+                if (audioUrl) {
+                    await sendMessage(botId, target, { type: 'AUDIO', url: audioUrl, ptt: step.type === 'PTT' });
+                } else {
+                    log.warn(`${step.type} step ${step.id} has no mediaUrl after interpolation, skipping`);
+                }
+                break;
+            }
+            case 'DOCUMENT': {
+                const docUrl = resolveMedia(step.mediaUrl);
+                if (docUrl) {
+                    await sendMessage(botId, target, { type: 'DOCUMENT', url: docUrl, caption: interpolate(step.content || "") });
+                } else {
+                    log.warn(`DOCUMENT step ${step.id} has no mediaUrl after interpolation, skipping`);
+                }
+                break;
+            }
+
+            case 'CONDITIONAL_TIME':
+                await this.executeConditionalTime(botId, target, step, botVars, resolvedVars);
+                break;
+
+            default:
+                log.warn(`Unsupported step type ${step.type} for platform ${platform}`);
         }
     }
 
@@ -231,22 +228,9 @@ export class StepProcessor {
                 matchFound = true;
 
                 // Execute the content of the branch
-                const payload: Record<string, unknown> = {};
                 const branchMediaUrl = resolveMedia(branch.mediaUrl);
-                if (branch.type === 'TEXT') {
-                    payload.text = interpolate(branch.content || "");
-                } else if (branch.type === 'IMAGE' && branchMediaUrl) {
-                    payload.image = { url: branchMediaUrl };
-                    payload.caption = interpolate(branch.content || "");
-                } else if (branch.type === 'VIDEO' && branchMediaUrl) {
-                    payload.video = { url: branchMediaUrl };
-                    payload.caption = interpolate(branch.content || "");
-                } else if (branch.type === 'AUDIO' && branchMediaUrl) {
-                    payload.audio = { url: branchMediaUrl };
-                    payload.ptt = true; // Default to PTT for audio in conditional for now
-                }
-
-                if (Object.keys(payload).length > 0) {
+                const payload = this.buildStepPayload(branch.type || 'TEXT', interpolate(branch.content || ""), branchMediaUrl);
+                if (payload) {
                     await sendMessage(botId, target, payload);
                 }
                 break; // Stop after first match
@@ -256,25 +240,30 @@ export class StepProcessor {
         if (!matchFound && metadata.fallback) {
             log.info('No time match found, executing fallback');
             const fb = metadata.fallback;
-            const payload: Record<string, unknown> = {};
             const fbMediaUrl = resolveMedia(fb.mediaUrl);
-
-            if (fb.type === 'TEXT') {
-                payload.text = interpolate(fb.content || "");
-            } else if (fb.type === 'IMAGE' && fbMediaUrl) {
-                payload.image = { url: fbMediaUrl };
-                payload.caption = interpolate(fb.content || "");
-            } else if (fb.type === 'VIDEO' && fbMediaUrl) {
-                payload.video = { url: fbMediaUrl };
-                payload.caption = interpolate(fb.content || "");
-            } else if (fb.type === 'AUDIO' && fbMediaUrl) {
-                payload.audio = { url: fbMediaUrl };
-                payload.ptt = true;
-            }
-
-            if (Object.keys(payload).length > 0) {
+            const payload = this.buildStepPayload(fb.type || 'TEXT', interpolate(fb.content || ""), fbMediaUrl);
+            if (payload) {
                 await sendMessage(botId, target, payload);
             }
+        }
+    }
+
+    /** Build an OutgoingPayload from a step/branch type, text content, and optional media URL. */
+    private static buildStepPayload(type: string, text: string, mediaUrl: string | null): OutgoingPayload | null {
+        switch (type) {
+            case 'TEXT':
+                return { type: 'TEXT', text };
+            case 'IMAGE':
+                return mediaUrl ? { type: 'IMAGE', url: mediaUrl, caption: text } : null;
+            case 'VIDEO':
+                return mediaUrl ? { type: 'VIDEO', url: mediaUrl, caption: text } : null;
+            case 'AUDIO':
+            case 'PTT':
+                return mediaUrl ? { type: 'AUDIO', url: mediaUrl, ptt: type === 'PTT' } : null;
+            case 'DOCUMENT':
+                return mediaUrl ? { type: 'DOCUMENT', url: mediaUrl, caption: text } : null;
+            default:
+                return null;
         }
     }
 }

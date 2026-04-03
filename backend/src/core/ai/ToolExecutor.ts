@@ -1,5 +1,6 @@
 import { prisma } from "../../services/postgres.service";
 import { providerRegistry } from "../../providers/registry";
+import type { OutgoingPayload } from "../../providers/types";
 import { BotConfigService, type BotWithTemplate } from "../../services/bot-config.service";
 import { isBuiltinTool } from "./builtin-tools";
 import { eventBus } from "../../services/event-bus";
@@ -195,27 +196,15 @@ export class ToolExecutor {
                     }
                     console.log(`[ToolExecutor] Flow '${flow.name}' step ${step.order} (TOOL:${toolName}) done:`, toolResult.data);
                 } else if (step.type === "TEXT" && content) {
-                    await flowProvider.sendMessage(botId, session.identifier, { text: content });
+                    await flowProvider.sendMessage(botId, session.identifier, { type: 'TEXT', text: content });
                 } else if (step.type === "IMAGE" && mediaUrl) {
-                    await flowProvider.sendMessage(botId, session.identifier, {
-                        image: { url: mediaUrl },
-                        caption: content || undefined,
-                    });
+                    await flowProvider.sendMessage(botId, session.identifier, { type: 'IMAGE', url: mediaUrl, caption: content || undefined });
                 } else if (step.type === "VIDEO" && mediaUrl) {
-                    await flowProvider.sendMessage(botId, session.identifier, {
-                        video: { url: mediaUrl },
-                        caption: content || undefined,
-                    });
+                    await flowProvider.sendMessage(botId, session.identifier, { type: 'VIDEO', url: mediaUrl, caption: content || undefined });
                 } else if ((step.type === "AUDIO" || step.type === "PTT") && mediaUrl) {
-                    await flowProvider.sendMessage(botId, session.identifier, {
-                        audio: { url: mediaUrl },
-                        ptt: step.type === "PTT",
-                    });
+                    await flowProvider.sendMessage(botId, session.identifier, { type: 'AUDIO', url: mediaUrl, ptt: step.type === "PTT" });
                 } else if (step.type === "DOCUMENT" && mediaUrl) {
-                    await flowProvider.sendMessage(botId, session.identifier, {
-                        document: { url: mediaUrl },
-                        caption: content || undefined,
-                    });
+                    await flowProvider.sendMessage(botId, session.identifier, { type: 'DOCUMENT', url: mediaUrl, caption: content || undefined });
                 }
                 sentCount++;
                 await prisma.execution.update({
@@ -605,12 +594,11 @@ export class ToolExecutor {
 
                 const replyProvider = await providerRegistry.forBot(botId);
                 await replyProvider.sendMessage(botId, session.identifier, {
+                    type: 'REPLY',
                     text: replyText,
-                    contextInfo: {
-                        stanzaId: messageId,
-                        participant: originalMsg.sender,
-                        quotedMessage: { conversation: originalMsg.content || "" },
-                    },
+                    quotedId: messageId,
+                    quotedSender: originalMsg.sender,
+                    quotedText: originalMsg.content || "",
                 });
 
                 return { success: true, data: "Mensaje enviado.", sentMessages: true };
@@ -634,7 +622,7 @@ export class ToolExecutor {
 
                 // Send message via WhatsApp
                 const followupProvider = await providerRegistry.forBot(botId);
-                await followupProvider.sendMessage(botId, targetSession.identifier, { text: messageText });
+                await followupProvider.sendMessage(botId, targetSession.identifier, { type: 'TEXT', text: messageText });
 
                 // Persist message in DB
                 await prisma.message.create({
@@ -733,7 +721,7 @@ export class ToolExecutor {
                     const notifSession = await prisma.session.findUnique({ where: { id: ch.sessionId } });
                     if (!notifSession) continue;
 
-                    await notifyProvider.sendMessage(botId, notifSession.identifier, { text: formattedMsg });
+                    await notifyProvider.sendMessage(botId, notifSession.identifier, { type: 'TEXT', text: formattedMsg });
 
                     await prisma.message.create({
                         data: {

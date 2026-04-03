@@ -357,42 +357,39 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             return { error: "Session not found" };
         }
 
-        // Build Baileys content based on mediaType
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Baileys content varies by type
-        let content: any;
+        // Build normalized outgoing payload
+        let content: import('../providers/types').OutgoingPayload;
         let msgType = 'TEXT';
-        let textContent = body.text || '';
 
         if (body.mediaUrl && body.mediaType) {
             const url = body.mediaUrl;
             const caption = body.text || undefined;
             switch (body.mediaType) {
                 case 'IMAGE':
-                    content = { image: { url }, caption };
+                    content = { type: 'IMAGE', url, caption };
                     msgType = 'IMAGE';
                     break;
                 case 'VIDEO':
-                    content = { video: { url }, caption };
+                    content = { type: 'VIDEO', url, caption };
                     msgType = 'VIDEO';
                     break;
                 case 'AUDIO':
-                    content = { audio: { url }, mimetype: 'audio/mpeg' };
+                    content = { type: 'AUDIO', url, mimetype: 'audio/mpeg' };
                     msgType = 'AUDIO';
                     break;
                 case 'PTT':
-                    content = { audio: { url }, ptt: true, mimetype: 'audio/ogg; codecs=opus' };
+                    content = { type: 'AUDIO', url, ptt: true, mimetype: 'audio/ogg; codecs=opus' };
                     msgType = 'PTT';
                     break;
                 case 'DOCUMENT':
-                    content = { document: { url }, mimetype: 'application/octet-stream', fileName: body.fileName || 'file', caption };
+                    content = { type: 'DOCUMENT', url, mimetype: 'application/octet-stream', fileName: body.fileName || 'file', caption };
                     msgType = 'DOCUMENT';
                     break;
                 default:
-                    content = { text: textContent };
+                    content = { type: 'TEXT', text: body.text || '' };
             }
-            textContent = caption || '';
         } else {
-            content = { text: textContent };
+            content = { type: 'TEXT', text: body.text || '' };
         }
 
         const sendProvider = await providerRegistry.forBot(session.botId);
@@ -607,14 +604,11 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
 
         const reactProvider = await providerRegistry.forBot(session.botId);
         const sent = await reactProvider.sendMessage(session.botId, session.identifier, {
-            react: {
-                text: body.emoji,
-                key: {
-                    remoteJid: session.identifier,
-                    id: message.externalId,
-                    fromMe: message.fromMe,
-                },
-            },
+            type: 'REACTION',
+            emoji: body.emoji,
+            targetId: message.externalId!,
+            targetSender: message.sender,
+            targetFromMe: message.fromMe,
         });
 
         if (!sent) { set.status = 500; return { error: "Failed to send reaction" }; }

@@ -41,6 +41,17 @@ export interface NormalizedMessage {
     timestamp?: Date;
 }
 
+// ── Normalized outgoing payload (provider-agnostic) ────────────────────────
+
+export type OutgoingPayload =
+    | { type: 'TEXT'; text: string; skipLinkPreview?: boolean }
+    | { type: 'IMAGE'; url: string; caption?: string }
+    | { type: 'VIDEO'; url: string; caption?: string }
+    | { type: 'AUDIO'; url: string; ptt?: boolean; mimetype?: string }
+    | { type: 'DOCUMENT'; url: string; caption?: string; mimetype?: string; fileName?: string }
+    | { type: 'REACTION'; emoji: string; targetId: string; targetSender: string; targetFromMe: boolean }
+    | { type: 'REPLY'; text: string; quotedId: string; quotedSender: string; quotedText?: string };
+
 // ── Connection status ───────────────────────────────────────────────────────
 
 export interface ConnectionStatus {
@@ -62,7 +73,7 @@ export interface IMessagingProvider {
     requestPairingCode(botId: string, phoneNumber: string): Promise<string>;
 
     // ── Messaging ────────────────────────────────────────────────────────────
-    sendMessage(botId: string, to: string, content: Record<string, unknown>): Promise<boolean>;
+    sendMessage(botId: string, to: string, payload: OutgoingPayload): Promise<boolean>;
     markRead(botId: string, chatId: string, messageIds: string[]): Promise<void>;
     sendPresence(botId: string, chatId: string, presence: 'composing' | 'paused'): Promise<void>;
 

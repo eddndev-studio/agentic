@@ -202,7 +202,7 @@ const app = new Elysia({ adapter: node() })
     })
     // Internal endpoint for the standalone worker to send messages via provider
     .post("/internal/send", async ({ body, set }) => {
-        const { botId, target, payload } = body as { botId: string; target: string; payload: Record<string, unknown> };
+        const { botId, target, payload } = body as { botId: string; target: string; payload: import('./providers/types').OutgoingPayload };
         try {
             const provider = await providerRegistry.forBot(botId);
             await provider.sendMessage(botId, target, payload);
