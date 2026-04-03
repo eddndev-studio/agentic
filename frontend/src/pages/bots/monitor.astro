@@ -60,8 +60,10 @@ import Layout from "../../layouts/Layout.astro";
                         <!-- Session info -->
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-baseline">
-                                <span class="font-medium text-[15px] text-wa-text-primary truncate" x-text="s.name || s.identifier"></span>
-                                <span class="text-xs text-wa-text-secondary flex-shrink-0 ml-2" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
+                                <span class="text-[15px] truncate" :class="unreadCounts[s.id] > 0 ? 'font-bold text-white' : 'font-medium text-wa-text-primary'" x-text="s.name || s.identifier"></span>
+                                <div class="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                    <span class="text-xs" :class="unreadCounts[s.id] > 0 ? 'text-wa-green font-medium' : 'text-wa-text-secondary'" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
+                                </div>
                             </div>
                             <div x-show="s.name && s.identifier && s.name !== s.identifier" class="text-[11px] text-wa-text-secondary font-mono truncate" x-text="s.identifier?.split('@')[0]?.replace(/^(\d{2})(\d{2})(\d{4})(\d{4})$/, '+$1 $2 $3 $4')" style="display:none;"></div>
                             <div class="flex items-center gap-1 mt-0.5">
@@ -72,7 +74,9 @@ import Layout from "../../layouts/Layout.astro";
                                         <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
                                     </svg>
                                 </template>
-                                <span class="text-sm text-wa-text-secondary truncate" x-text="s.lastMessage?.content || ''"></span>
+                                <span class="text-sm truncate" :class="unreadCounts[s.id] > 0 ? 'text-wa-text-primary font-medium' : 'text-wa-text-secondary'" x-text="s.lastMessage?.content || ''"></span>
+                                <!-- Unread badge -->
+                                <span x-show="unreadCounts[s.id] > 0" class="ml-auto flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-wa-green text-white text-[11px] font-bold flex items-center justify-center" x-text="unreadCounts[s.id] > 99 ? '99+' : unreadCounts[s.id]"></span>
                             </div>
                             <!-- Labels -->
                             <div x-show="s.labels?.length" class="mt-1 flex flex-wrap gap-1">
@@ -650,6 +654,7 @@ import Layout from "../../layouts/Layout.astro";
             messageInput: "",
             searchQuery: "",
             sending: false,
+            unreadCounts: {} as Record<string, number>,
 
             // Modals
             showForceAIModal: false,
@@ -713,6 +718,9 @@ import Layout from "../../layouts/Layout.astro";
                                 this.messages.push(data.message);
                                 this.$nextTick(() => this.scrollToBottom());
                             }
+                        } else if (!data.message?.fromMe) {
+                            // Increment unread for non-selected sessions (only incoming)
+                            this.unreadCounts[data.sessionId] = (this.unreadCounts[data.sessionId] || 0) + 1;
                         }
                         // Update session list lastMessage + move to top
                         const s = this.sessions.find((s: any) => s.id === data.sessionId);
@@ -906,6 +914,7 @@ import Layout from "../../layouts/Layout.astro";
 
             async selectSession(session: any) {
                 this.selectedSession = session;
+                this.unreadCounts[session.id] = 0; // clear unread badge
                 this.messages = [];
                 this.hasMoreMessages = true;
                 this.loadingMore = false;
