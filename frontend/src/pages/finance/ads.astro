@@ -381,7 +381,7 @@ import FinanceNav from "../../components/FinanceNav.astro";
                         ApiClient.get("/finance/facebook/connection").catch(() => null),
                         ApiClient.get("/finance/workers?active=true"),
                     ]);
-                    this.connection = conn;
+                    this.connection = conn?.connected ? conn : null;
                     this.activeWorkers = workers;
 
                     if (this.connection) {
