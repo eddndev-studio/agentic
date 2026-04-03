@@ -238,7 +238,7 @@ import FinanceNav from "../../components/FinanceNav.astro";
                 </div>
 
                 <!-- Campaigns table with expandable rows -->
-                <div x-show="!loadingCampaigns && campaigns.length > 0" class="border border-wa-border rounded-xl overflow-hidden" style="display:none;">
+                <div x-show="!loadingCampaigns && campaigns.length > 0" class="border border-wa-border rounded-xl overflow-clip" style="display:none;">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>

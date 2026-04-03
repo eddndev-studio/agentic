@@ -70,41 +70,41 @@ import FinanceNav from "../../components/FinanceNav.astro";
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
                         <div class="text-xs text-wa-green font-medium mb-1" x-text="$t('fin_total_income')">Ingresos</div>
-                        <div class="text-xl font-light" x-text="fmt(data.totalIncome)">$0</div>
+                        <div class="text-xl font-light" x-text="fmt(data?.totalIncome)">$0</div>
                     </div>
                     <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
                         <div class="text-xs text-blue-400 font-medium mb-1" x-text="$t('fin_total_salaries')">Salarios</div>
-                        <div class="text-xl font-light" x-text="fmt(data.totalSalaries)">$0</div>
+                        <div class="text-xl font-light" x-text="fmt(data?.totalSalaries)">$0</div>
                     </div>
                     <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
                         <div class="text-xs text-purple-400 font-medium mb-1" x-text="$t('fin_total_ad_spend')">Gasto Ads</div>
-                        <div class="text-xl font-light" x-text="fmt(data.totalAdSpend)">$0</div>
+                        <div class="text-xl font-light" x-text="fmt(data?.totalAdSpend)">$0</div>
                     </div>
                     <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
                         <div class="text-xs text-orange-400 font-medium mb-1" x-text="$t('fin_total_expenses')">Gastos Fijos</div>
-                        <div class="text-xl font-light" x-text="fmt(data.totalExpenses)">$0</div>
+                        <div class="text-xl font-light" x-text="fmt(data?.totalExpenses)">$0</div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
                         <div class="text-xs text-wa-text-secondary font-medium mb-1" x-text="$t('fin_total_investment')">Inversion Total</div>
-                        <div class="text-xl font-light" x-text="fmt(data.totalInvestment)">$0</div>
+                        <div class="text-xl font-light" x-text="fmt(data?.totalInvestment)">$0</div>
                     </div>
                     <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4">
                         <div class="text-xs text-yellow-400 font-medium mb-1" x-text="$t('fin_target_30')">Meta (30%)</div>
-                        <div class="text-xl font-light" x-text="fmt(data.target30)">$0</div>
+                        <div class="text-xl font-light" x-text="fmt(data?.target30)">$0</div>
                     </div>
                     <div class="bg-wa-bg-panel border border-wa-border rounded-xl p-4"
-                         :class="data.pureProfit >= 0 ? 'border-emerald-500/30' : 'border-red-500/30'"
+                         :class="data?.pureProfit >= 0 ? 'border-emerald-500/30' : 'border-red-500/30'"
                     >
                         <div class="text-xs font-medium mb-1"
-                             :class="data.pureProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                             :class="data?.pureProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
                              x-text="$t('fin_pure_profit')"
                         >Ganancia Neta</div>
                         <div class="text-xl font-bold"
-                             :class="data.pureProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
-                             x-text="fmt(data.pureProfit)"
+                             :class="data?.pureProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                             x-text="fmt(data?.pureProfit)"
                         >$0</div>
                     </div>
                 </div>
