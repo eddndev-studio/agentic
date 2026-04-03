@@ -198,7 +198,7 @@ import HelpNav from "../../components/HelpNav.astro";
             <div class="space-y-4">
                 <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4">
                     <h3 class="text-sm font-bold text-emerald-400 mb-2">TEXT — Enviar mensaje de texto</h3>
-                    <p class="text-xs text-wa-text-secondary mb-3">Envia un mensaje de texto al cliente. Puedes usar variables como <code class="text-wa-green bg-wa-bg-panel px-1 py-0.5 rounded">{{PRECIO}}</code> dentro del texto.</p>
+                    <p class="text-xs text-wa-text-secondary mb-3">Envia un mensaje de texto al cliente. Puedes usar variables como <code class="text-wa-green bg-wa-bg-panel px-1 py-0.5 rounded">{'{{PRECIO}}'}</code> dentro del texto.</p>
                     <div class="bg-wa-bg-panel rounded-lg p-3">
                         <p class="text-xs text-white italic">"Hola! Gracias por contactarnos. Somos Gestoria Express, especialistas en tramites de licencia de conducir en CDMX. En que te podemos ayudar?"</p>
                     </div>
@@ -214,7 +214,7 @@ import HelpNav from "../../components/HelpNav.astro";
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-wa-text-secondary">Variable:</span>
-                            <code class="text-xs text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{{FOTO_REQUISITOS}}</code>
+                            <code class="text-xs text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{'{{FOTO_REQUISITOS}}'}</code>
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-wa-text-secondary">Caption:</span>
@@ -246,8 +246,8 @@ import HelpNav from "../../components/HelpNav.astro";
                     <p class="text-xs text-wa-text-secondary mb-3">Evalua una condicion y ejecuta diferentes pasos segun el resultado. Util para personalizar respuestas basadas en variables o datos del cliente.</p>
                     <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
                         <p class="text-xs text-wa-text-secondary">Ejemplo:</p>
-                        <p class="text-xs text-white">Si <code class="text-wa-green bg-wa-bg-deep px-1 py-0.5 rounded">{{TIPO_LICENCIA}}</code> = "A" &rarr; Mostrar precio tipo A</p>
-                        <p class="text-xs text-white">Si <code class="text-wa-green bg-wa-bg-deep px-1 py-0.5 rounded">{{TIPO_LICENCIA}}</code> = "B" &rarr; Mostrar precio tipo B</p>
+                        <p class="text-xs text-white">Si <code class="text-wa-green bg-wa-bg-deep px-1 py-0.5 rounded">{'{{TIPO_LICENCIA}}'}</code> = "A" &rarr; Mostrar precio tipo A</p>
+                        <p class="text-xs text-white">Si <code class="text-wa-green bg-wa-bg-deep px-1 py-0.5 rounded">{'{{TIPO_LICENCIA}}'}</code> = "B" &rarr; Mostrar precio tipo B</p>
                     </div>
                 </div>
 
@@ -257,7 +257,7 @@ import HelpNav from "../../components/HelpNav.astro";
                     <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-wa-text-secondary">Variable:</span>
-                            <code class="text-xs text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{{PDF_REQUISITOS}}</code>
+                            <code class="text-xs text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{'{{PDF_REQUISITOS}}'}</code>
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-wa-text-secondary">Nombre:</span>
@@ -311,13 +311,13 @@ import HelpNav from "../../components/HelpNav.astro";
         <!-- ═══════════════════════════════════════════════════════ -->
         <section id="variables-en-flujos" class="space-y-4">
             <h2 class="text-lg font-bold text-white border-b border-wa-border pb-2">Usar variables en flujos</h2>
-            <p class="text-sm text-wa-text-secondary">Las variables te permiten insertar datos dinamicos en los mensajes de tus flujos. Se escriben entre dobles llaves <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{{NOMBRE}}</code> y se reemplazan automaticamente cuando el bot envia el mensaje.</p>
+            <p class="text-sm text-wa-text-secondary">Las variables te permiten insertar datos dinamicos en los mensajes de tus flujos. Se escriben entre dobles llaves <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{'{{NOMBRE}}'}</code> y se reemplazan automaticamente cuando el bot envia el mensaje.</p>
 
             <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 max-w-lg">
                 <p class="text-xs text-wa-text-secondary mb-3">Ejemplo de mensaje con variables:</p>
                 <div class="bg-wa-bg-panel rounded-lg p-3 space-y-2">
                     <p class="text-xs text-white/50 font-mono mb-2">Mensaje en el flujo:</p>
-                    <p class="text-xs text-white italic">"El precio de la licencia tipo B es de <span class="text-wa-green font-mono not-italic">{{PRECIO_LICENCIA_B}}</span>. El tramite tarda <span class="text-wa-green font-mono not-italic">{{DIAS_TRAMITE}}</span> dias habiles."</p>
+                    <p class="text-xs text-white italic">"El precio de la licencia tipo B es de <span class="text-wa-green font-mono not-italic">{'{{PRECIO_LICENCIA_B}}'}</span>. El tramite tarda <span class="text-wa-green font-mono not-italic">{'{{DIAS_TRAMITE}}'}</span> dias habiles."</p>
                     <hr class="border-wa-border my-3">
                     <p class="text-xs text-white/50 font-mono mb-2">Lo que recibe el cliente:</p>
                     <p class="text-xs text-white italic">"El precio de la licencia tipo B es de <span class="text-emerald-400">$2,500 MXN</span>. El tramite tarda <span class="text-emerald-400">3</span> dias habiles."</p>
@@ -386,7 +386,7 @@ import HelpNav from "../../components/HelpNav.astro";
             </div>
 
             <div class="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
-                <p class="text-xs text-yellow-300"><strong>Importante:</strong> Al importar flujos, las variables referenciadas deben existir en el bot destino. Si un flujo usa <code class="text-wa-green">{{PRECIO_LICENCIA}}</code>, asegurate de que esa variable este creada en el bot.</p>
+                <p class="text-xs text-yellow-300"><strong>Importante:</strong> Al importar flujos, las variables referenciadas deben existir en el bot destino. Si un flujo usa <code class="text-wa-green">{'{{PRECIO_LICENCIA}}'}</code>, asegurate de que esa variable este creada en el bot.</p>
             </div>
         </section>
 

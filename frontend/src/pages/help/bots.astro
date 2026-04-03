@@ -207,21 +207,21 @@ import HelpNav from "../../components/HelpNav.astro";
                 <p class="text-xs text-wa-text-secondary mb-3">Ejemplo de variables:</p>
                 <div class="space-y-2">
                     <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
-                        <span class="text-xs text-wa-green font-mono">{{PRECIO_LICENCIA}}</span>
+                        <span class="text-xs text-wa-green font-mono">{'{{PRECIO_LICENCIA}}'}</span>
                         <span class="text-xs text-white">$2,500 MXN</span>
                     </div>
                     <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
-                        <span class="text-xs text-wa-green font-mono">{{HORARIO}}</span>
+                        <span class="text-xs text-wa-green font-mono">{'{{HORARIO}}'}</span>
                         <span class="text-xs text-white">Lunes a Viernes 9am-6pm</span>
                     </div>
                     <div class="flex items-center justify-between bg-wa-bg-panel rounded-lg px-3 py-2">
-                        <span class="text-xs text-wa-green font-mono">{{LINK_PAGO}}</span>
+                        <span class="text-xs text-wa-green font-mono">{'{{LINK_PAGO}}'}</span>
                         <span class="text-xs text-white">https://pay.example.com/lic</span>
                     </div>
                 </div>
             </div>
 
-            <p class="text-xs text-wa-text-secondary">En tus flujos, usa <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{{NOMBRE_VARIABLE}}</code> y el bot lo reemplazara automaticamente con el valor actual.</p>
+            <p class="text-xs text-wa-text-secondary">En tus flujos, usa <code class="text-wa-green bg-wa-bg-deep px-1.5 py-0.5 rounded">{'{{NOMBRE_VARIABLE}}'}</code> y el bot lo reemplazara automaticamente con el valor actual.</p>
         </section>
 
         <!-- ═══════════════════════════════════════════════════════ -->
