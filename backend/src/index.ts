@@ -180,6 +180,7 @@ import { logsController } from "./api/logs.controller";
 import { emulatorController } from "./api/emulator.controller";
 import { publicController } from "./api/public.controller";
 import { financeController } from "./api/finance.controller";
+import { orgController } from "./api/org.controller";
 const ALLOWED_ORIGINS = new Set(config.server.corsOrigins);
 
 const app = new Elysia({ adapter: node() })
@@ -285,6 +286,7 @@ const app = new Elysia({ adapter: node() })
     .use(logsController)
     .use(emulatorController)
     .use(financeController)
+    .use(orgController)
     .get("/", () => "Agentic Orchestrator Active")
     .get("/health", () => ({ status: "ok", timestamp: new Date().toISOString() }))
     .get("/info", () => ({

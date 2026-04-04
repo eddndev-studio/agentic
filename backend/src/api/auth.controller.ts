@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { AuthService } from "../services/auth.service";
+import { OrgService } from "../services/org.service";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 export const authController = new Elysia({ prefix: "/auth" })
@@ -142,6 +143,46 @@ export const authController = new Elysia({ prefix: "/auth" })
         body: t.Object({
             token: t.String(),
             password: t.String({ minLength: 8 })
+        })
+    })
+
+    .post("/accept-invite", async ({ body, jwt, set }) => {
+        try {
+            const membership = await OrgService.acceptInvitation(
+                body.token,
+                null,
+                body.password ? { email: body.email!, password: body.password, fullName: body.fullName! } : undefined
+            );
+
+            // If user provided credentials, generate a token for them
+            if (body.password) {
+                const token = await jwt.sign({
+                    id: membership.userId,
+                    email: body.email,
+                    orgId: membership.orgId,
+                    role: membership.role,
+                    exp: Math.floor(Date.now() / 1000) + 86400
+                });
+                return { token, membership };
+            }
+
+            return { success: true, membership };
+        } catch (e: any) {
+            const map: Record<string, [number, string]> = {
+                INVITATION_NOT_FOUND: [404, "Invitation not found"],
+                INVITATION_ALREADY_ACCEPTED: [409, "Invitation already accepted"],
+                INVITATION_EXPIRED: [410, "Invitation has expired"],
+            };
+            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            set.status = status;
+            return { error: msg };
+        }
+    }, {
+        body: t.Object({
+            token: t.String(),
+            email: t.Optional(t.String({ format: "email" })),
+            password: t.Optional(t.String({ minLength: 8 })),
+            fullName: t.Optional(t.String())
         })
     })
 
