@@ -32,11 +32,14 @@
   --radius-full: 9999px;
 }
 
+/* Ensure bg covers viewport even when content is short */
+html {
+  background-color: var(--color-wa-bg-deep);
+}
+
 /* Body */
 body {
   @apply bg-wa-bg-deep text-wa-text-primary font-sans antialiased;
-  min-height: 100dvh;
-  overflow-y: auto;
 }
 
 /* Custom Scrollbar */
