@@ -1,0 +1,48 @@
+        <!-- Tab bar -->
+        <div class="flex gap-1 border-b border-wa-border mb-6 overflow-x-auto">
+            <button @click="activeTab = 'flows'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'flows' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Flujos
+            </button>
+            <button @click="activeTab = 'config'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Config IA
+            </button>
+            <button @click="activeTab = 'labels'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'labels' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Etiquetas
+            </button>
+            <button @click="activeTab = 'tools'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'tools' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Herramientas
+            </button>
+            <button @click="activeTab = 'automations'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'automations' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Automatizaciones
+            </button>
+            <button @click="activeTab = 'variables'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'variables' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Variables
+            </button>
+            <button @click="activeTab = 'notifications'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'notifications' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Notificaciones
+            </button>
+            <button @click="activeTab = 'clients'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'clients' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Clientes
+            </button>
+            <button @click="activeTab = 'logs'; updateTabUrl(); if (!logsLoaded) { loadLogs(); logsLoaded = true; }"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'logs' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Registros
+            </button>
+        </div>

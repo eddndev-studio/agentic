@@ -1,0 +1,141 @@
+<div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
+    <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('automations')">Automatizaciones</h3>
+    <button @click="openCreateAutomation()"
+        class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
+        <span>+</span>
+        <span x-text="$t('create_automation')">Create Automation</span>
+    </button>
+</div>
+
+<!-- Automation List -->
+<template x-if="automations.length > 0">
+    <div class="space-y-3">
+        <template x-for="auto in automations" :key="auto.id">
+            <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+                <div class="flex justify-between items-start gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1 flex-wrap">
+                            <h4 class="font-bold font-sans text-white" x-text="auto.name"></h4>
+                            <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400" x-text="auto.event"></span>
+                            <span class="text-[10px] font-sans px-2 py-0.5 rounded-md bg-wa-green/10 text-wa-green" x-text="auto.labelName"></span>
+                        </div>
+                        <p class="text-xs text-wa-text-secondary mb-2" x-text="auto.description || ''"></p>
+                        <div class="flex items-center gap-4 text-[10px] text-wa-text-secondary">
+                            <span x-text="'Timeout: ' + formatTimeout(auto.timeoutMs)"></span>
+                            <span class="truncate max-w-xs" x-text="'Prompt: ' + auto.prompt.substring(0, 60) + (auto.prompt.length > 60 ? '...' : '')"></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <!-- Toggle -->
+                        <button @click="toggleAutomation(auto.id, !auto.enabled)"
+                            class="relative w-10 h-5 rounded-full transition-colors"
+                            :class="auto.enabled ? 'bg-wa-green' : 'bg-gray-700'">
+                            <span class="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-all"
+                                :class="auto.enabled ? 'left-5' : 'left-0.5'"></span>
+                        </button>
+                        <!-- Edit -->
+                        <button @click="editAutomation(auto)"
+                            class="p-1 text-wa-text-secondary hover:text-wa-green transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </button>
+                        <!-- Delete -->
+                        <button @click="deleteAutomation(auto.id)"
+                            class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>
+
+<!-- Empty State -->
+<template x-if="automations.length === 0">
+    <div class="text-center py-12 border border-dashed border-wa-border mt-4 rounded-xl">
+        <p class="text-xs font-sans text-wa-text-secondary mb-4" x-text="$t('no_automations')">No automations configured</p>
+        <button @click="openCreateAutomation()"
+            class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg">
+            + <span x-text="$t('create_automation')">Create Automation</span>
+        </button>
+    </div>
+</template>
+
+<!-- Create/Edit Automation Modal -->
+<div x-show="showAutomationModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+    style="display: none;">
+    <div class="bg-wa-bg-deep border border-wa-border p-6 sm:p-8 max-w-md w-full relative rounded-xl"
+        @click.outside="showAutomationModal = false">
+
+        <h2 class="text-xl font-bold mb-6 tracking-tight"
+            x-text="editingAutomationId ? 'Edit Automation' : $t('create_automation')">Create Automation</h2>
+
+        <form @submit.prevent="saveAutomation()" class="space-y-4">
+            <!-- Name -->
+            <div>
+                <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_name')">Name</label>
+                <input type="text" x-model="automationForm.name" required
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg"
+                    placeholder="Follow-up reminder" />
+            </div>
+
+            <!-- Event -->
+            <div>
+                <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_event')">Event</label>
+                <select x-model="automationForm.event"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                    <option value="INACTIVITY" x-text="$t('inactivity')">Inactivity</option>
+                </select>
+            </div>
+
+            <!-- Label -->
+            <div>
+                <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_label')">Label</label>
+                <select x-model="automationForm.labelName"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                    <option value="">Sin etiqueta (todos sin etiquetar)</option>
+                    <template x-for="lbl in botLabels" :key="lbl.id">
+                        <option :value="lbl.name" x-text="lbl.name"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Timeout -->
+            <div>
+                <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_timeout')">Timeout</label>
+                <div class="flex gap-2">
+                    <input type="number" x-model.number="automationForm.timeoutValue" min="1" required
+                        class="flex-1 bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
+                    <select x-model="automationForm.timeoutUnit"
+                        class="bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                        <option value="minutes" x-text="$t('minutes')">minutes</option>
+                        <option value="hours" x-text="$t('hours')">hours</option>
+                        <option value="days" x-text="$t('days')">days</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Prompt -->
+            <div>
+                <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('automation_prompt')">Prompt</label>
+                <textarea x-model="automationForm.prompt" rows="3" required
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y rounded-lg"
+                    placeholder="Dale seguimiento al cliente..."></textarea>
+            </div>
+
+            <div class="pt-4 flex justify-end gap-3">
+                <button type="button" @click="showAutomationModal = false"
+                    class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
+                    x-text="$t('cancel')">Cancel</button>
+                <button type="submit"
+                    class="px-6 py-2 bg-wa-green text-white text-xs hover:bg-wa-green-hover transition-colors rounded-lg"
+                    x-text="editingAutomationId ? ($t('save') || 'Save') : $t('create_automation')">Create</button>
+            </div>
+        </form>
+    </div>
+</div>

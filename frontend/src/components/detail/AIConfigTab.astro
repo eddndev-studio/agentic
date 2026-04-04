@@ -1,0 +1,222 @@
+<!-- Template override notice -->
+<div x-show="bot.templateId" class="mb-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-start gap-3 max-w-2xl">
+    <svg class="w-5 h-5 text-purple-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <div>
+        <p class="text-sm text-purple-300">La configuración de IA se hereda de la plantilla <span class="font-bold" x-text="bot.template?.name || 'asignada'"></span>.</p>
+        <p class="text-[10px] text-purple-400/70 mt-1">Para modificarla, edita la plantilla directamente. Los cambios se aplicarán a todos los bots que la usen.</p>
+        <a :href="'/templates/detail?id=' + bot.templateId" class="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 mt-2 transition-colors">
+            Ir a la plantilla
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </a>
+    </div>
+</div>
+
+<!-- Template-inherited filters (read-only) -->
+<div x-show="bot.templateId" class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl mb-4 opacity-75">
+    <h3 class="text-xs text-wa-green tracking-normal mb-4">Filtros <span class="text-purple-400 text-[10px]">(heredados de plantilla)</span></h3>
+    <div class="space-y-3">
+        <div class="flex items-center justify-between gap-4 p-3 bg-wa-bg-deep border border-wa-border rounded-lg">
+            <div class="min-w-0">
+                <label class="text-sm font-medium text-white" x-text="$t('exclude_groups')">Excluir grupos</label>
+            </div>
+            <span class="text-xs" :class="bot.template?.excludeGroups ? 'text-wa-green' : 'text-wa-text-secondary'" x-text="bot.template?.excludeGroups ? 'Activo' : 'Inactivo'"></span>
+        </div>
+        <div x-show="bot.template?.ignoredLabels?.length > 0" class="p-3 bg-wa-bg-deep border border-wa-border rounded-lg">
+            <label class="block text-sm font-medium text-white mb-2" x-text="$t('ignored_labels')">Etiquetas ignoradas</label>
+            <div class="flex flex-wrap gap-2">
+                <template x-for="varName in (bot.template?.ignoredLabels || [])" :key="varName">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-500/15 border border-red-500/40 text-red-400">
+                        <span class="text-purple-400 font-mono text-[10px]" x-text="'{{' + varName + '}}'"></span>
+                    </span>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div x-show="!bot.templateId" class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
+
+    <h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
+
+    <form @submit.prevent="saveAIConfig()" class="space-y-6">
+        <!-- AI Enabled Toggle -->
+        <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+            <div class="min-w-0">
+                <label class="text-sm font-medium text-white" x-text="$t('ai_enabled')">AI Enabled</label>
+                <p class="text-xs text-wa-text-secondary mt-1" x-text="$t('ai_enabled_desc')"></p>
+            </div>
+            <button type="button" @click="aiConfig.aiEnabled = !aiConfig.aiEnabled"
+                class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
+                :class="aiConfig.aiEnabled ? 'bg-wa-green' : 'bg-gray-700'">
+                <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
+                    :class="aiConfig.aiEnabled ? 'left-6' : 'left-0.5'"></span>
+            </button>
+        </div>
+
+        <!-- Default Session AI Toggle -->
+        <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+            <div class="min-w-0">
+                <label class="text-sm font-medium text-white">IA encendida por defecto</label>
+                <p class="text-xs text-wa-text-secondary mt-1">Las sesiones nuevas inician con IA activa. Los flujos pueden cambiarla por sesión.</p>
+            </div>
+            <button type="button" @click="aiConfig.defaultSessionAi = !aiConfig.defaultSessionAi"
+                class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
+                :class="aiConfig.defaultSessionAi ? 'bg-wa-green' : 'bg-gray-700'">
+                <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
+                    :class="aiConfig.defaultSessionAi ? 'left-6' : 'left-0.5'"></span>
+            </button>
+        </div>
+
+        <!-- Provider -->
+        <div>
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('ai_provider')">Provider</label>
+            <select x-model="aiConfig.aiProvider"
+                class="w-full bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                <option value="GEMINI">Google Gemini</option>
+                <option value="OPENAI">OpenAI</option>
+            </select>
+        </div>
+
+        <!-- Model -->
+        <div>
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('ai_model')">Model</label>
+            <input type="text" x-model="aiConfig.aiModel"
+                class="w-full bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg"
+                placeholder="gemini-2.5-flash" />
+        </div>
+
+        <!-- Thinking Level (Gemini only) -->
+        <div x-show="aiConfig.aiProvider === 'GEMINI'" x-transition>
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2">Thinking Level</label>
+            <select x-model="aiConfig.thinkingLevel"
+                class="w-full bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                <option value="LOW">LOW (~300 tokens, rápido)</option>
+                <option value="MEDIUM">MEDIUM (~2,000 tokens)</option>
+                <option value="HIGH">HIGH (~8,000+ tokens, costoso)</option>
+            </select>
+            <p class="text-[10px] text-wa-text-secondary mt-1">Controla cuánto "piensa" el modelo antes de responder. LOW es suficiente para tool-calling.</p>
+        </div>
+
+        <!-- System Prompt -->
+        <div>
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('system_prompt')">System Prompt</label>
+            <textarea x-model="aiConfig.systemPrompt" rows="6"
+                class="w-full bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y rounded-lg"
+                :placeholder="$t('system_prompt_placeholder')"></textarea>
+        </div>
+
+        <!-- Temperature -->
+        <div>
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2">
+                <span x-text="$t('temperature')">Temperature</span>:
+                <span x-text="aiConfig.temperature" class="text-wa-green"></span>
+            </label>
+            <input type="range" x-model.number="aiConfig.temperature" min="0" max="2" step="0.1"
+                class="w-full accent-wa-green" />
+        </div>
+
+        <!-- Message Delay -->
+        <div>
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2" x-text="$t('message_delay')">Message Delay</label>
+            <div class="flex items-center gap-3">
+                <input type="number" x-model.number="aiConfig.messageDelay" min="0" step="1"
+                    class="w-24 bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
+                <span class="text-xs text-wa-text-secondary">s</span>
+            </div>
+            <p class="text-[10px] text-wa-text-secondary mt-1"
+                x-text="aiConfig.messageDelay === 0
+                    ? ($t('message_delay_off') || 'Immediate processing (no accumulation)')
+                    : ($t('message_delay_desc') || 'Wait for more messages before processing')">
+            </p>
+        </div>
+
+        <!-- Context Messages -->
+        <div>
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2">Contexto del chat</label>
+            <div class="flex items-center gap-3">
+                <input type="number" x-model.number="aiConfig.contextMessages" min="0" max="100" step="5"
+                    class="w-24 bg-wa-bg-deep border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
+                <span class="text-xs text-wa-text-secondary">mensajes</span>
+            </div>
+            <p class="text-[10px] text-wa-text-secondary mt-1"
+                x-text="aiConfig.contextMessages === 0
+                    ? 'Sin contexto de chat (solo historial de IA)'
+                    : 'Se envían los últimos ' + aiConfig.contextMessages + ' mensajes reales del chat a la IA'">
+            </p>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="border-t border-wa-border pt-6 mt-6">
+            <h4 class="text-xs text-wa-green tracking-normal mb-4">Filtros</h4>
+
+            <!-- Auto Read Receipts Toggle -->
+            <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
+                <div class="min-w-0">
+                    <label class="text-sm font-medium text-white">Lectura automática</label>
+                    <p class="text-xs text-wa-text-secondary mt-1">Marcar mensajes como leídos automáticamente. Si se desactiva, la IA decide cuándo marcar como leído usando la herramienta mark_as_read.</p>
+                </div>
+                <button type="button" @click="aiConfig.autoReadReceipts = !aiConfig.autoReadReceipts"
+                    class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
+                    :class="aiConfig.autoReadReceipts ? 'bg-wa-green' : 'bg-gray-700'">
+                    <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
+                        :class="aiConfig.autoReadReceipts ? 'left-6' : 'left-0.5'"></span>
+                </button>
+            </div>
+
+            <!-- Exclude Groups Toggle -->
+            <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
+                <div class="min-w-0">
+                    <label class="text-sm font-medium text-white" x-text="$t('exclude_groups')">Exclude Groups</label>
+                    <p class="text-xs text-wa-text-secondary mt-1" x-text="$t('exclude_groups_desc')"></p>
+                </div>
+                <button type="button" @click="aiConfig.excludeGroups = !aiConfig.excludeGroups"
+                    class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
+                    :class="aiConfig.excludeGroups ? 'bg-wa-green' : 'bg-gray-700'">
+                    <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
+                        :class="aiConfig.excludeGroups ? 'left-6' : 'left-0.5'"></span>
+                </button>
+            </div>
+
+            <!-- Ignored Labels -->
+            <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-sm font-medium text-white" x-text="$t('ignored_labels')">Ignored Labels</label>
+                </div>
+                <p class="text-xs text-wa-text-secondary mb-3" x-text="$t('ignored_labels_desc')"></p>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="lbl in botLabels" :key="lbl.id">
+                        <button type="button"
+                            @click="toggleIgnoredLabel(lbl.id)"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+                            :class="aiConfig.ignoredLabels.includes(lbl.id)
+                                ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                                : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+                        >
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                            <span x-text="lbl.name"></span>
+                            <span x-show="aiConfig.ignoredLabels.includes(lbl.id)" class="text-red-400/70 text-[10px] ml-0.5">&#x2715;</span>
+                        </button>
+                    </template>
+                    <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No labels synced</span>
+                </div>
+                <div x-show="aiConfig.ignoredLabels.length > 0" class="mt-3 pt-2 border-t border-wa-border/50">
+                    <p class="text-[10px] text-red-400/70">
+                        <span x-text="aiConfig.ignoredLabels.length"></span> label(s) ignored — AI will not respond to sessions with these labels
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 pt-4 flex-wrap">
+            <button type="submit" :disabled="savingAI"
+                class="px-6 py-3 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors disabled:opacity-50 rounded-lg"
+                x-text="savingAI ? ($t('saving') || 'Saving...') : ($t('save_ai_config') || 'Save AI Config')">
+            </button>
+            <button type="button" @click="clearConversations()"
+                class="px-4 py-3 border border-red-500/30 text-red-400 font-sans text-xs hover:bg-red-500/10 transition-colors rounded-lg"
+                x-text="$t('clear_conversations')">
+            </button>
+        </div>
+    </form>
+</div>

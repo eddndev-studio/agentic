@@ -1,0 +1,105 @@
+        <div x-show="activeTab === 'notifications'" x-transition:enter>
+        <section class="mb-8">
+            <h3 class="text-xs text-wa-green tracking-normal mb-6">Notificaciones</h3>
+
+                <form @submit.prevent="saveNotifications()" class="space-y-6">
+
+                    <!-- Channel list with per-channel config -->
+                    <div class="space-y-4">
+                        <template x-for="(ch, idx) in notificationChannels" :key="ch.sessionId">
+                            <div class="bg-wa-bg-deep border border-wa-border rounded-xl p-4 space-y-4">
+                                <!-- Channel header -->
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                                        <span class="w-2 h-2 bg-wa-green rounded-full flex-shrink-0"></span>
+                                        <input
+                                            type="text"
+                                            x-model="ch.nickname"
+                                            :placeholder="ch._name || 'Apodo del canal...'"
+                                            class="bg-transparent text-sm text-white font-medium outline-none border-b border-transparent focus:border-wa-green/50 transition-colors w-full placeholder-wa-text-secondary/50"
+                                        />
+                                    </div>
+                                    <span class="text-[10px] text-wa-text-secondary/50 flex-shrink-0" x-text="ch._name"></span>
+                                    <button type="button" @click="removeNotifChannel(idx)"
+                                        class="text-xs text-red-400 hover:text-red-300 transition-colors flex-shrink-0">Quitar</button>
+                                </div>
+
+                                <!-- Events for this channel -->
+                                <div>
+                                    <label class="block text-[10px] text-wa-text-secondary mb-2">Eventos</label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <template x-for="[key, label] in [
+                                            ['flow:completed', 'Flujo completado'],
+                                            ['flow:failed', 'Flujo fallido'],
+                                            ['session:created', 'Sesión creada'],
+                                            ['session:labels:add', 'Etiqueta asignada'],
+                                            ['session:labels:remove', 'Etiqueta retirada'],
+                                            ['bot:connected', 'Conectado'],
+                                            ['bot:disconnected', 'Desconectado'],
+                                            ['tool:executed', 'Herramienta'],
+                                            ['messages:deleted', 'Chat borrado'],
+                                        ]" :key="'ev-' + idx + '-' + key">
+                                            <button type="button"
+                                                @click="toggleChannelEvent(idx, key)"
+                                                class="px-2 py-1 text-[10px] rounded-lg border transition-all"
+                                                :class="ch.events.includes(key)
+                                                    ? 'bg-wa-green/15 border-wa-green/40 text-wa-green'
+                                                    : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+                                                x-text="label"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Per-label filter for this channel -->
+                                <div x-show="ch.events.includes('session:labels:add') || ch.events.includes('session:labels:remove')" x-transition>
+                                    <label class="block text-[10px] text-wa-text-secondary mb-2">Filtrar etiquetas <span class="text-wa-text-secondary/50">(vacío = todas)</span></label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <template x-for="lbl in botLabels" :key="'lbl-' + idx + '-' + lbl.id">
+                                            <button type="button"
+                                                @click="toggleChannelLabel(idx, lbl.id)"
+                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all border cursor-pointer select-none"
+                                                :class="ch.labels.includes(lbl.id)
+                                                    ? 'bg-wa-green/15 border-wa-green/40 text-wa-green'
+                                                    : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'">
+                                                <span class="w-2 h-2 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                                <span x-text="lbl.name"></span>
+                                            </button>
+                                        </template>
+                                        <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-[10px]">Sin etiquetas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="notificationChannels.length === 0" class="text-xs text-wa-text-secondary p-4 border border-dashed border-wa-border rounded-lg text-center">Sin canales configurados.</div>
+
+                    <!-- Add channel -->
+                    <div>
+                        <button type="button" @click="loadNotifSessions()"
+                            class="px-4 py-2 text-xs border border-wa-border text-wa-text-secondary hover:text-white hover:border-wa-green/30 transition-colors rounded-lg">
+                            + Agregar canal
+                        </button>
+
+                        <template x-if="notifSessions.length > 0">
+                            <div class="mt-2 space-y-1 max-h-48 overflow-y-auto border border-wa-border rounded-lg p-2 bg-wa-bg-deep">
+                                <template x-for="sess in notifSessions" :key="sess.id">
+                                    <button type="button" @click="addNotifChannel(sess.id)"
+                                        class="w-full text-left px-3 py-2 text-sm text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover rounded transition-colors"
+                                        :class="notificationChannels.some(c => c.sessionId === sess.id) ? 'opacity-40 pointer-events-none' : ''"
+                                        x-text="sess.name || sess.identifier"></button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Save -->
+                    <div class="pt-4">
+                        <button type="submit" :disabled="savingNotifications"
+                            class="px-6 py-3 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors disabled:opacity-50 rounded-lg"
+                            x-text="savingNotifications ? 'Guardando...' : 'Guardar Notificaciones'">
+                        </button>
+                    </div>
+                </form>
+        </section>
+        </div>

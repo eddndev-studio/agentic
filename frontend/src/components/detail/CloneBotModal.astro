@@ -1,0 +1,68 @@
+<!-- Clone Bot Modal -->
+<div
+    x-show="showCloneModal"
+    x-cloak
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    style="display: none;"
+>
+    <div
+        class="absolute inset-0 bg-black/70"
+        @click="showCloneModal = false"
+    >
+    </div>
+
+    <div
+        class="relative bg-wa-bg-panel border border-wa-border p-6 sm:p-8 w-full max-w-md rounded-xl"
+    >
+        <h2 class="text-xl font-bold tracking-tight mb-6">
+            Clone Bot
+        </h2>
+
+        <form @submit.prevent="submitCloneBot()" class="space-y-4">
+            <div>
+                <label
+                    class="block text-xs text-wa-text-secondary font-sans mb-2"
+                    x-text="$t('bot_name') || 'Name'"></label>
+                <input
+                    type="text"
+                    x-model="cloneForm.name"
+                    required
+                    class="w-full bg-wa-bg-hover border border-wa-border p-3 text-sm focus:border-wa-green focus:outline-none text-white rounded-lg"
+                />
+            </div>
+
+            <div>
+                <label
+                    class="block text-xs text-wa-text-secondary font-sans mb-2"
+                    x-text="$t('bot_identifier') || 'Identifier'"
+                ></label>
+                <input
+                    type="text"
+                    x-model="cloneForm.identifier"
+                    required
+                    class="w-full bg-wa-bg-hover border border-wa-border p-3 text-sm focus:border-wa-green focus:outline-none text-white rounded-lg"
+                    placeholder="+1234567890"
+                />
+            </div>
+
+            <div class="flex gap-4 pt-4">
+                <button
+                    type="button"
+                    @click="showCloneModal = false"
+                    class="flex-1 px-4 py-3 border border-wa-border text-wa-text-secondary font-sans text-xs hover:bg-wa-bg-hover rounded-lg"
+                    x-text="$t('cancel') || 'Cancel'"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    :disabled="savingClone"
+                    class="flex-1 px-4 py-3 bg-wa-green text-white font-sans text-xs hover:bg-wa-green-hover disabled:opacity-50 rounded-lg"
+                    x-text="savingClone ? ($t('loading') || 'Cloning...') : 'Clone'"
+                >
+                    Clone
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
