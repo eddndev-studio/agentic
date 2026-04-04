@@ -600,7 +600,7 @@ import Layout from "../../layouts/Layout.astro";
 
             async init() {
                 const params = new URLSearchParams(window.location.search);
-                this.botId = params.get('botId');
+                this.botId = params.get('id') || params.get('botId');
 
                 if (!this.botId) {
                     window.location.href = '/bots';
