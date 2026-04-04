@@ -270,6 +270,7 @@ model Label {
   waLabelId    String
   name         String
   color        Int
+  position     Int            @default(0)
   deleted      Boolean        @default(false)
   predefinedId String?
   createdAt    DateTime       @default(now())

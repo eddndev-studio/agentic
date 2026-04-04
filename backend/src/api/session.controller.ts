@@ -97,7 +97,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         const labels = await prisma.label.findMany({
             where: { botId, deleted: false },
             include: { _count: { select: { sessions: true } } },
-            orderBy: { name: "asc" },
+            orderBy: [{ position: "asc" }, { name: "asc" }],
         });
 
         return labels.map((l) => ({
@@ -105,6 +105,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             waLabelId: l.waLabelId,
             name: l.name,
             color: l.color,
+            position: l.position,
             predefinedId: l.predefinedId,
             sessionCount: l._count.sessions,
         }));
@@ -187,6 +188,24 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             set.status = msg.includes('not connected') ? 503 : 500;
             return { error: msg };
         }
+    })
+
+    // PUT /sessions/labels/reorder — Update label positions
+    .put("/labels/reorder", async ({ body, set }) => {
+        const { labelIds } = body;
+        try {
+            await prisma.$transaction(
+                labelIds.map((id: string, i: number) =>
+                    prisma.label.update({ where: { id }, data: { position: i } })
+                )
+            );
+            return { success: true };
+        } catch (e: unknown) {
+            set.status = 500;
+            return { error: e instanceof Error ? e.message : String(e) };
+        }
+    }, {
+        body: t.Object({ labelIds: t.Array(t.String()) }),
     })
 
     // GET /sessions/:id/ai-context — Debug: show exactly what the AI receives
