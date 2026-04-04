@@ -98,30 +98,36 @@ import { ToolExecutor } from "./core/ai/ToolExecutor";
 import { eventBus, type BotEvent } from "./services/event-bus";
 import { Platform } from "@prisma/client";
 
-// Recover orphaned accumulator messages from a previous crash (Redis keys without in-memory timers)
-MessageAccumulator.flushAll((sid, msgs) => {
-    console.log(`[Init] Recovering ${msgs.length} orphaned message(s) for session ${sid}`);
-    queueService.enqueueAIProcessing(sid, msgs.map(m => m.id)).catch(err => {
-        console.error(`[Init] Failed to enqueue recovered messages for ${sid}:`, err);
-    });
-}).catch(err => {
-    console.error("[Init] Accumulator recovery error:", err);
-});
-
-// Reconnect messaging sessions for all platforms
-prisma.bot.findMany().then(bots => {
-    console.log(`[Init] Found ${bots.length} bot(s) to reconnect...`);
-    for (const bot of bots) {
-        try {
-            const provider = providerRegistry.get(bot.platform);
-            provider.startSession(bot.id).catch(err => {
-                console.error(`[Init] Failed to start session for ${bot.name}:`, err);
+// Startup sequence: flush orphaned messages, then reconnect bots
+(async () => {
+    try {
+        await MessageAccumulator.flushAll((sid, msgs) => {
+            console.log(`[Init] Recovering ${msgs.length} orphaned message(s) for session ${sid}`);
+            queueService.enqueueAIProcessing(sid, msgs.map(m => m.id)).catch(err => {
+                console.error(`[Init] Failed to enqueue recovered messages for ${sid}:`, err);
             });
-        } catch (err) {
-            console.warn(`[Init] No provider for ${bot.name} (${bot.platform}), skipping`);
-        }
+        });
+    } catch (err) {
+        console.error("[Init] Accumulator recovery error:", err);
     }
-});
+
+    try {
+        const bots = await prisma.bot.findMany();
+        console.log(`[Init] Found ${bots.length} bot(s) to reconnect...`);
+        for (const bot of bots) {
+            try {
+                const provider = providerRegistry.get(bot.platform);
+                provider.startSession(bot.id).catch(err => {
+                    console.error(`[Init] Failed to start session for ${bot.name}:`, err);
+                });
+            } catch (err) {
+                console.warn(`[Init] No provider for ${bot.name} (${bot.platform}), skipping`);
+            }
+        }
+    } catch (err) {
+        console.error("[Init] Bot reconnection error:", err);
+    }
+})();
 
 // --- Notification Service ---
 import { notificationService } from "./services/notification.service";

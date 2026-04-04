@@ -68,7 +68,7 @@ export const ApiClient = {
             headers: getHeaders(),
         });
         if (!res.ok) throw new Error(`API Error: ${res.statusText}`);
-        return res.json();
+        return res.json().catch(() => ({ success: true }));
     },
 
     async uploadFile(file: File) {

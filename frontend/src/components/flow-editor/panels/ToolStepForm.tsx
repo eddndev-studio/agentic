@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFlowEditor } from '../FlowEditorProvider';
+import { getLabelColor } from '../../../lib/label-colors';
 import type { Step } from '../lib/types';
 
 const BUILTIN_TOOLS = [
@@ -167,8 +168,6 @@ function LabelPicker({ value, onSelect, labels, templateId, templateVarDefs, col
     templateVarDefs: { name: string; type: string }[];
     color: string;
 }) {
-    const labelColors = ['#00a884','#53bdeb','#009de2','#ff9a00','#d13b3b','#a552a1','#5bc5d1','#fc7e7e','#e8b830','#e354c5','#00d0b6','#349ded','#8c68e0','#e56e56','#a0d669','#62c5e1','#7e90e5','#e89844','#e873b0','#6ccb78'];
-
     if (templateId) {
         const labelVars = templateVarDefs.filter(d => d.type === 'label');
         return (
@@ -196,7 +195,7 @@ function LabelPicker({ value, onSelect, labels, templateId, templateVarDefs, col
                             color: value === lbl.name ? color : '#8696a0',
                         }}
                     >
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: labelColors[lbl.color % labelColors.length] }} />
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: getLabelColor(lbl.color) }} />
                         {lbl.name}
                     </button>
                 ))}

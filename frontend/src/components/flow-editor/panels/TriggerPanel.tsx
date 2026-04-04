@@ -1,12 +1,11 @@
 import React from 'react';
 import { useFlowEditor } from '../FlowEditorProvider';
+import { getLabelColor } from '../../../lib/label-colors';
 import type { Trigger } from '../lib/types';
 
 export function TriggerPanel() {
     const { flow, updateTriggers, botLabels, templateId, templateVarDefs } = useFlowEditor();
     const triggers = flow.triggers;
-
-    const labelColors = ['#00a884','#53bdeb','#009de2','#ff9a00','#d13b3b','#a552a1','#5bc5d1','#fc7e7e','#e8b830','#e354c5','#00d0b6','#349ded','#8c68e0','#e56e56','#a0d669','#62c5e1','#7e90e5','#e89844','#e873b0','#6ccb78'];
 
     const addTrigger = (type: 'TEXT' | 'LABEL') => {
         updateTriggers([...triggers, {
@@ -93,7 +92,7 @@ export function TriggerPanel() {
                                                 background: trigger.labelName === lbl.name ? '#a552a115' : '#202c33',
                                                 color: trigger.labelName === lbl.name ? '#a552a1' : '#8696a0',
                                             }}>
-                                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: labelColors[lbl.color % labelColors.length] }} />
+                                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: getLabelColor(lbl.color) }} />
                                             {lbl.name}
                                         </button>
                                     ))}

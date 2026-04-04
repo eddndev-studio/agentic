@@ -134,7 +134,7 @@ export class BaileysService {
                     JSON.parse(content); // validate current creds before backing up
                     fs.copyFileSync(credsPath, backupPath);
                 }
-            } catch {} // fire-and-forget: non-critical — skip backup if current creds are already invalid
+            } catch (e) { log.warn('Creds backup failed:', (e as Error).message); }
             await rawSaveCreds();
         };
 
@@ -325,11 +325,19 @@ export class BaileysService {
             });
 
             sock.ev.on('labels.edit', async (label) => {
-                await LabelPersistenceService.handleLabelEdit(botId, label);
+                try {
+                    await LabelPersistenceService.handleLabelEdit(botId, label);
+                } catch (e) {
+                    log.error(`labels.edit error for Bot ${botId}:`, (e as Error).message);
+                }
             });
 
             sock.ev.on('labels.association', async (event) => {
-                await BaileysLabelService.handleBaileysLabelAssociation(botId, event, sock);
+                try {
+                    await BaileysLabelService.handleBaileysLabelAssociation(botId, event, sock);
+                } catch (e) {
+                    log.error(`labels.association error for Bot ${botId}:`, (e as Error).message);
+                }
             });
 
             // --- presence.update: emit typing indicators to frontend ---
@@ -349,7 +357,7 @@ export class BaileysService {
                             });
                         }
                     }
-                } catch {}
+                } catch (e) { log.warn('Presence handler error:', (e as Error).message); }
             });
 
             // --- contacts.update: update session names when contacts change ---
@@ -677,7 +685,7 @@ export class BaileysService {
                 try {
                     fs.unlinkSync(path.join(sessionDir, file));
                     purged++;
-                } catch {} // fire-and-forget: non-critical
+                } catch {} // file deletion — OK to ignore
             }
         }
 

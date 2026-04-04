@@ -33,13 +33,15 @@ export const sidebarStore = {
     mobileOpen: false,
 
     init() {
-        const persisted = localStorage.getItem('sidebar_expanded');
-        this.expanded = persisted === null ? true : persisted === 'true';
+        try {
+            const persisted = localStorage.getItem('sidebar_expanded');
+            this.expanded = persisted === null ? true : persisted === 'true';
+        } catch {}
     },
 
     toggle() {
         this.expanded = !this.expanded;
-        localStorage.setItem('sidebar_expanded', String(this.expanded));
+        try { localStorage.setItem('sidebar_expanded', String(this.expanded)); } catch {}
     },
 
     toggleMobile() {

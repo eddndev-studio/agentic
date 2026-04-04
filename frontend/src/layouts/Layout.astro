@@ -61,10 +61,7 @@ const { title, fullWidth = false } = Astro.props;
 			},
 		});
 
-		// Initialize stores
-		Alpine.store("bot").init();
-		// @ts-ignore
-		Alpine.store("auth").init();
+		// Alpine auto-calls init() on stores — no explicit call needed
 	});
 
 	// ── ViewTransitions + Alpine lifecycle ──────────────────────────

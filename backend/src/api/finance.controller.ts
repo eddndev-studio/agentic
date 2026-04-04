@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { authMiddleware } from "../middleware/auth.middleware";
 
@@ -32,20 +32,22 @@ export const financeController = new Elysia({ prefix: "/finance" })
         return worker;
     })
 
-    .post("/workers", async ({ body, set }) => {
-        const { name, baseSalary, bonusPercent, bonusMinLicenses } = body as any;
-        if (!name || baseSalary === undefined) {
-            set.status = 400;
-            return { error: "name and baseSalary are required" };
-        }
+    .post("/workers", async ({ body }) => {
         return prisma.worker.create({
             data: {
-                name,
-                baseSalary: Number(baseSalary),
-                bonusPercent: Number(bonusPercent ?? 0),
-                bonusMinLicenses: Number(bonusMinLicenses ?? 0),
+                name: body.name,
+                baseSalary: body.baseSalary,
+                bonusPercent: body.bonusPercent ?? 0,
+                bonusMinLicenses: body.bonusMinLicenses ?? 0,
             },
         });
+    }, {
+        body: t.Object({
+            name: t.String(),
+            baseSalary: t.Number(),
+            bonusPercent: t.Optional(t.Number()),
+            bonusMinLicenses: t.Optional(t.Number()),
+        }),
     })
 
     .put("/workers/:id", async ({ params: { id }, body, set }) => {
@@ -85,15 +87,16 @@ export const financeController = new Elysia({ prefix: "/finance" })
         });
     })
 
-    .post("/bank-accounts", async ({ body, set }) => {
-        const { name, bankName, identifier } = body as any;
-        if (!name || !bankName || !identifier) {
-            set.status = 400;
-            return { error: "name, bankName, and identifier are required" };
-        }
+    .post("/bank-accounts", async ({ body }) => {
         return prisma.bankAccount.create({
-            data: { name, bankName, identifier },
+            data: { name: body.name, bankName: body.bankName, identifier: body.identifier },
         });
+    }, {
+        body: t.Object({
+            name: t.String(),
+            bankName: t.String(),
+            identifier: t.String(),
+        }),
     })
 
     .put("/bank-accounts/:id", async ({ params: { id }, body, set }) => {
@@ -147,19 +150,13 @@ export const financeController = new Elysia({ prefix: "/finance" })
         return period;
     })
 
-    .post("/periods", async ({ body, set }) => {
-        const { type, startDate, endDate } = body as any;
-        if (!type || !startDate || !endDate) {
-            set.status = 400;
-            return { error: "type, startDate, and endDate are required" };
-        }
-        // Create period + auto-create WorkerPeriod for each active worker
+    .post("/periods", async ({ body }) => {
         const activeWorkers = await prisma.worker.findMany({ where: { isActive: true }, select: { id: true } });
         const period = await prisma.financialPeriod.create({
             data: {
-                type,
-                startDate: new Date(startDate),
-                endDate: new Date(endDate),
+                type: body.type,
+                startDate: new Date(body.startDate),
+                endDate: new Date(body.endDate),
                 workerPeriods: {
                     create: activeWorkers.map(w => ({ workerId: w.id })),
                 },
@@ -167,6 +164,12 @@ export const financeController = new Elysia({ prefix: "/finance" })
             include: { workerPeriods: true },
         });
         return period;
+    }, {
+        body: t.Object({
+            type: t.String(),
+            startDate: t.String(),
+            endDate: t.String(),
+        }),
     })
 
     .post("/periods/:id/close", async ({ params: { id }, set }) => {
@@ -262,28 +265,31 @@ export const financeController = new Elysia({ prefix: "/finance" })
     })
 
     .post("/incomes", async ({ body, set }) => {
-        const { amount, bankAccountId, workerId, periodId, date, notes } = body as any;
-        if (!amount || !bankAccountId || !workerId || !periodId || !date) {
-            set.status = 400;
-            return { error: "amount, bankAccountId, workerId, periodId, and date are required" };
-        }
-        // Validate period is open
-        const period = await prisma.financialPeriod.findUnique({ where: { id: periodId } });
+        const period = await prisma.financialPeriod.findUnique({ where: { id: body.periodId } });
         if (!period || period.status !== "OPEN") {
             set.status = 400;
             return { error: "Period is not open" };
         }
         return prisma.income.create({
             data: {
-                amount: Number(amount),
-                bankAccountId,
-                workerId,
-                periodId,
-                date: new Date(date),
-                notes: notes || null,
+                amount: body.amount,
+                bankAccountId: body.bankAccountId,
+                workerId: body.workerId,
+                periodId: body.periodId,
+                date: new Date(body.date),
+                notes: body.notes || null,
             },
             include: { worker: true, bankAccount: true },
         });
+    }, {
+        body: t.Object({
+            amount: t.Number(),
+            bankAccountId: t.String(),
+            workerId: t.String(),
+            periodId: t.String(),
+            date: t.String(),
+            notes: t.Optional(t.String()),
+        }),
     })
 
     .put("/incomes/:id", async ({ params: { id }, body, set }) => {
@@ -326,19 +332,21 @@ export const financeController = new Elysia({ prefix: "/finance" })
     })
 
     .post("/expenses", async ({ body, set }) => {
-        const { description, amount, periodId, date } = body as any;
-        if (!description || !amount || !periodId || !date) {
-            set.status = 400;
-            return { error: "description, amount, periodId, and date are required" };
-        }
-        const period = await prisma.financialPeriod.findUnique({ where: { id: periodId } });
+        const period = await prisma.financialPeriod.findUnique({ where: { id: body.periodId } });
         if (!period || period.status !== "OPEN") {
             set.status = 400;
             return { error: "Period is not open" };
         }
         return prisma.expense.create({
-            data: { description, amount: Number(amount), periodId, date: new Date(date) },
+            data: { description: body.description, amount: body.amount, periodId: body.periodId, date: new Date(body.date) },
         });
+    }, {
+        body: t.Object({
+            description: t.String(),
+            amount: t.Number(),
+            periodId: t.String(),
+            date: t.String(),
+        }),
     })
 
     .put("/expenses/:id", async ({ params: { id }, body, set }) => {

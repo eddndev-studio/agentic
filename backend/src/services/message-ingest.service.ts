@@ -134,7 +134,7 @@ export class MessageIngestService {
             prisma.session.update({
                 where: { id: session.id },
                 data: { updatedAt: new Date() },
-            }).catch(() => {}); // fire-and-forget: non-critical
+            }).catch(e => log.warn('Session touch failed:', (e as Error).message));
 
             eventBus.emitBotEvent({ type: 'message:received', botId, sessionId: session.id, message });
 
