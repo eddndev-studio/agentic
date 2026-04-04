@@ -130,6 +130,7 @@ import DebugPanel from "../../components/monitor/DebugPanel.astro";
             sessionOffset: 0,
             hasMoreSessions: false,
             loadingMoreSessions: false,
+            sessionsLoaded: false,
             totalSessions: 0,
             sseClient: null as BotEventSource | null,
             pollInterval: null as ReturnType<typeof setInterval> | null,

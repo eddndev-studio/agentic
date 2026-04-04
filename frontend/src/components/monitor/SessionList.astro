@@ -1,4 +1,5 @@
 ---
+import MonitorSessionsSkeleton from "../skeletons/MonitorSessionsSkeleton.astro";
 ---
 <!-- Sessions panel -->
 <div
@@ -84,7 +85,10 @@
 
     <!-- Session items -->
     <div class="flex-1 overflow-y-auto" @scroll.debounce.100ms="onSessionsScroll($event)">
-        <template x-if="sessions.length === 0">
+        <template x-if="sessions.length === 0 && !sessionsLoaded">
+            <MonitorSessionsSkeleton />
+        </template>
+        <template x-if="sessions.length === 0 && sessionsLoaded">
             <div class="p-6 text-center text-sm text-wa-text-secondary" x-text="$t('no_sessions')"></div>
         </template>
 

@@ -1,6 +1,7 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import EmptyState from "../../components/ui/EmptyState.astro";
+import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSkeleton.astro";
 ---
 
 <Layout title="Template Detail">
@@ -466,7 +467,12 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 		</div>
 	</div>
 
-	<!-- Loading/Error State -->
+	<!-- Loading Skeleton -->
+	<div x-data="templateDetail" x-show="!ready && !error">
+		<TemplateDetailSkeleton />
+	</div>
+
+	<!-- Error State -->
 	<div x-data="templateDetail" x-show="!ready && error" class="p-12 text-center text-red-400" x-text="error" style="display: none;"></div>
 </Layout>
 

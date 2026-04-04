@@ -19,6 +19,7 @@ export async function loadSessions(ctx: any) {
         ctx.totalSessions = res.pagination?.total || 0;
         ctx.hasMoreSessions = ctx.sessions.length < ctx.totalSessions;
     } catch (e) { console.error("Failed to load sessions", e); }
+    ctx.sessionsLoaded = true;
 }
 
 export async function loadMoreSessions(ctx: any) {
