@@ -4,49 +4,189 @@ import { authMiddleware } from "../middleware/auth.middleware";
 
 export const authController = new Elysia({ prefix: "/auth" })
     .use(authMiddleware)
+
+    // ── Public endpoints ───────────────────────────────────────────────────
+
+    .post("/register", async ({ body, jwt, set }) => {
+        try {
+            const { email, password, fullName } = body;
+
+            const authUser = await AuthService.register(email, password, fullName, jwt.sign);
+
+            const token = await jwt.sign({
+                id: authUser.id,
+                email: authUser.email,
+                orgId: authUser.orgId,
+                role: authUser.role,
+                exp: Math.floor(Date.now() / 1000) + 86400
+            });
+
+            return { token, user: authUser };
+        } catch (error: any) {
+            if (error.message === "EMAIL_EXISTS") {
+                set.status = 409;
+                return { error: "Email already registered" };
+            }
+            console.error("Register Error:", error);
+            set.status = 500;
+            return { error: "Internal Server Error" };
+        }
+    }, {
+        body: t.Object({
+            email: t.String({ format: "email" }),
+            password: t.String({ minLength: 8 }),
+            fullName: t.String({ minLength: 1 })
+        })
+    })
+
     .post("/login", async ({ body, jwt, set }) => {
         try {
-            const { email, password } = body as { email: string; password: string };
+            const { email, password } = body;
 
-            const user = await AuthService.validateUser(email, password);
-
-            if (!user) {
+            const authUser = await AuthService.validateUser(email, password);
+            if (!authUser) {
                 set.status = 401;
                 return { error: "Invalid credentials" };
             }
 
             const token = await jwt.sign({
-                id: user.id,
-                email: user.email,
-                role: "ADMIN", // Simplified role for now
-                exp: Math.floor(Date.now() / 1000) + 86400 // 24h
+                id: authUser.id,
+                email: authUser.email,
+                orgId: authUser.orgId,
+                role: authUser.role,
+                exp: Math.floor(Date.now() / 1000) + 86400
             });
 
-            return {
-                token,
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    fullName: user.fullName
-                }
-            };
+            return { token, user: authUser };
         } catch (error) {
             console.error("Login Error:", error);
             set.status = 500;
             return { error: "Internal Server Error" };
         }
+    }, {
+        body: t.Object({
+            email: t.String({ format: "email" }),
+            password: t.String()
+        })
     })
+
+    .post("/google", async ({ body, jwt, set }) => {
+        try {
+            const authUser = await AuthService.googleAuth(body.idToken);
+
+            const token = await jwt.sign({
+                id: authUser.id,
+                email: authUser.email,
+                orgId: authUser.orgId,
+                role: authUser.role,
+                exp: Math.floor(Date.now() / 1000) + 86400
+            });
+
+            return { token, user: authUser };
+        } catch (error: any) {
+            if (error.message === "INVALID_GOOGLE_TOKEN" || error.message === "GOOGLE_NO_EMAIL") {
+                set.status = 401;
+                return { error: "Invalid Google token" };
+            }
+            console.error("Google Auth Error:", error);
+            set.status = 500;
+            return { error: "Internal Server Error" };
+        }
+    }, {
+        body: t.Object({
+            idToken: t.String()
+        })
+    })
+
+    .post("/verify-email", async ({ body, jwt, set }) => {
+        try {
+            const payload = await jwt.verify(body.token);
+            if (!payload || payload.type !== "email-verify" || !payload.userId) {
+                set.status = 400;
+                return { error: "Invalid or expired token" };
+            }
+
+            await AuthService.verifyEmail(payload.userId as string);
+            return { success: true };
+        } catch {
+            set.status = 400;
+            return { error: "Invalid or expired token" };
+        }
+    }, {
+        body: t.Object({ token: t.String() })
+    })
+
+    .post("/forgot-password", async ({ body, jwt }) => {
+        await AuthService.forgotPassword(body.email, jwt.sign);
+        // Always return success (don't reveal if email exists)
+        return { success: true };
+    }, {
+        body: t.Object({ email: t.String({ format: "email" }) })
+    })
+
+    .post("/reset-password", async ({ body, jwt, set }) => {
+        try {
+            const payload = await jwt.verify(body.token);
+            if (!payload || payload.type !== "password-reset" || !payload.userId) {
+                set.status = 400;
+                return { error: "Invalid or expired token" };
+            }
+
+            await AuthService.resetPassword(payload.userId as string, body.password);
+            return { success: true };
+        } catch {
+            set.status = 400;
+            return { error: "Invalid or expired token" };
+        }
+    }, {
+        body: t.Object({
+            token: t.String(),
+            password: t.String({ minLength: 8 })
+        })
+    })
+
     .post("/logout", ({ cookie: { auth_token } }) => {
         auth_token.remove();
         return { success: true };
     })
-    .get("/me", ({ user }) => {
-        return {
+
+    // ── Protected endpoints ────────────────────────────────────────────────
+
+    .get("/me", async ({ user }) => {
+        const profile = await AuthService.getProfile(user!.id, user!.orgId);
+        if (!profile) return { error: "User not found" };
+        return profile;
+    }, {
+        isSignIn: true
+    })
+
+    .put("/me", async ({ user, body }) => {
+        return AuthService.updateProfile(user!.id, body);
+    }, {
+        isSignIn: true,
+        body: t.Object({
+            fullName: t.Optional(t.String()),
+            avatarUrl: t.Optional(t.String())
+        })
+    })
+
+    .post("/switch-org", async ({ user, body, jwt, set }) => {
+        const membership = await AuthService.switchOrg(user!.id, body.orgId);
+        if (!membership) {
+            set.status = 403;
+            return { error: "Not a member of this organization" };
+        }
+
+        const token = await jwt.sign({
             id: user!.id,
             email: user!.email,
-            role: user!.role,
-            fullName: user!.fullName
-        };
+            orgId: membership.orgId,
+            role: membership.role,
+            exp: Math.floor(Date.now() / 1000) + 86400
+        });
+
+        return { token, orgId: membership.orgId, role: membership.role };
     }, {
-        isSignIn: true // Uses our macro
+        isSignIn: true,
+        body: t.Object({ orgId: t.String() })
     });

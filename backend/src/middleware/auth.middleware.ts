@@ -1,6 +1,5 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
-import { AuthService } from "../services/auth.service";
 
 export const authMiddleware = (app: Elysia) =>
     app
@@ -10,10 +9,9 @@ export const authMiddleware = (app: Elysia) =>
                 secret: process.env.JWT_SECRET || "DEV_SECRET_DO_NOT_USE_IN_PROOD"
             })
         )
-        .derive(async ({ jwt, cookie: { auth_token }, headers: { authorization }, set }) => {
-            let tokenValue = auth_token?.value;
+        .derive(async ({ jwt, cookie: { auth_token }, headers: { authorization } }) => {
+            let tokenValue = auth_token?.value as string | undefined;
 
-            // Check Bearer token in headers if no cookie
             if (!tokenValue && authorization) {
                 const parts = authorization.split(' ');
                 if (parts.length === 2 && parts[0] === 'Bearer') {
@@ -22,21 +20,48 @@ export const authMiddleware = (app: Elysia) =>
             }
 
             if (!tokenValue) {
-                return { user: null };
+                return { user: null as null };
             }
 
-            const profile = await jwt.verify(tokenValue);
+            const profile = await jwt.verify(tokenValue as string);
             if (!profile || !profile.exp) {
-                return { user: null };
+                return { user: null as null };
             }
 
-            const user = await AuthService.getUserById(profile.id as string);
-            return { user };
+            return {
+                user: {
+                    id: profile.id as string,
+                    email: profile.email as string,
+                    orgId: profile.orgId as string,
+                    role: profile.role as string,
+                }
+            };
         })
         .macro(({ onBeforeHandle }) => ({
             isSignIn() {
-                onBeforeHandle(({ user, error }) => {
+                onBeforeHandle(({ user, error }: any) => {
                     if (!user) return error(401, "Unauthorized");
+                });
+            },
+            isAdmin() {
+                onBeforeHandle(({ user, error }: any) => {
+                    if (!user) return error(401, "Unauthorized");
+                    if (user.role !== "OWNER" && user.role !== "ADMIN")
+                        return error(403, "Forbidden: requires ADMIN or OWNER role");
+                });
+            },
+            isOwner() {
+                onBeforeHandle(({ user, error }: any) => {
+                    if (!user) return error(401, "Unauthorized");
+                    if (user.role !== "OWNER")
+                        return error(403, "Forbidden: requires OWNER role");
+                });
+            },
+            isSupervisor() {
+                onBeforeHandle(({ user, error }: any) => {
+                    if (!user) return error(401, "Unauthorized");
+                    if (!["OWNER", "ADMIN", "SUPERVISOR"].includes(user.role))
+                        return error(403, "Forbidden: requires SUPERVISOR or higher role");
                 });
             }
         }));
