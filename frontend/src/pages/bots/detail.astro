@@ -2147,7 +2147,6 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 const safeId = this.botId?.replace(/-/g, "_");
                 return `
                     <div x-data="botConnection_${safeId}" x-init="init()" class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full flex-shrink-0" :class="connected ? 'bg-green-500' : (qr ? 'bg-yellow-500 animate-pulse' : 'bg-red-500')"></span>
                         <template x-if="connected">
                             <button @click="disconnect()" :disabled="loading"
                                 class="px-3 py-2 text-xs font-sans border border-green-500/30 text-green-400 bg-green-500/10 hover:bg-green-500/20 transition-colors rounded-lg flex items-center gap-1.5"
