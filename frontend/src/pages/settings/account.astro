@@ -38,6 +38,11 @@ import Layout from "../../layouts/Layout.astro";
                             <span class="flex-1 p-3 text-sm text-wa-text-primary bg-wa-bg-hover border border-wa-border rounded-lg" x-text="profile.email"></span>
                             <span x-show="profile.emailVerified" class="text-xs text-wa-green px-2 py-1 bg-wa-green/10 rounded-full">Verificado</span>
                             <span x-show="!profile.emailVerified" class="text-xs text-amber-400 px-2 py-1 bg-amber-500/10 rounded-full">Sin verificar</span>
+                            <button x-show="!profile.emailVerified" @click="resendVerification()" :disabled="resending"
+                                class="text-xs text-wa-green hover:text-wa-green-hover transition-colors disabled:opacity-50">
+                                <span x-show="!resending">Reenviar</span>
+                                <span x-show="resending" class="animate-pulse">Enviando...</span>
+                            </button>
                         </div>
                     </div>
 
@@ -178,6 +183,9 @@ import Layout from "../../layouts/Layout.astro";
                 pwError: '',
                 pwSuccess: false,
 
+                // Resend verification
+                resending: false,
+
                 // Google
                 unlinking: false,
 
@@ -188,6 +196,18 @@ import Layout from "../../layouts/Layout.astro";
                         this.loading = false;
                     }
                     this.initGoogleButton();
+                },
+
+                async resendVerification() {
+                    this.resending = true;
+                    try {
+                        await api.post('/auth/me/resend-verification');
+                        (window as any).__toast?.success('Email de verificacion enviado');
+                    } catch (err: any) {
+                        (window as any).__toast?.error(err.message);
+                    } finally {
+                        this.resending = false;
+                    }
                 },
 
                 async saveName() {

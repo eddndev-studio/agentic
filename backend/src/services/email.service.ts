@@ -16,7 +16,7 @@ export class EmailService {
             html: `
                 <h2>Bienvenido a Agentic</h2>
                 <p>Haz clic en el siguiente enlace para verificar tu email:</p>
-                <a href="${process.env.APP_URL || "http://localhost:3000"}/auth/verify-email?token=${token}"
+                <a href="${process.env.APP_URL || "http://localhost:3000"}/verify-email?token=${token}"
                    style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">
                     Verificar email
                 </a>
@@ -33,7 +33,7 @@ export class EmailService {
             html: `
                 <h2>Restablecer contraseña</h2>
                 <p>Haz clic en el siguiente enlace para restablecer tu contraseña:</p>
-                <a href="${process.env.APP_URL || "http://localhost:3000"}/auth/reset-password?token=${token}"
+                <a href="${process.env.APP_URL || "http://localhost:3000"}/reset-password?token=${token}"
                    style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">
                     Restablecer contraseña
                 </a>
@@ -50,7 +50,7 @@ export class EmailService {
             html: `
                 <h2>Te han invitado a ${orgName}</h2>
                 <p>Has sido invitado a unirte a <strong>${orgName}</strong> en Agentic.</p>
-                <a href="${process.env.APP_URL || "http://localhost:3000"}/auth/accept-invite?token=${token}"
+                <a href="${process.env.APP_URL || "http://localhost:3000"}/accept-invite?token=${token}"
                    style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">
                     Aceptar invitación
                 </a>

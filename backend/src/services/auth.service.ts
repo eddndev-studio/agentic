@@ -240,6 +240,23 @@ export class AuthService {
         });
     }
 
+    // ── Resend Verification ───────────────────────────────────────────────
+
+    static async resendVerification(
+        userId: string,
+        jwtSign: (payload: any) => Promise<string>
+    ): Promise<void> {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error("USER_NOT_FOUND");
+        if (user.emailVerified) throw new Error("ALREADY_VERIFIED");
+
+        const token = await jwtSign({
+            type: "email-verify", userId: user.id,
+            exp: Math.floor(Date.now() / 1000) + 86400
+        });
+        await EmailService.sendVerificationEmail(user.email, token);
+    }
+
     // ── Account Management ───────────────────────────────────────────────
 
     static async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {

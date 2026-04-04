@@ -211,6 +211,20 @@ export const authController = new Elysia({ prefix: "/auth" })
         })
     })
 
+    .post("/me/resend-verification", async ({ user, jwt, set }) => {
+        try {
+            await AuthService.resendVerification(user!.id, jwt.sign);
+            return { success: true };
+        } catch (e: any) {
+            if (e.message === "ALREADY_VERIFIED") {
+                set.status = 400;
+                return { error: "Email ya verificado" };
+            }
+            set.status = 500;
+            return { error: "Internal Server Error" };
+        }
+    }, { isSignIn: true })
+
     .put("/me/password", async ({ user, body, set }) => {
         try {
             await AuthService.changePassword(user!.id, body.currentPassword, body.newPassword);

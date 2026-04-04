@@ -1,0 +1,79 @@
+---
+import "../styles/global.css";
+import AuthCard from "../components/auth/AuthCard.astro";
+---
+
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width" />
+        <meta name="theme-color" content="#0b141a" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <title>Verificar Email | Agentic</title>
+    </head>
+    <body class="bg-wa-bg-deep min-h-screen flex items-center justify-center font-sans text-wa-text-primary antialiased relative overflow-hidden">
+        <main x-data="verifyPage" x-init="verify()">
+            <AuthCard title="Verificacion de email">
+                <!-- Loading -->
+                <div x-show="loading" class="text-center py-6">
+                    <span class="text-sm text-wa-text-secondary animate-pulse">Verificando...</span>
+                </div>
+
+                <!-- Success -->
+                <div x-show="!loading && success" x-transition class="text-center py-6">
+                    <div class="w-12 h-12 rounded-full bg-wa-green/10 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <p class="text-sm text-wa-text-primary">Email verificado correctamente</p>
+                    <a href="/" class="inline-block mt-4 text-sm text-wa-green hover:text-wa-green-hover transition-colors">Ir al dashboard</a>
+                </div>
+
+                <!-- Error -->
+                <div x-show="!loading && !success" x-transition class="text-center py-6">
+                    <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                    <p class="text-sm text-red-300" x-text="errorMsg"></p>
+                    <a href="/settings/account" class="inline-block mt-4 text-sm text-wa-green hover:text-wa-green-hover transition-colors">Ir a mi cuenta</a>
+                </div>
+            </AuthCard>
+        </main>
+
+        <script>
+            import { ApiClient as api } from "../lib/api";
+
+            document.addEventListener("alpine:init", () => {
+                Alpine.data("verifyPage", () => ({
+                    loading: true,
+                    success: false,
+                    errorMsg: '',
+
+                    async verify() {
+                        const params = new URLSearchParams(window.location.search);
+                        const token = params.get('token');
+
+                        if (!token) {
+                            this.loading = false;
+                            this.errorMsg = 'Token no encontrado en la URL';
+                            return;
+                        }
+
+                        try {
+                            await api.post('/auth/verify-email', { token });
+                            this.success = true;
+                        } catch (err: any) {
+                            this.errorMsg = err.message || 'Token invalido o expirado';
+                        } finally {
+                            this.loading = false;
+                        }
+                    }
+                }));
+            });
+        </script>
+    </body>
+</html>
