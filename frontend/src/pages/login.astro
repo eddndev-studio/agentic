@@ -60,6 +60,10 @@ import AuthLink from "../components/auth/AuthLink.astro";
 
             const setToken = (token: string) => localStorage.setItem('token', token);
             const setUser = (user: any) => localStorage.setItem('user', JSON.stringify(user));
+            const getRedirectUrl = (user: any) => {
+                if (user.role === 'WORKER') return '/worker';
+                return '/';
+            };
 
             document.addEventListener("alpine:init", () => {
                 Alpine.data("loginForm", () => ({
@@ -79,7 +83,7 @@ import AuthLink from "../components/auth/AuthLink.astro";
                             if (response.token) {
                                 setToken(response.token);
                                 setUser(response.user);
-                                window.location.href = '/';
+                                window.location.href = getRedirectUrl(response.user);
                             } else {
                                 this.errorMessage = 'Login failed: No token received';
                             }

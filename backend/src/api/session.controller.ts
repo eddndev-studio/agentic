@@ -23,7 +23,19 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             NOT: { identifier: { startsWith: 'emu://' } },
             bot: { orgId: user!.orgId },
         };
-        if (botId) where.botId = botId;
+
+        // WORKER: restrict to assigned bots only
+        if (user!.role === "WORKER") {
+            const membership = await prisma.membership.findUnique({
+                where: { userId_orgId: { userId: user!.id, orgId: user!.orgId } },
+                include: { workerBots: { select: { botId: true } } }
+            });
+            const assignedIds = membership?.workerBots.map(wb => wb.botId) ?? [];
+            where.botId = botId ? (assignedIds.includes(botId) ? botId : "__none__") : { in: assignedIds };
+        } else if (botId) {
+            where.botId = botId;
+        }
+
         if (search) {
             where.OR = [
                 { name: { contains: search, mode: "insensitive" } },

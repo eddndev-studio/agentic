@@ -31,13 +31,45 @@ async function bindIPv6(address: string): Promise<void> {
     }
 }
 
+/**
+ * For WORKER role, verifies the bot is assigned via WorkerBot.
+ * Returns the bot if access is granted, null otherwise.
+ */
+async function findBotWithAccess(id: string, user: { id: string; orgId: string; role: string }) {
+    const bot = await prisma.bot.findFirst({ where: { id, orgId: user.orgId } });
+    if (!bot) return null;
+
+    if (user.role === "WORKER") {
+        const assignment = await prisma.workerBot.findFirst({
+            where: {
+                botId: id,
+                membership: { userId: user.id, orgId: user.orgId }
+            }
+        });
+        if (!assignment) return null;
+    }
+
+    return bot;
+}
+
 export const botController = new Elysia({ prefix: "/bots" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
-    // List all bots
+    // List all bots (WORKER sees only assigned bots)
     .get("/", async ({ user }) => {
+        const where: any = { orgId: user!.orgId };
+
+        if (user!.role === "WORKER") {
+            const membership = await prisma.membership.findUnique({
+                where: { userId_orgId: { userId: user!.id, orgId: user!.orgId } },
+                include: { workerBots: { select: { botId: true } } }
+            });
+            const assignedIds = membership?.workerBots.map(wb => wb.botId) ?? [];
+            where.id = { in: assignedIds };
+        }
+
         return prisma.bot.findMany({
-            where: { orgId: user!.orgId },
+            where,
             orderBy: { name: 'asc' },
             include: { template: { select: { id: true, name: true } } },
         });
@@ -78,7 +110,7 @@ export const botController = new Elysia({ prefix: "/bots" })
     // Connection Management (provider-agnostic)
     .post("/:id/connect", async ({ params: { id }, set, user }) => {
         try {
-            const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            const bot = await findBotWithAccess(id, user!);
             if (!bot) { set.status = 404; return { error: "Bot not found" }; }
 
             const provider = await providerRegistry.forBot(id);
@@ -90,7 +122,7 @@ export const botController = new Elysia({ prefix: "/bots" })
         }
     })
     .get("/:id/qr", async ({ params: { id }, set, user }) => {
-        const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+        const bot = await findBotWithAccess(id, user!);
         if (!bot) { set.status = 404; return { error: "Bot not found" }; }
 
         const provider = await providerRegistry.forBot(id);
@@ -102,7 +134,7 @@ export const botController = new Elysia({ prefix: "/bots" })
         return { qr };
     })
     .get("/:id/status", async ({ params: { id }, set, user }) => {
-        const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+        const bot = await findBotWithAccess(id, user!);
         if (!bot) { set.status = 404; return { error: "Bot not found" }; }
 
         const provider = await providerRegistry.forBot(id);
@@ -110,7 +142,7 @@ export const botController = new Elysia({ prefix: "/bots" })
     })
     .post("/:id/disconnect", async ({ params: { id }, set, user }) => {
         try {
-            const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            const bot = await findBotWithAccess(id, user!);
             if (!bot) { set.status = 404; return { error: "Bot not found" }; }
 
             const provider = await providerRegistry.forBot(id);
@@ -123,7 +155,7 @@ export const botController = new Elysia({ prefix: "/bots" })
     })
     // Generate a public connect link
     .post("/:id/generate-link", async ({ params: { id }, set, user }) => {
-        const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+        const bot = await findBotWithAccess(id, user!);
         if (!bot) { set.status = 404; return { error: "Bot not found" }; }
 
         const token = crypto.randomBytes(32).toString('hex');
@@ -137,14 +169,13 @@ export const botController = new Elysia({ prefix: "/bots" })
     })
     // Generic /:id routes
     .get("/:id", async ({ params: { id }, set, user }) => {
+        const hasAccess = await findBotWithAccess(id, user!);
+        if (!hasAccess) { set.status = 404; return { error: "Bot not found" }; }
+
         const bot = await prisma.bot.findFirst({
             where: { id, orgId: user!.orgId },
             include: { template: { select: { id: true, name: true } } },
         });
-        if (!bot) {
-            set.status = 404;
-            return { error: "Bot not found" };
-        }
         return bot;
     })
     .put("/:id", async ({ params: { id }, body, set, user }) => {
@@ -152,8 +183,8 @@ export const botController = new Elysia({ prefix: "/bots" })
         const b = body as any;
 
         try {
-            // Verify bot belongs to this org
-            const existingBot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            // Verify bot belongs to this org and user has access
+            const existingBot = await findBotWithAccess(id, user!);
             if (!existingBot) { set.status = 404; return { error: "Bot not found" }; }
 
             // Check if system prompt or provider/model changed — if so, clear conversations
@@ -220,7 +251,7 @@ export const botController = new Elysia({ prefix: "/bots" })
     // Clear all conversation histories for a bot
     .post("/:id/clear-conversations", async ({ params: { id }, set, user }) => {
         try {
-            const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            const bot = await findBotWithAccess(id, user!);
             if (!bot) { set.status = 404; return { error: "Bot not found" }; }
 
             const sessions = await prisma.session.findMany({
@@ -247,6 +278,9 @@ export const botController = new Elysia({ prefix: "/bots" })
             return { error: "Name and identifier are required" };
         }
 
+        const hasAccess = await findBotWithAccess(id, user!);
+        if (!hasAccess) { set.status = 404; return { error: "Bot not found" }; }
+
         const source = await prisma.bot.findFirst({
             where: { id, orgId: user!.orgId },
             include: {
@@ -255,11 +289,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                 automations: true,
             },
         });
-
-        if (!source) {
-            set.status = 404;
-            return { error: "Bot not found" };
-        }
+        if (!source) { set.status = 404; return { error: "Bot not found" }; }
 
         try {
             const result = await prisma.$transaction(async (tx) => {
@@ -391,7 +421,7 @@ export const botController = new Elysia({ prefix: "/bots" })
     })
     .delete("/:id", async ({ params: { id }, set, user }) => {
         try {
-            const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            const bot = await findBotWithAccess(id, user!);
             if (!bot) { set.status = 404; return { error: "Bot not found" }; }
 
             await prisma.bot.delete({

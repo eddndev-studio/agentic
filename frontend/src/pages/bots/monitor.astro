@@ -156,7 +156,12 @@ import DebugPanel from "../../components/monitor/DebugPanel.astro";
                 if (this.timeTickInterval) clearInterval(this.timeTickInterval);
             },
             goBack() {
-                window.location.href = this.botId ? `/bots/detail?id=${this.botId}` : "/bots";
+                const role = JSON.parse(localStorage.getItem('user') || '{}').role;
+                if (role === 'WORKER') {
+                    window.location.href = '/worker';
+                } else {
+                    window.location.href = this.botId ? `/bots/detail?id=${this.botId}` : '/bots';
+                }
             },
 
             // ── Delegators (one-liners to imported functions) ────────────

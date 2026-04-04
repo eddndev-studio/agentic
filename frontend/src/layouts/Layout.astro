@@ -41,6 +41,21 @@ const { title, fullWidth = false } = Astro.props;
 					console.log("[Auth] Session valid:", response);
 					this.user = response;
 					this.loading = false;
+
+					// Role-based route protection
+					const path = window.location.pathname;
+					const role = JSON.parse(localStorage.getItem('user') || '{}').role;
+					const restrictedForWorker = ['/', '/templates', '/logs', '/finance', '/settings/members', '/editor', '/tool-editor'];
+					const restrictedForSupervisor = ['/templates', '/logs', '/finance', '/settings/members', '/editor', '/tool-editor'];
+
+					if (role === 'WORKER' && restrictedForWorker.some(r => path === r || (r !== '/' && path.startsWith(r)))) {
+						window.location.href = '/worker';
+						return;
+					}
+					if (role === 'SUPERVISOR' && restrictedForSupervisor.some(r => path === r || path.startsWith(r))) {
+						window.location.href = '/bots';
+						return;
+					}
 				} catch (e) {
 					console.error("[Auth] Session check failed:", e);
 					if (window.location.pathname !== "/login") {

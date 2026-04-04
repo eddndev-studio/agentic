@@ -1,0 +1,95 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Mis Bots">
+    <div x-data="workerLanding" x-init="init()">
+        <!-- Loading -->
+        <div x-show="loading" class="flex items-center justify-center py-24">
+            <span class="text-sm text-wa-text-secondary animate-pulse">Cargando bots asignados...</span>
+        </div>
+
+        <!-- Bot Grid -->
+        <div x-show="!loading" x-cloak style="display: none;">
+            <header class="border-b border-wa-border pb-6 mb-8">
+                <h1 class="text-3xl font-bold tracking-tight">Mis Bots</h1>
+                <p class="text-xs text-wa-text-secondary mt-1">
+                    <span x-text="bots.length">0</span> bot(s) asignado(s)
+                </p>
+            </header>
+
+            <!-- Empty state -->
+            <div x-show="bots.length === 0" class="p-12 border border-dashed border-wa-border rounded-xl text-center text-wa-text-secondary bg-wa-bg-panel/20">
+                <svg class="w-12 h-12 mx-auto mb-4 text-wa-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                </svg>
+                <p class="text-sm">No tienes bots asignados. Contacta a tu administrador.</p>
+            </div>
+
+            <!-- Bot cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <template x-for="bot in bots" :key="bot.id">
+                    <a :href="`/bots/monitor?botId=${bot.id}`"
+                       class="block bg-wa-bg-panel border border-wa-border rounded-xl p-6 group transition-all duration-300 hover:border-wa-green/30">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="text-[10px] text-wa-green bg-wa-green/10 px-2 py-0.5 rounded-md" x-text="bot.platform"></span>
+                            <svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-bold tracking-tight mb-1 group-hover:text-wa-green transition-colors" x-text="bot.name"></h3>
+                        <p class="text-xs text-wa-text-secondary truncate" x-text="bot.identifier"></p>
+
+                        <!-- Status -->
+                        <div class="mt-4 pt-4 border-t border-wa-border flex items-center gap-2" x-data="botStatus(bot.id)">
+                            <span class="w-2 h-2 rounded-full" :class="connected ? 'bg-green-500' : 'bg-gray-600'"></span>
+                            <span class="text-[10px]" :class="connected ? 'text-green-500' : 'text-wa-text-secondary'" x-text="connected ? 'Activo' : 'Desconectado'"></span>
+                        </div>
+                    </a>
+                </template>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script>
+    declare const Alpine: any;
+    import { ApiClient } from "../lib/api";
+
+    document.addEventListener("alpine:init", () => {
+        Alpine.data("workerLanding", () => ({
+            bots: [] as any[],
+            loading: true,
+
+            async init() {
+                try {
+                    this.bots = await ApiClient.get("/bots");
+                    // Auto-redirect if only 1 bot assigned
+                    if (this.bots.length === 1) {
+                        window.location.href = `/bots/monitor?botId=${this.bots[0].id}`;
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Failed to load assigned bots:", e);
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }));
+
+        Alpine.data("botStatus", (botId: string) => ({
+            connected: false,
+            init() {
+                setTimeout(() => this.checkStatus(), 100);
+            },
+            async checkStatus() {
+                try {
+                    const status = await ApiClient.get(`/bots/${botId}/status`);
+                    this.connected = status.connected;
+                } catch {
+                    this.connected = false;
+                }
+            }
+        }));
+    });
+</script>
