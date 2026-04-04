@@ -227,6 +227,11 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                 :class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
                 Config IA
             </button>
+            <button @click="activeTab = 'labels'; updateTabUrl()"
+                class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
+                :class="activeTab === 'labels' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
+                Etiquetas
+            </button>
             <button @click="activeTab = 'tools'; updateTabUrl()"
                 class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
                 :class="activeTab === 'tools' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
@@ -818,124 +823,32 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                             </button>
                         </div>
 
-                        <!-- Label Management -->
+                        <!-- Ignored Labels -->
                         <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <label class="block text-sm font-medium text-white">Etiquetas</label>
-                                <div class="flex items-center gap-2">
-                                    <button type="button" @click="syncLabels()"
-                                        :disabled="syncingLabels"
-                                        class="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] text-wa-text-secondary hover:text-white transition-colors rounded"
-                                        title="Sync from WhatsApp">
-                                        <span :class="{'animate-spin': syncingLabels}">⟳</span>
-                                        <span>Sync</span>
-                                    </button>
-                                    <button type="button" @click="creatingLabel = !creatingLabel; newLabelName = ''; newLabelColor = 0"
-                                        class="inline-flex items-center gap-1 px-2 py-1 text-[10px] text-wa-green hover:bg-wa-green/10 transition-colors rounded">
-                                        <span x-text="creatingLabel ? '✕' : '+'"></span>
-                                        <span x-text="creatingLabel ? 'Cancelar' : 'Nueva'"></span>
-                                    </button>
-                                </div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-sm font-medium text-white" x-text="$t('ignored_labels')">Ignored Labels</label>
                             </div>
-
-                            <!-- Create form -->
-                            <div x-show="creatingLabel" x-transition class="mb-3 p-3 bg-wa-bg-panel border border-wa-green/20 rounded-lg space-y-2">
-                                <input type="text" x-model="newLabelName" placeholder="Nombre de la etiqueta"
-                                    class="w-full bg-wa-bg-deep border border-wa-border rounded-lg px-3 py-2 text-xs text-white focus:border-wa-green focus:outline-none"
-                                    @keydown.enter="createLabel()" />
-                                <div class="flex flex-wrap gap-1.5">
-                                    <template x-for="(_, ci) in Array(20)" :key="'nc-' + ci">
-                                        <button type="button" @click="newLabelColor = ci"
-                                            class="w-5 h-5 rounded-full transition-all"
-                                            :style="'background:' + getLabelColor(ci)"
-                                            :class="newLabelColor === ci ? 'ring-2 ring-white ring-offset-1 ring-offset-wa-bg-panel scale-110' : 'opacity-60 hover:opacity-100'">
-                                        </button>
-                                    </template>
-                                </div>
-                                <button type="button" @click="createLabel()" :disabled="savingLabel || !newLabelName.trim()"
-                                    class="px-4 py-1.5 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors">
-                                    <span x-text="savingLabel ? 'Creando...' : 'Crear etiqueta'"></span>
-                                </button>
-                            </div>
-
-                            <!-- Label list -->
-                            <div class="space-y-1">
-                                <template x-for="lbl in botLabels" :key="'mgmt-' + lbl.id">
-                                    <div class="flex items-center gap-2 group px-2 py-1.5 rounded-lg hover:bg-wa-bg-hover transition-colors">
-                                        <!-- Editing mode -->
-                                        <template x-if="editingLabel?.id === lbl.id">
-                                            <div class="flex-1 space-y-2">
-                                                <div class="flex items-center gap-2">
-                                                    <input type="text" x-model="editingLabel.name"
-                                                        class="flex-1 bg-wa-bg-deep border border-wa-green/30 rounded px-2 py-1 text-xs text-white focus:outline-none"
-                                                        @keydown.enter="updateLabel()" @keydown.escape="editingLabel = null" />
-                                                    <button type="button" @click="updateLabel()" :disabled="savingLabel"
-                                                        class="text-wa-green text-xs hover:underline">Guardar</button>
-                                                    <button type="button" @click="editingLabel = null"
-                                                        class="text-wa-text-secondary text-xs hover:underline">Cancelar</button>
-                                                </div>
-                                                <div class="flex flex-wrap gap-1.5">
-                                                    <template x-for="(_, ci) in Array(20)" :key="'ec-' + ci">
-                                                        <button type="button" @click="editingLabel.color = ci"
-                                                            class="w-4 h-4 rounded-full transition-all"
-                                                            :style="'background:' + getLabelColor(ci)"
-                                                            :class="editingLabel.color === ci ? 'ring-2 ring-white ring-offset-1 ring-offset-wa-bg-hover scale-110' : 'opacity-50 hover:opacity-100'">
-                                                        </button>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </template>
-
-                                        <!-- Display mode -->
-                                        <template x-if="editingLabel?.id !== lbl.id">
-                                            <div class="flex items-center gap-2 flex-1 min-w-0">
-                                                <span class="w-3 h-3 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
-                                                <span class="text-xs text-white truncate" x-text="lbl.name"></span>
-                                                <span class="text-[10px] text-wa-text-secondary" x-text="'(' + (lbl.sessionCount || 0) + ')'"></span>
-                                                <div class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button type="button" @click="editingLabel = { id: lbl.id, name: lbl.name, color: lbl.color }"
-                                                        class="p-1 text-wa-text-secondary hover:text-white transition-colors" title="Editar">
-                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                                                        </svg>
-                                                    </button>
-                                                    <button type="button" @click="deleteLabel(lbl.id, lbl.name)"
-                                                        class="p-1 text-wa-text-secondary hover:text-red-400 transition-colors" title="Eliminar">
-                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
+                            <p class="text-xs text-wa-text-secondary mb-3" x-text="$t('ignored_labels_desc')"></p>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="lbl in botLabels" :key="lbl.id">
+                                    <button type="button"
+                                        @click="toggleIgnoredLabel(lbl.id)"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
+                                        :class="aiConfig.ignoredLabels.includes(lbl.id)
+                                            ? 'bg-red-500/15 border-red-500/40 text-red-400'
+                                            : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
+                                    >
+                                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                        <span x-text="lbl.name"></span>
+                                        <span x-show="aiConfig.ignoredLabels.includes(lbl.id)" class="text-red-400/70 text-[10px] ml-0.5">✕</span>
+                                    </button>
                                 </template>
-                                <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1 block">Sin etiquetas sincronizadas</span>
+                                <span x-show="botLabels.length === 0" class="text-wa-text-secondary text-xs py-1">No labels synced</span>
                             </div>
-
-                            <!-- Ignored Labels section -->
-                            <div class="mt-4 pt-3 border-t border-wa-border/50">
-                                <label class="block text-[10px] text-wa-text-secondary mb-2" x-text="$t('ignored_labels')">Ignored Labels</label>
-                                <div class="flex flex-wrap gap-1.5">
-                                    <template x-for="lbl in botLabels" :key="'ign-' + lbl.id">
-                                        <button type="button"
-                                            @click="toggleIgnoredLabel(lbl.id)"
-                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] transition-all border cursor-pointer select-none"
-                                            :class="aiConfig.ignoredLabels.includes(lbl.id)
-                                                ? 'bg-red-500/15 border-red-500/40 text-red-400'
-                                                : 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
-                                        >
-                                            <span class="w-2 h-2 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
-                                            <span x-text="lbl.name"></span>
-                                            <span x-show="aiConfig.ignoredLabels.includes(lbl.id)" class="text-red-400/70 ml-0.5">✕</span>
-                                        </button>
-                                    </template>
-                                </div>
-                                <div x-show="aiConfig.ignoredLabels.length > 0" class="mt-2">
-                                    <p class="text-[10px] text-red-400/70">
-                                        <span x-text="aiConfig.ignoredLabels.length"></span> etiqueta(s) ignorada(s) — AI no responderá en sesiones con estas etiquetas
-                                    </p>
-                                </div>
+                            <div x-show="aiConfig.ignoredLabels.length > 0" class="mt-3 pt-2 border-t border-wa-border/50">
+                                <p class="text-[10px] text-red-400/70">
+                                    <span x-text="aiConfig.ignoredLabels.length"></span> label(s) ignored — AI will not respond to sessions with these labels
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -953,6 +866,113 @@ import ClientModal from "../../components/clients/ClientModal.astro";
                     </div>
                 </form>
             </div>
+            </div>
+
+            <!-- Tab content: Etiquetas -->
+            <div x-show="activeTab === 'labels'" x-transition:enter>
+                <div class="space-y-6">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs text-wa-green tracking-normal">Etiquetas de WhatsApp</h3>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="syncLabels()"
+                                :disabled="syncingLabels"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-wa-text-secondary hover:text-white border border-wa-border hover:bg-wa-bg-hover transition-colors rounded-lg">
+                                <span :class="{'animate-spin': syncingLabels}">&#x27F3;</span>
+                                <span x-text="syncingLabels ? 'Sincronizando...' : 'Sync WhatsApp'"></span>
+                            </button>
+                            <button type="button" @click="creatingLabel = !creatingLabel; newLabelName = ''; newLabelColor = 0"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-wa-green text-white hover:bg-wa-green-hover transition-colors rounded-lg">
+                                <span x-text="creatingLabel ? '&#x2715;' : '+'"></span>
+                                <span x-text="creatingLabel ? 'Cancelar' : 'Nueva etiqueta'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Create form -->
+                    <div x-show="creatingLabel" x-transition class="bg-wa-bg-panel border border-wa-green/20 rounded-xl p-5 space-y-4">
+                        <h4 class="text-sm font-medium text-white">Crear nueva etiqueta</h4>
+                        <div>
+                            <label class="block text-[10px] text-wa-text-secondary mb-1.5">Nombre</label>
+                            <input type="text" x-model="newLabelName" placeholder="Ej: VIP, Seguimiento, Cerrado..."
+                                class="w-full bg-wa-bg-deep border border-wa-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-wa-green focus:outline-none"
+                                @keydown.enter="createLabel()" />
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-wa-text-secondary mb-1.5">Color</label>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="(_, ci) in Array(20)" :key="'nc-' + ci">
+                                    <button type="button" @click="newLabelColor = ci"
+                                        class="w-7 h-7 rounded-full transition-all"
+                                        :style="'background:' + getLabelColor(ci)"
+                                        :class="newLabelColor === ci ? 'ring-2 ring-white ring-offset-2 ring-offset-wa-bg-panel scale-110' : 'opacity-50 hover:opacity-100'">
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                        <button type="button" @click="createLabel()" :disabled="savingLabel || !newLabelName.trim()"
+                            class="px-5 py-2.5 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors">
+                            <span x-text="savingLabel ? 'Creando...' : 'Crear etiqueta'"></span>
+                        </button>
+                    </div>
+
+                    <!-- Labels list -->
+                    <div class="bg-wa-bg-panel border border-wa-border rounded-xl overflow-hidden">
+                        <template x-for="lbl in botLabels" :key="'lbl-' + lbl.id">
+                            <div class="flex items-center gap-3 px-4 py-3 border-b border-wa-border/50 last:border-0 group hover:bg-wa-bg-hover/50 transition-colors">
+                                <!-- Editing mode -->
+                                <template x-if="editingLabel?.id === lbl.id">
+                                    <div class="flex-1 space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <input type="text" x-model="editingLabel.name"
+                                                class="flex-1 bg-wa-bg-deep border border-wa-green/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-wa-green"
+                                                @keydown.enter="updateLabel()" @keydown.escape="editingLabel = null" />
+                                            <button type="button" @click="updateLabel()" :disabled="savingLabel"
+                                                class="px-3 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50">Guardar</button>
+                                            <button type="button" @click="editingLabel = null"
+                                                class="px-3 py-2 border border-wa-border text-wa-text-secondary text-xs rounded-lg hover:bg-wa-bg-hover">Cancelar</button>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="(_, ci) in Array(20)" :key="'ec-' + ci">
+                                                <button type="button" @click="editingLabel.color = ci"
+                                                    class="w-5 h-5 rounded-full transition-all"
+                                                    :style="'background:' + getLabelColor(ci)"
+                                                    :class="editingLabel.color === ci ? 'ring-2 ring-white ring-offset-1 ring-offset-wa-bg-hover scale-110' : 'opacity-40 hover:opacity-100'">
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Display mode -->
+                                <template x-if="editingLabel?.id !== lbl.id">
+                                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                                        <span class="w-4 h-4 rounded-full shrink-0" :style="'background:' + getLabelColor(lbl.color)"></span>
+                                        <span class="text-sm text-white truncate" x-text="lbl.name"></span>
+                                        <span class="text-xs text-wa-text-secondary" x-text="(lbl.sessionCount || 0) + ' chats'"></span>
+                                        <div class="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button type="button" @click="editingLabel = { id: lbl.id, name: lbl.name, color: lbl.color }"
+                                                class="p-1.5 text-wa-text-secondary hover:text-white transition-colors rounded" title="Editar">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                                                </svg>
+                                            </button>
+                                            <button type="button" @click="deleteLabel(lbl.id, lbl.name)"
+                                                class="p-1.5 text-wa-text-secondary hover:text-red-400 transition-colors rounded" title="Eliminar">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <div x-show="botLabels.length === 0" class="p-8 text-center text-wa-text-secondary text-sm">
+                            Sin etiquetas sincronizadas. Usa "Sync WhatsApp" para cargar las etiquetas existentes.
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Tab content: Herramientas -->
