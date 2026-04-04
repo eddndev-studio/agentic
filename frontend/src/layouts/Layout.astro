@@ -18,7 +18,12 @@ const { title, fullWidth = false } = Astro.props;
 	import { ApiClient } from "../lib/api";
 	import "../lib/toast"; // Initialize toast globally
 
+	let storesInitialized = false;
+
 	document.addEventListener("alpine:init", () => {
+		if (storesInitialized) return;
+		storesInitialized = true;
+
 		i18nPlugin(Alpine);
 		storePlugin(Alpine);
 
@@ -38,12 +43,11 @@ const { title, fullWidth = false } = Astro.props;
 					this.loading = false;
 				} catch (e) {
 					console.error("[Auth] Session check failed:", e);
-					// Verify we aren't already on login page to avoid loop (though Layout shouldn't be used on login ideally)
 					if (window.location.pathname !== "/login") {
 						console.log("[Auth] Redirecting to login");
 						window.location.href = "/login";
 					} else {
-						this.loading = false; // Just show content if on login (though login page usually doesn't use this layout config)
+						this.loading = false;
 					}
 				}
 			},
@@ -61,6 +65,22 @@ const { title, fullWidth = false } = Astro.props;
 		Alpine.store("bot").init();
 		// @ts-ignore
 		Alpine.store("auth").init();
+	});
+
+	// ── ViewTransitions + Alpine lifecycle ──────────────────────────
+	// Pause Alpine's MutationObserver during DOM swap to prevent
+	// processing elements before page scripts register their data.
+	document.addEventListener("astro:before-swap", () => {
+		Alpine.deferMutations();
+	});
+
+	// After swap + scripts executed: re-trigger alpine:init so page
+	// scripts register their Alpine.data() factories, then init the
+	// new DOM tree.
+	document.addEventListener("astro:page-load", () => {
+		Alpine.flushAndStopDeferringMutations();
+		document.dispatchEvent(new CustomEvent("alpine:init"));
+		Alpine.initTree(document.body);
 	});
 </script>
 
