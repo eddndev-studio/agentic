@@ -70,7 +70,7 @@ import DebugPanel from "../../components/monitor/DebugPanel.astro";
     import {
         loadMessages, loadMoreMessages, onChatScroll, scrollToBottom,
         sendMessage, handleFileSelect, clearAttachment, playNotifSound,
-        reactToMessage, poll,
+        reactToMessage, poll, buildReactionsMap,
     } from "../../lib/monitor/message-methods";
     import {
         loadDebugContext, saveNotes, toggleAI, forceAI,
@@ -206,6 +206,16 @@ import DebugPanel from "../../components/monitor/DebugPanel.astro";
             async assignLabel(id: string) { await assignLabel(this, id); },
             async removeLabel(id: string) { await removeLabel(this, id); },
             availableLabels() { return availableLabels(this); },
+            get reactionsMap() { return buildReactionsMap(this.messages); },
+            getReactions(msg: any) {
+                if (!msg.externalId) return [];
+                const emojis = this.reactionsMap[msg.externalId];
+                if (!emojis || emojis.length === 0) return [];
+                // Group: { emoji: '👍', count: 2 }
+                const counts: Record<string, number> = {};
+                for (const e of emojis) counts[e] = (counts[e] || 0) + 1;
+                return Object.entries(counts).map(([emoji, count]) => ({ emoji, count }));
+            },
         }));
     });
 </script>

@@ -110,6 +110,23 @@ export function playNotifSound() {
     } catch {}
 }
 
+/**
+ * Build a map of externalId → emoji[] from REACTION messages.
+ * Only keeps the latest reaction per sender (empty content = removal).
+ */
+export function buildReactionsMap(messages: any[]): Record<string, string[]> {
+    const map: Record<string, string[]> = {};
+    for (const msg of messages) {
+        if (msg.type !== 'REACTION' || !msg.metadata?.reactedTo?.id) continue;
+        const targetId = msg.metadata.reactedTo.id;
+        if (!map[targetId]) map[targetId] = [];
+        if (msg.content) {
+            map[targetId].push(msg.content);
+        }
+    }
+    return map;
+}
+
 export async function reactToMessage(ctx: any, messageId: string, emoji: string) {
     if (!ctx.selectedSession) return;
     try {
