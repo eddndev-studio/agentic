@@ -72,6 +72,10 @@ import InviteMemberModal from "../../components/settings/InviteMemberModal.astro
                 inviteLoading: false,
                 inviteError: '',
 
+                // Bot assignment
+                orgBots: null as any[] | null,
+                memberBots: {} as Record<string, string[]>,
+
                 async init() {
                     const user = JSON.parse(localStorage.getItem('user') || '{}');
                     this.currentUserId = user.id;
@@ -89,6 +93,39 @@ import InviteMemberModal from "../../components/settings/InviteMemberModal.astro
                         this.invitations = invitations;
                     } finally {
                         this.loading = false;
+                    }
+                },
+
+                async loadMemberBots(membershipId: string) {
+                    // Load org bots once
+                    if (!this.orgBots) {
+                        this.orgBots = await api.get('/bots');
+                    }
+                    // Load this member's assigned bots
+                    if (!this.memberBots[membershipId]) {
+                        try {
+                            const bots = await api.get(`/org/members/${membershipId}/bots`);
+                            this.memberBots[membershipId] = bots.map((b: any) => b.id);
+                        } catch {
+                            this.memberBots[membershipId] = [];
+                        }
+                    }
+                },
+
+                async toggleBot(membershipId: string, botId: string, checked: boolean) {
+                    const current = this.memberBots[membershipId] || [];
+                    const updated = checked
+                        ? [...current, botId]
+                        : current.filter((id: string) => id !== botId);
+
+                    try {
+                        await api.put(`/org/members/${membershipId}/bots`, { botIds: updated });
+                        this.memberBots[membershipId] = updated;
+                        (window as any).__toast?.success('Bots actualizados');
+                    } catch (err: any) {
+                        (window as any).__toast?.error(err.message);
+                        // Revert checkbox
+                        this.memberBots[membershipId] = current;
                     }
                 },
 
