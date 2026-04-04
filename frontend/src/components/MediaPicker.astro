@@ -188,7 +188,7 @@
                     import.meta.env.PUBLIC_API_URL ||
                     (import.meta.env.DEV
                         ? "http://localhost:8080"
-                        : "https://api-agentic.angelviajero.com.mx");
+                        : "https://agentic-api.w-gateway.cc");
                 return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
             },
 
@@ -229,7 +229,7 @@
                         import.meta.env.PUBLIC_API_URL ||
                         (import.meta.env.DEV
                             ? "http://localhost:8080"
-                            : "https://api-agentic.angelviajero.com.mx");
+                            : "https://agentic-api.w-gateway.cc");
                     const res = await fetch(`${base}/upload`, {
                         method: "POST",
                         body: formData,

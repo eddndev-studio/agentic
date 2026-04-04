@@ -1,5 +1,5 @@
 const API_URL = import.meta.env.PUBLIC_API_URL ||
-    (import.meta.env.DEV ? 'http://localhost:8080' : 'https://api-agentic.angelviajero.com.mx');
+    (import.meta.env.DEV ? 'http://localhost:8080' : 'https://agentic-api.w-gateway.cc');
 
 type BotEventType =
     | 'connected' | 'bot:qr' | 'bot:connected' | 'bot:disconnected'
