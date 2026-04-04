@@ -211,6 +211,81 @@ export const authController = new Elysia({ prefix: "/auth" })
         })
     })
 
+    .put("/me/password", async ({ user, body, set }) => {
+        try {
+            await AuthService.changePassword(user!.id, body.currentPassword, body.newPassword);
+            return { success: true };
+        } catch (e: any) {
+            const map: Record<string, [number, string]> = {
+                WRONG_PASSWORD: [403, "Password actual incorrecta"],
+                USER_NOT_FOUND: [404, "Usuario no encontrado"],
+            };
+            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            set.status = status;
+            return { error: msg };
+        }
+    }, {
+        isSignIn: true,
+        body: t.Object({
+            currentPassword: t.String(),
+            newPassword: t.String({ minLength: 8 })
+        })
+    })
+
+    .put("/me/email", async ({ user, body, jwt, set }) => {
+        try {
+            await AuthService.changeEmail(user!.id, body.newEmail, body.password, jwt.sign);
+            return { success: true };
+        } catch (e: any) {
+            const map: Record<string, [number, string]> = {
+                WRONG_PASSWORD: [403, "Password incorrecta"],
+                EMAIL_EXISTS: [409, "Email ya registrado"],
+                NO_PASSWORD_SET: [400, "Establece una password primero"],
+            };
+            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            set.status = status;
+            return { error: msg };
+        }
+    }, {
+        isSignIn: true,
+        body: t.Object({
+            newEmail: t.String({ format: "email" }),
+            password: t.String()
+        })
+    })
+
+    .post("/me/link-google", async ({ user, body, set }) => {
+        try {
+            await AuthService.linkGoogle(user!.id, body.idToken);
+            return { success: true };
+        } catch (e: any) {
+            const map: Record<string, [number, string]> = {
+                INVALID_GOOGLE_TOKEN: [401, "Token de Google invalido"],
+                GOOGLE_EMAIL_TAKEN: [409, "El email de Google ya esta asociado a otra cuenta"],
+            };
+            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            set.status = status;
+            return { error: msg };
+        }
+    }, {
+        isSignIn: true,
+        body: t.Object({ idToken: t.String() })
+    })
+
+    .post("/me/unlink-google", async ({ user, set }) => {
+        try {
+            await AuthService.unlinkGoogle(user!.id);
+            return { success: true };
+        } catch (e: any) {
+            if (e.message === "SET_PASSWORD_FIRST") {
+                set.status = 400;
+                return { error: "Debes establecer una password antes de desvincular Google" };
+            }
+            set.status = 500;
+            return { error: "Internal Server Error" };
+        }
+    }, { isSignIn: true })
+
     .post("/switch-org", async ({ user, body, jwt, set }) => {
         const membership = await AuthService.switchOrg(user!.id, body.orgId);
         if (!membership) {

@@ -240,6 +240,90 @@ export class AuthService {
         });
     }
 
+    // ── Account Management ───────────────────────────────────────────────
+
+    static async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error("USER_NOT_FOUND");
+
+        if (user.passwordHash) {
+            const valid = await argon2.verify(user.passwordHash, currentPassword);
+            if (!valid) throw new Error("WRONG_PASSWORD");
+        }
+
+        const passwordHash = await argon2.hash(newPassword, {
+            type: argon2.argon2id, memoryCost: 4096, timeCost: 3
+        });
+        await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    }
+
+    static async changeEmail(
+        userId: string,
+        newEmail: string,
+        password: string,
+        jwtSign: (payload: any) => Promise<string>
+    ): Promise<void> {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error("USER_NOT_FOUND");
+
+        // Require password verification
+        if (!user.passwordHash) throw new Error("NO_PASSWORD_SET");
+        const valid = await argon2.verify(user.passwordHash, password);
+        if (!valid) throw new Error("WRONG_PASSWORD");
+
+        // Check email availability
+        const existing = await prisma.user.findUnique({ where: { email: newEmail } });
+        if (existing) throw new Error("EMAIL_EXISTS");
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { email: newEmail, emailVerified: false }
+        });
+
+        // Send verification for new email
+        const token = await jwtSign({
+            type: "email-verify", userId, exp: Math.floor(Date.now() / 1000) + 86400
+        });
+        EmailService.sendVerificationEmail(newEmail, token).catch(console.error);
+    }
+
+    static async linkGoogle(userId: string, idToken: string): Promise<void> {
+        const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        if (!res.ok) throw new Error("INVALID_GOOGLE_TOKEN");
+
+        const payload: any = await res.json();
+        if (payload.aud !== GOOGLE_CLIENT_ID) throw new Error("INVALID_GOOGLE_TOKEN");
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error("USER_NOT_FOUND");
+
+        // Check the Google email matches or is not taken by another user
+        if (payload.email !== user.email) {
+            const other = await prisma.user.findUnique({ where: { email: payload.email } });
+            if (other) throw new Error("GOOGLE_EMAIL_TAKEN");
+        }
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                provider: "GOOGLE",
+                avatarUrl: user.avatarUrl || payload.picture || null,
+                emailVerified: true
+            }
+        });
+    }
+
+    static async unlinkGoogle(userId: string): Promise<void> {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error("USER_NOT_FOUND");
+        if (!user.passwordHash) throw new Error("SET_PASSWORD_FIRST");
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { provider: "EMAIL" }
+        });
+    }
+
     // ── Switch Org ─────────────────────────────────────────────────────────
 
     static async switchOrg(userId: string, orgId: string): Promise<{ orgId: string; role: Role } | null> {
