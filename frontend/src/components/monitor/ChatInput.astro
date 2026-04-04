@@ -1,0 +1,84 @@
+---
+---
+<!-- Attachment preview -->
+<div x-show="attachedFile" class="bg-wa-bg-header px-2 sm:px-4 pt-2 flex items-center gap-2 flex-shrink-0 border-t border-wa-border" style="display:none;">
+    <div class="flex-1 flex items-center gap-2 bg-wa-bg-hover rounded-lg px-3 py-2">
+        <svg class="w-4 h-4 text-wa-green flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+        <span class="text-xs text-wa-text-primary truncate" x-text="attachedFile?.name"></span>
+        <span class="text-[10px] text-wa-text-secondary" x-text="attachedFile ? (attachedFile.size / 1024).toFixed(0) + ' KB' : ''"></span>
+        <template x-if="uploadingFile">
+            <div class="w-4 h-4 border-2 border-wa-green/30 border-t-wa-green rounded-full animate-spin"></div>
+        </template>
+    </div>
+    <button @click="clearAttachment()" class="text-wa-text-secondary hover:text-red-400 transition-colors p-1">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+</div>
+
+<!-- Quick replies dropdown -->
+<div x-show="showQuickReplies" x-transition class="bg-wa-bg-deep border-t border-wa-border px-4 py-2 flex-shrink-0 max-h-40 overflow-y-auto" style="display:none;">
+    <template x-for="(qr, i) in quickReplies" :key="i">
+        <button
+            @click="messageInput = qr; showQuickReplies = false; $refs.messageInputEl.focus()"
+            class="w-full text-left px-3 py-1.5 text-xs text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover rounded transition-colors truncate"
+            x-text="qr"
+        ></button>
+    </template>
+</div>
+
+<!-- Emoji picker grid -->
+<div x-show="showEmojiPicker" x-transition class="bg-wa-bg-deep border-t border-wa-border px-2 sm:px-3 py-2 flex-shrink-0" style="display:none;">
+    <div class="grid grid-cols-6 sm:grid-cols-8 gap-0.5 sm:gap-1 max-h-36 overflow-y-auto">
+        <template x-for="emoji in ['😀','😁','😂','🤣','😊','😍','🥰','😘','😜','🤔','😎','🥳','😢','😭','😤','🤬','👍','👎','👏','🙏','❤️','🔥','⭐','✅','❌','💯','🎉','🎊','💪','🤝','👋','🫡','💀','🤯','🥺','😱','🙄','😴','🤮','🤑','💰','📱','📸','🎁','🏆','⚡','💡','🔔','📌']" :key="emoji">
+            <button @click="messageInput += emoji; $refs.messageInputEl.focus()" class="w-9 h-9 flex items-center justify-center text-xl hover:bg-wa-bg-hover rounded transition-colors" x-text="emoji"></button>
+        </template>
+    </div>
+</div>
+
+<!-- Input area -->
+<div class="bg-wa-bg-header px-2 sm:px-4 py-2 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+    <!-- Emoji button (hidden on very small screens) -->
+    <button
+        @click="showEmojiPicker = !showEmojiPicker; showQuickReplies = false"
+        class="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover items-center justify-center transition-colors flex-shrink-0"
+        :class="showEmojiPicker ? 'text-wa-green' : ''"
+    >
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </button>
+    <!-- Quick replies button (hidden on very small screens) -->
+    <button
+        @click="showQuickReplies = !showQuickReplies; showEmojiPicker = false"
+        class="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover items-center justify-center transition-colors flex-shrink-0"
+        :class="showQuickReplies ? 'text-wa-green' : ''"
+    >
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+    </button>
+    <!-- Attach button -->
+    <button
+        @click="$refs.fileInput.click()"
+        class="w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover flex items-center justify-center transition-colors flex-shrink-0"
+        :disabled="uploadingFile"
+    >
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+    </button>
+    <input type="file" x-ref="fileInput" @change="handleFileSelect($event)" class="hidden" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" />
+
+    <form @submit.prevent="sendMessage()" class="flex-1 flex items-center gap-1.5 sm:gap-2">
+        <input
+            type="text"
+            x-model="messageInput"
+            x-ref="messageInputEl"
+            class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2 sm:py-2.5 px-3 sm:px-4 rounded-full focus:outline-none placeholder-wa-text-secondary"
+            :placeholder="attachedFile ? 'Caption...' : $t('type_message')"
+        />
+        <button
+            type="submit"
+            :disabled="(!messageInput.trim() && !attachedFile) || sending || uploadingFile"
+            class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-wa-green text-white flex items-center justify-center hover:bg-wa-green-hover transition-colors disabled:opacity-40 flex-shrink-0"
+        >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+        </button>
+    </form>
+</div>

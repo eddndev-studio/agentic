@@ -1,0 +1,22 @@
+---
+---
+<div
+    x-show="showForceAIModal"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
+    style="display: none;"
+>
+    <div class="bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 sm:max-w-md w-full rounded-t-2xl sm:rounded-xl" @click.outside="showForceAIModal = false">
+        <h3 class="text-sm font-bold mb-2" x-text="$t('force_ai')"></h3>
+        <p class="text-xs text-wa-text-secondary mb-4" x-text="$t('force_ai_desc')"></p>
+        <textarea
+            x-model="forceAIContext"
+            rows="3"
+            class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y mb-4 rounded-lg"
+            :placeholder="$t('force_ai_context')"
+        ></textarea>
+        <div class="flex justify-end gap-2">
+            <button @click="showForceAIModal = false" class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg" x-text="$t('cancel')"></button>
+            <button @click="forceAI()" class="px-4 py-2 bg-yellow-600 text-white text-xs hover:bg-yellow-700 transition-colors rounded-lg" x-text="$t('confirm')"></button>
+        </div>
+    </div>
+</div>

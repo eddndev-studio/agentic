@@ -1,0 +1,139 @@
+---
+---
+<!-- Sessions panel -->
+<div
+    class="flex-col border-r border-wa-border min-h-0 bg-wa-bg-panel transition-transform duration-300 ease-out"
+    :class="selectedSession ? 'hidden md:flex md:w-[280px] lg:w-[360px] md:flex-shrink-0' : 'flex w-full md:w-[280px] lg:w-[360px] md:flex-shrink-0'"
+>
+    <!-- Panel header -->
+    <div class="h-14 bg-wa-bg-header flex items-center px-4 gap-3 flex-shrink-0">
+        <a href="#" @click.prevent="goBack()" class="text-wa-text-secondary hover:text-wa-green transition-colors">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+        </a>
+        <h1 class="text-base font-semibold flex-1" x-text="botName || $t('monitor')"></h1>
+        <span x-show="totalSessions > 0" class="text-[10px] text-wa-text-secondary bg-wa-bg-hover px-2 py-0.5 rounded-full" x-text="totalSessions + ' chats'"></span>
+    </div>
+
+    <!-- Search bar + filter -->
+    <div class="p-2 bg-wa-bg-panel">
+        <div class="flex items-center gap-1.5">
+            <div class="relative flex-1">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input
+                    type="text"
+                    x-model="searchQuery"
+                    x-ref="searchInput"
+                    @input.debounce.300ms="loadSessions()"
+                    class="w-full bg-wa-bg-hover text-wa-text-primary text-sm py-1.5 pl-9 pr-3 rounded-full focus:outline-none placeholder-wa-text-secondary"
+                    :placeholder="$t('search_sessions')"
+                />
+            </div>
+            <!-- Label filter dropdown -->
+            <div x-show="botLabels.length > 0" class="relative flex-shrink-0" x-data="{ filterOpen: false }" style="display:none;">
+                <button
+                    @click="filterOpen = !filterOpen"
+                    class="h-8 px-2.5 rounded-full flex items-center gap-1.5 transition-colors text-[11px]"
+                    :class="filterLabelId ? 'bg-wa-green/15 text-wa-green' : 'bg-wa-bg-hover text-wa-text-secondary hover:text-white'"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                    <span x-show="filterLabelId" x-text="botLabels.find(l => l.id === filterLabelId)?.name || ''" class="max-w-[80px] truncate"></span>
+                    <span x-show="filterLabelId" @click.stop="filterLabelId = ''; loadSessions(); filterOpen = false" class="hover:text-red-400">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </span>
+                </button>
+                <div
+                    x-show="filterOpen"
+                    @click.outside="filterOpen = false"
+                    x-transition
+                    class="absolute top-full right-0 mt-1 z-50 bg-wa-bg-deep border border-wa-border rounded-xl shadow-xl w-56 max-h-72 overflow-hidden"
+                    style="display:none;"
+                >
+                    <div class="px-3 py-2 border-b border-wa-border">
+                        <span class="text-[10px] text-wa-text-secondary uppercase tracking-wider font-medium">Filtrar por etiqueta</span>
+                    </div>
+                    <div class="max-h-56 overflow-y-auto py-1">
+                        <button
+                            @click="filterLabelId = ''; loadSessions(); filterOpen = false"
+                            class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 transition-colors"
+                            :class="!filterLabelId ? 'bg-wa-green/10 text-wa-green' : 'text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover'"
+                        >
+                            <span class="w-3 h-3 rounded-full bg-wa-bg-hover border border-wa-border flex-shrink-0"></span>
+                            <span>Todos</span>
+                            <span class="ml-auto text-[10px] text-wa-text-secondary" x-text="totalSessions"></span>
+                        </button>
+                        <template x-for="lbl in botLabels" :key="'flt-' + lbl.id">
+                            <button
+                                @click="filterLabelId = lbl.id; loadSessions(); filterOpen = false"
+                                class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 transition-colors"
+                                :class="filterLabelId === lbl.id ? 'bg-wa-bg-hover text-white' : 'text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover'"
+                            >
+                                <span class="w-3 h-3 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
+                                <span class="truncate" x-text="lbl.name"></span>
+                                <span class="ml-auto text-[10px] text-wa-text-secondary" x-text="lbl.sessionCount || ''"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session items -->
+    <div class="flex-1 overflow-y-auto" @scroll.debounce.100ms="onSessionsScroll($event)">
+        <template x-if="sessions.length === 0">
+            <div class="p-6 text-center text-sm text-wa-text-secondary" x-text="$t('no_sessions')"></div>
+        </template>
+
+        <template x-for="s in sessions" :key="s.id">
+            <button
+                @click="selectSession(s)"
+                class="w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-wa-bg-hover transition-colors border-b border-wa-border/50"
+                :class="selectedSession?.id === s.id ? 'bg-wa-bg-hover' : ''"
+            >
+                <div
+                    class="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
+                    :style="`background:${avatarColor(s.name || s.identifier)}`"
+                    x-text="avatarInitials(s.name || s.identifier)"
+                ></div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-baseline">
+                        <span class="text-[15px] truncate" :class="unreadCounts[s.id] > 0 ? 'font-bold text-white' : 'font-medium text-wa-text-primary'" x-text="s.name || s.identifier"></span>
+                        <div class="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                            <span class="text-xs" :class="unreadCounts[s.id] > 0 ? 'text-wa-green font-medium' : 'text-wa-text-secondary'" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
+                        </div>
+                    </div>
+                    <div x-show="s.name && s.identifier && s.name !== s.identifier" class="text-[11px] text-wa-text-secondary font-mono truncate" x-text="s.identifier?.split('@')[0]?.replace(/^(\d{2})(\d{2})(\d{4})(\d{4})$/, '+$1 $2 $3 $4')" style="display:none;"></div>
+                    <div class="flex items-center gap-1 mt-0.5">
+                        <template x-if="s.lastMessage?.fromMe">
+                            <svg class="w-4 h-4 flex-shrink-0 wa-check-blue" viewBox="0 0 16 15" fill="currentColor">
+                                <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.3a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l3.605 4.19a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z"/>
+                                <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
+                            </svg>
+                        </template>
+                        <span x-show="typingSessions[s.id]" class="text-sm text-wa-green italic" style="display:none;">escribiendo...</span>
+                        <span x-show="!typingSessions[s.id]" class="text-sm truncate" :class="unreadCounts[s.id] > 0 ? 'text-wa-text-primary font-medium' : 'text-wa-text-secondary'" x-text="s.lastMessage?.content || ''"></span>
+                        <span x-show="unreadCounts[s.id] > 0" class="ml-auto flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-wa-green text-white text-[11px] font-bold flex items-center justify-center" x-text="unreadCounts[s.id] > 99 ? '99+' : unreadCounts[s.id]"></span>
+                    </div>
+                    <div x-show="s.labels?.length" class="mt-1 flex flex-wrap gap-1">
+                        <template x-for="lbl in (s.labels || [])" :key="lbl.id">
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-full text-white/90" :style="`background:${labelColor(lbl.color)}`" x-text="lbl.name"></span>
+                        </template>
+                    </div>
+                </div>
+            </button>
+        </template>
+
+        <template x-if="loadingMoreSessions">
+            <div class="p-3 text-center">
+                <div class="inline-block w-5 h-5 border-2 border-wa-green/30 border-t-wa-green rounded-full animate-spin"></div>
+            </div>
+        </template>
+        <template x-if="!loadingMoreSessions && hasMoreSessions">
+            <div class="p-2 text-center text-xs text-wa-text-secondary cursor-pointer hover:text-wa-green" @click="loadMoreSessions()">Cargar mas...</div>
+        </template>
+    </div>
+</div>

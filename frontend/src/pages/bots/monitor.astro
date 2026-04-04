@@ -1,5 +1,14 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import SessionList from "../../components/monitor/SessionList.astro";
+import ChatHeader from "../../components/monitor/ChatHeader.astro";
+import NotesPanel from "../../components/monitor/NotesPanel.astro";
+import MessageList from "../../components/monitor/MessageList.astro";
+import ChatInput from "../../components/monitor/ChatInput.astro";
+import ForceAIModal from "../../components/monitor/ForceAIModal.astro";
+import RunFlowModal from "../../components/monitor/RunFlowModal.astro";
+import RunToolModal from "../../components/monitor/RunToolModal.astro";
+import DebugPanel from "../../components/monitor/DebugPanel.astro";
 ---
 
 <Layout title="Monitor" fullWidth>
@@ -9,154 +18,7 @@ import Layout from "../../layouts/Layout.astro";
         @keydown.ctrl.f.prevent.window="$refs.searchInput?.focus()"
         class="h-dvh md:h-[calc(100vh-1rem)] flex overflow-hidden md:rounded-lg"
     >
-        <!-- Left: Sessions panel -->
-        <div
-            class="flex-col border-r border-wa-border min-h-0 bg-wa-bg-panel"
-            :class="selectedSession ? 'hidden md:flex md:w-[280px] lg:w-[360px] md:flex-shrink-0' : 'flex w-full md:w-[280px] lg:w-[360px] md:flex-shrink-0'"
-        >
-            <!-- Panel header -->
-            <div class="h-14 bg-wa-bg-header flex items-center px-4 gap-3 flex-shrink-0">
-                <a href="#" @click.prevent="goBack()" class="text-wa-text-secondary hover:text-wa-green transition-colors">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                    </svg>
-                </a>
-                <h1 class="text-base font-semibold flex-1" x-text="botName || $t('monitor')"></h1>
-                <span x-show="totalSessions > 0" class="text-[10px] text-wa-text-secondary bg-wa-bg-hover px-2 py-0.5 rounded-full" x-text="totalSessions + ' chats'"></span>
-            </div>
-
-            <!-- Search bar + filter -->
-            <div class="p-2 bg-wa-bg-panel">
-                <div class="flex items-center gap-1.5">
-                    <div class="relative flex-1">
-                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wa-text-secondary pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input
-                            type="text"
-                            x-model="searchQuery"
-                            x-ref="searchInput"
-                            @input.debounce.300ms="loadSessions()"
-                            class="w-full bg-wa-bg-hover text-wa-text-primary text-sm py-1.5 pl-9 pr-3 rounded-full focus:outline-none placeholder-wa-text-secondary"
-                            :placeholder="$t('search_sessions')"
-                        />
-                    </div>
-                    <!-- Label filter dropdown -->
-                    <div x-show="botLabels.length > 0" class="relative flex-shrink-0" x-data="{ filterOpen: false }" style="display:none;">
-                        <button
-                            @click="filterOpen = !filterOpen"
-                            class="h-8 px-2.5 rounded-full flex items-center gap-1.5 transition-colors text-[11px]"
-                            :class="filterLabelId ? 'bg-wa-green/15 text-wa-green' : 'bg-wa-bg-hover text-wa-text-secondary hover:text-white'"
-                        >
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-                            <span x-show="filterLabelId" x-text="botLabels.find(l => l.id === filterLabelId)?.name || ''" class="max-w-[80px] truncate"></span>
-                            <span x-show="filterLabelId" @click.stop="filterLabelId = ''; loadSessions(); filterOpen = false" class="hover:text-red-400">
-                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </span>
-                        </button>
-                        <div
-                            x-show="filterOpen"
-                            @click.outside="filterOpen = false"
-                            x-transition
-                            class="absolute top-full right-0 mt-1 z-50 bg-wa-bg-deep border border-wa-border rounded-xl shadow-xl w-56 max-h-72 overflow-hidden"
-                            style="display:none;"
-                        >
-                            <div class="px-3 py-2 border-b border-wa-border">
-                                <span class="text-[10px] text-wa-text-secondary uppercase tracking-wider font-medium">Filtrar por etiqueta</span>
-                            </div>
-                            <div class="max-h-56 overflow-y-auto py-1">
-                                <button
-                                    @click="filterLabelId = ''; loadSessions(); filterOpen = false"
-                                    class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 transition-colors"
-                                    :class="!filterLabelId ? 'bg-wa-green/10 text-wa-green' : 'text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover'"
-                                >
-                                    <span class="w-3 h-3 rounded-full bg-wa-bg-hover border border-wa-border flex-shrink-0"></span>
-                                    <span>Todos</span>
-                                    <span class="ml-auto text-[10px] text-wa-text-secondary" x-text="totalSessions"></span>
-                                </button>
-                                <template x-for="lbl in botLabels" :key="'flt-' + lbl.id">
-                                    <button
-                                        @click="filterLabelId = lbl.id; loadSessions(); filterOpen = false"
-                                        class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 transition-colors"
-                                        :class="filterLabelId === lbl.id ? 'bg-wa-bg-hover text-white' : 'text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover'"
-                                    >
-                                        <span class="w-3 h-3 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
-                                        <span class="truncate" x-text="lbl.name"></span>
-                                        <span class="ml-auto text-[10px] text-wa-text-secondary" x-text="lbl.sessionCount || ''"></span>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Session items -->
-            <div class="flex-1 overflow-y-auto" @scroll.debounce.100ms="onSessionsScroll($event)">
-                <template x-if="sessions.length === 0">
-                    <div class="p-6 text-center text-sm text-wa-text-secondary" x-text="$t('no_sessions')"></div>
-                </template>
-
-                <template x-for="s in sessions" :key="s.id">
-                    <button
-                        @click="selectSession(s)"
-                        class="w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-wa-bg-hover transition-colors border-b border-wa-border/50"
-                        :class="selectedSession?.id === s.id ? 'bg-wa-bg-hover' : ''"
-                    >
-                        <!-- Avatar -->
-                        <div
-                            class="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
-                            :style="`background:${avatarColor(s.name || s.identifier)}`"
-                            x-text="avatarInitials(s.name || s.identifier)"
-                        ></div>
-
-                        <!-- Session info -->
-                        <div class="flex-1 min-w-0">
-                            <div class="flex justify-between items-baseline">
-                                <span class="text-[15px] truncate" :class="unreadCounts[s.id] > 0 ? 'font-bold text-white' : 'font-medium text-wa-text-primary'" x-text="s.name || s.identifier"></span>
-                                <div class="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                    <span class="text-xs" :class="unreadCounts[s.id] > 0 ? 'text-wa-green font-medium' : 'text-wa-text-secondary'" x-text="relativeTime(s.lastMessage?.createdAt || s.updatedAt)"></span>
-                                </div>
-                            </div>
-                            <div x-show="s.name && s.identifier && s.name !== s.identifier" class="text-[11px] text-wa-text-secondary font-mono truncate" x-text="s.identifier?.split('@')[0]?.replace(/^(\d{2})(\d{2})(\d{4})(\d{4})$/, '+$1 $2 $3 $4')" style="display:none;"></div>
-                            <div class="flex items-center gap-1 mt-0.5">
-                                <!-- Double check for fromMe -->
-                                <template x-if="s.lastMessage?.fromMe">
-                                    <svg class="w-4 h-4 flex-shrink-0 wa-check-blue" viewBox="0 0 16 15" fill="currentColor">
-                                        <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.3a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l3.605 4.19a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z"/>
-                                        <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
-                                    </svg>
-                                </template>
-                                <span x-show="typingSessions[s.id]" class="text-sm text-wa-green italic" style="display:none;">escribiendo...</span>
-                                <span x-show="!typingSessions[s.id]" class="text-sm truncate" :class="unreadCounts[s.id] > 0 ? 'text-wa-text-primary font-medium' : 'text-wa-text-secondary'" x-text="s.lastMessage?.content || ''"></span>
-                                <!-- Unread badge -->
-                                <span x-show="unreadCounts[s.id] > 0" class="ml-auto flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-wa-green text-white text-[11px] font-bold flex items-center justify-center" x-text="unreadCounts[s.id] > 99 ? '99+' : unreadCounts[s.id]"></span>
-                            </div>
-                            <!-- Labels -->
-                            <div x-show="s.labels?.length" class="mt-1 flex flex-wrap gap-1">
-                                <template x-for="lbl in (s.labels || [])" :key="lbl.id">
-                                    <span
-                                        class="text-[9px] px-1.5 py-0.5 rounded-full text-white/90"
-                                        :style="`background:${labelColor(lbl.color)}`"
-                                        x-text="lbl.name"
-                                    ></span>
-                                </template>
-                            </div>
-                        </div>
-                    </button>
-                </template>
-
-                <!-- Load more indicator -->
-                <template x-if="loadingMoreSessions">
-                    <div class="p-3 text-center">
-                        <div class="inline-block w-5 h-5 border-2 border-wa-green/30 border-t-wa-green rounded-full animate-spin"></div>
-                    </div>
-                </template>
-                <template x-if="!loadingMoreSessions && hasMoreSessions">
-                    <div class="p-2 text-center text-xs text-wa-text-secondary cursor-pointer hover:text-wa-green" @click="loadMoreSessions()">Cargar mas...</div>
-                </template>
-            </div>
-        </div>
+        <SessionList />
 
         <!-- Right: Chat panel -->
         <div
@@ -180,640 +42,18 @@ import Layout from "../../layouts/Layout.astro";
             <!-- Session selected -->
             <template x-if="selectedSession">
                 <div class="flex flex-col h-full min-h-0">
-                    <!-- Chat header -->
-                    <div class="h-14 bg-wa-bg-header flex items-center px-2 sm:px-4 gap-2 sm:gap-3 flex-shrink-0">
-                        <!-- Back button (mobile) -->
-                        <button
-                            @click="selectedSession = null"
-                            class="md:hidden text-wa-text-secondary hover:text-wa-green transition-colors flex-shrink-0"
-                        >
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                            </svg>
-                        </button>
-
-                        <!-- Avatar -->
-                        <div
-                            class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm flex-shrink-0"
-                            :style="`background:${avatarColor(selectedSession.name || selectedSession.identifier)}`"
-                            x-text="avatarInitials(selectedSession.name || selectedSession.identifier)"
-                        ></div>
-
-                        <!-- Name + status -->
-                        <div class="flex-1 min-w-0">
-                            <div class="font-medium text-[15px] text-wa-text-primary truncate" x-text="selectedSession.name || selectedSession.identifier"></div>
-                            <div class="text-[11px] text-wa-text-secondary flex items-center gap-2">
-                                <span x-show="selectedSession.name && selectedSession.identifier && selectedSession.name !== selectedSession.identifier" class="font-mono" x-text="selectedSession.identifier?.split('@')[0]?.replace(/^(\d{2})(\d{2})(\d{4})(\d{4})$/, '+$1 $2 $3 $4')" style="display:none;"></span>
-                                <span x-show="typingSessions[selectedSession.id]" class="text-wa-green" style="display:none;">escribiendo...</span>
-                                <span x-show="!typingSessions[selectedSession.id]" x-text="selectedSession.status === 'CONNECTED' ? 'en línea' : 'desconectado'"></span>
-                            </div>
-                        </div>
-
-                        <!-- Labels (compact pills) -->
-                        <div class="hidden sm:flex items-center gap-1 flex-shrink-0">
-                            <template x-for="lbl in (selectedSession.labels || []).slice(0, 3)" :key="lbl.id">
-                                <button
-                                    @click="removeLabel(lbl.id)"
-                                    class="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full text-white/90 hover:opacity-80 transition-opacity"
-                                    :style="`background:${labelColor(lbl.color)}`"
-                                    :title="'Remove ' + lbl.name"
-                                >
-                                    <span x-text="lbl.name"></span>
-                                    <svg class="w-2.5 h-2.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                </button>
-                            </template>
-                            <!-- Add label -->
-                            <div class="relative" x-data="{ open: false }">
-                                <button
-                                    @click="open = !open"
-                                    x-show="availableLabels().length > 0"
-                                    class="text-[9px] px-1.5 py-0.5 border border-wa-border text-wa-text-secondary rounded-full hover:border-wa-green hover:text-wa-green transition-colors"
-                                >+ Label</button>
-                                <div
-                                    x-show="open"
-                                    @click.outside="open = false"
-                                    class="absolute top-full right-0 mt-1 z-50 bg-wa-bg-deep border border-wa-border rounded-lg shadow-lg min-w-[160px] max-h-48 overflow-y-auto"
-                                    style="display: none;"
-                                >
-                                    <template x-for="lbl in availableLabels()" :key="lbl.id">
-                                        <button
-                                            @click="assignLabel(lbl.id); open = false"
-                                            class="w-full text-left px-3 py-1.5 text-xs hover:bg-wa-bg-hover flex items-center gap-2"
-                                        >
-                                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
-                                            <span x-text="lbl.name"></span>
-                                        </button>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Three-dot menu -->
-                        <div class="relative flex-shrink-0" x-data="{ menuOpen: false }">
-                            <button @click="menuOpen = !menuOpen" class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-wa-text-secondary hover:text-wa-text-primary transition-colors rounded-full hover:bg-wa-bg-hover">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                    <circle cx="12" cy="5" r="1.5"/>
-                                    <circle cx="12" cy="12" r="1.5"/>
-                                    <circle cx="12" cy="19" r="1.5"/>
-                                </svg>
-                            </button>
-                            <div
-                                x-show="menuOpen"
-                                @click.outside="menuOpen = false"
-                                class="absolute top-full right-0 mt-1 z-50 bg-wa-bg-header border border-wa-border rounded-lg shadow-lg min-w-[180px] py-1"
-                                style="display: none;"
-                            >
-                                <button
-                                    @click="showForceAIModal = true; menuOpen = false"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
-                                >
-                                    <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                    <span x-text="$t('force_ai')"></span>
-                                </button>
-                                <button
-                                    @click="openFlowModal(); menuOpen = false"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
-                                >
-                                    <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
-                                    <span x-text="$t('run_flow')"></span>
-                                </button>
-                                <button
-                                    @click="openToolModal(); menuOpen = false"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
-                                >
-                                    <svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                    <span x-text="$t('run_tool')"></span>
-                                </button>
-                                <button
-                                    @click="loadDebugContext(); menuOpen = false"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
-                                >
-                                    <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4"/></svg>
-                                    <span>Debug AI</span>
-                                </button>
-                                <div class="border-t border-wa-border my-1"></div>
-                                <button
-                                    @click="toggleAI(); menuOpen = false"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
-                                >
-                                    <svg class="w-4 h-4" :class="selectedSession.aiEnabled ? 'text-wa-green' : 'text-red-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                                    <span x-text="selectedSession.aiEnabled ? 'Desactivar IA' : 'Activar IA'"></span>
-                                </button>
-                                <button
-                                    @click="showNotesPanel = !showNotesPanel; menuOpen = false"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-3"
-                                >
-                                    <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                    <span>Notas</span>
-                                    <span x-show="selectedSession.notes" class="ml-auto w-2 h-2 rounded-full bg-purple-400 flex-shrink-0"></span>
-                                </button>
-                                <!-- Mobile-only labels option -->
-                                <div class="sm:hidden border-t border-wa-border mt-1 pt-1">
-                                    <div class="px-4 py-1.5 text-[10px] text-wa-text-secondary uppercase tracking-wider">Labels</div>
-                                    <template x-for="lbl in (selectedSession.labels || [])" :key="'mob-' + lbl.id">
-                                        <button
-                                            @click="removeLabel(lbl.id); menuOpen = false"
-                                            class="w-full text-left px-4 py-2 text-sm text-wa-text-primary hover:bg-wa-bg-hover flex items-center gap-2"
-                                        >
-                                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
-                                            <span x-text="lbl.name"></span>
-                                            <svg class="w-3 h-3 ml-auto text-wa-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                        </button>
-                                    </template>
-                                    <template x-for="lbl in availableLabels()" :key="'mob-add-' + lbl.id">
-                                        <button
-                                            @click="assignLabel(lbl.id); menuOpen = false"
-                                            class="w-full text-left px-4 py-2 text-sm text-wa-text-secondary hover:bg-wa-bg-hover flex items-center gap-2"
-                                        >
-                                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${labelColor(lbl.color)}`"></span>
-                                            <span x-text="'+ ' + lbl.name"></span>
-                                        </button>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Notes panel (collapsible) -->
-                    <div x-show="showNotesPanel" x-transition class="bg-wa-bg-deep border-b border-wa-border px-4 py-2.5 flex-shrink-0" style="display:none;">
-                        <div class="flex items-center gap-2 mb-1.5">
-                            <svg class="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                            <span class="text-[10px] text-purple-400 uppercase tracking-wider font-medium">Notas</span>
-                            <button @click="showNotesPanel = false" class="ml-auto text-wa-text-secondary hover:text-white text-sm">&times;</button>
-                        </div>
-                        <textarea
-                            x-model="sessionNotes"
-                            @blur="saveNotes()"
-                            rows="2"
-                            class="w-full bg-wa-bg-hover border border-wa-border text-wa-text-primary text-xs p-2 rounded-lg focus:border-purple-400 focus:outline-none resize-y"
-                            placeholder="Escribe notas sobre este contacto..."
-                        ></textarea>
-                    </div>
-
-                    <!-- Messages area -->
-                    <div
-                        x-ref="messagesContainer"
-                        @scroll="onChatScroll()"
-                        class="flex-1 overflow-y-auto px-3 sm:px-[5%] md:px-[8%] lg:px-[10%] py-3 min-h-0 wa-chat-wallpaper"
-                    >
-                        <!-- Load more indicator -->
-                        <div x-show="loadingMore" class="flex justify-center py-3">
-                            <span class="wa-date-pill">Cargando mensajes...</span>
-                        </div>
-                        <div x-show="!loadingMore && !hasMoreMessages && messages.length > 0" class="flex justify-center py-3">
-                            <span class="wa-date-pill">Inicio del chat</span>
-                        </div>
-
-                        <template x-if="messages.length === 0 && !loadingMore">
-                            <div class="flex items-center justify-center h-full">
-                                <p class="text-sm text-wa-text-secondary" x-text="$t('no_messages')"></p>
-                            </div>
-                        </template>
-
-                        <template x-for="(msg, idx) in messages" :key="msg.id">
-                            <div>
-                                <!-- Date separator -->
-                                <div x-show="showDateSep(messages, idx)" class="flex justify-center my-3">
-                                    <span class="wa-date-pill" x-text="dateLabel(msg.createdAt)"></span>
-                                </div>
-
-                                <!-- Message bubble -->
-                                <div class="flex mb-[2px] group/msg"
-                                     :class="[
-                                         msg.fromMe ? 'justify-end' : 'justify-start',
-                                         isLastInGroup(messages, idx) ? 'mb-2' : ''
-                                     ]"
-                                >
-                                    <!-- Reaction button (appears on hover) -->
-                                    <div class="flex items-end" :class="msg.fromMe ? 'order-first' : 'order-last'">
-                                        <div class="relative" x-data="{ showReactPicker: false }">
-                                            <button
-                                                @click="showReactPicker = !showReactPicker"
-                                                class="w-7 h-7 rounded-full flex items-center justify-center text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover transition-all opacity-0 group-hover/msg:opacity-100 mx-1"
-                                            >
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                            </button>
-                                            <div x-show="showReactPicker" @click.outside="showReactPicker = false" class="absolute bottom-full mb-1 z-50 bg-wa-bg-header border border-wa-border rounded-full shadow-lg px-1.5 py-1 flex gap-0.5" :class="msg.fromMe ? 'right-0' : 'left-0'" style="display:none;">
-                                                <template x-for="emoji in ['👍','❤️','😂','😮','😢','🙏']" :key="emoji">
-                                                    <button @click="reactToMessage(msg.id, emoji); showReactPicker = false" class="w-8 h-8 flex items-center justify-center text-lg hover:scale-125 transition-transform rounded-full hover:bg-wa-bg-hover" x-text="emoji"></button>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="relative max-w-[88%] sm:max-w-[80%] md:max-w-[70%] lg:max-w-[65%] text-sm break-words shadow-sm overflow-hidden"
-                                        :class="[
-                                            msg.fromMe ? 'bg-wa-bubble-out text-white' : 'bg-wa-bubble-in text-white',
-                                            isLastInGroup(messages, idx)
-                                                ? (msg.fromMe ? 'rounded-lg rounded-br-none wa-bubble-tail-out' : 'rounded-lg rounded-bl-none wa-bubble-tail-in')
-                                                : 'rounded-lg',
-                                            getMediaUrl(msg) && ['IMAGE', 'VIDEO', 'STICKER'].includes(msg.type) ? '' : 'px-2.5 py-1.5'
-                                        ]"
-                                    >
-                                        <!-- IMAGE -->
-                                        <template x-if="msg.type === 'IMAGE' && getMediaUrl(msg)">
-                                            <a :href="getMediaUrl(msg)" target="_blank" rel="noopener" class="block">
-                                                <img :src="getMediaUrl(msg)" class="w-full max-h-72 object-cover" loading="lazy" alt="" />
-                                            </a>
-                                        </template>
-
-                                        <!-- VIDEO -->
-                                        <template x-if="msg.type === 'VIDEO' && getMediaUrl(msg)">
-                                            <div>
-                                                <video :src="getMediaUrl(msg)" controls preload="metadata" class="w-full max-h-72"></video>
-                                            </div>
-                                        </template>
-
-                                        <!-- AUDIO -->
-                                        <template x-if="msg.type === 'AUDIO' && getMediaUrl(msg)">
-                                            <div class="px-2.5 pt-2 min-w-[180px] sm:min-w-[240px]">
-                                                <audio :src="getMediaUrl(msg)" controls preload="metadata" class="w-full h-10"></audio>
-                                            </div>
-                                        </template>
-
-                                        <!-- DOCUMENT -->
-                                        <template x-if="msg.type === 'DOCUMENT' && getMediaUrl(msg)">
-                                            <a :href="getMediaUrl(msg)" target="_blank" rel="noopener" class="flex items-center gap-3 bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1 hover:bg-white/10 transition-colors">
-                                                <svg class="w-8 h-8 text-wa-text-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                                </svg>
-                                                <div class="min-w-0">
-                                                    <span class="text-xs text-blue-300 block truncate">Documento</span>
-                                                    <span class="text-[10px] text-wa-text-secondary">Toca para abrir</span>
-                                                </div>
-                                            </a>
-                                        </template>
-
-                                        <!-- STICKER -->
-                                        <template x-if="msg.type === 'STICKER' && getMediaUrl(msg)">
-                                            <img :src="getMediaUrl(msg)" class="w-32 h-32 object-contain" loading="lazy" alt="Sticker" />
-                                        </template>
-
-                                        <!-- PTT (voice note) -->
-                                        <template x-if="msg.type === 'PTT' && getMediaUrl(msg)">
-                                            <div class="px-2.5 pt-2 min-w-[180px] sm:min-w-[240px] flex items-center gap-2">
-                                                <svg class="w-5 h-5 text-wa-green flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 0014 0h-2zM11 19.93V22h2v-2.07A8 8 0 0020 12h-2a6 6 0 01-12 0H4a8 8 0 007 7.93z"/></svg>
-                                                <audio :src="getMediaUrl(msg)" controls preload="metadata" class="w-full h-10"></audio>
-                                            </div>
-                                        </template>
-
-                                        <!-- REACTION -->
-                                        <template x-if="msg.type === 'REACTION'">
-                                            <div class="flex items-center gap-1.5 px-1">
-                                                <span class="text-2xl" x-text="msg.content || '❌'"></span>
-                                                <span class="text-[10px] text-wa-text-secondary" x-text="msg.content ? 'reaccionó' : 'quitó reacción'"></span>
-                                            </div>
-                                        </template>
-
-                                        <!-- CONTACT -->
-                                        <template x-if="msg.type === 'CONTACT'">
-                                            <div class="flex items-center gap-2 bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1">
-                                                <svg class="w-8 h-8 text-wa-text-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg>
-                                                <span class="text-xs" x-text="msg.content || 'Contacto'"></span>
-                                            </div>
-                                        </template>
-
-                                        <!-- LOCATION -->
-                                        <template x-if="msg.type === 'LOCATION'">
-                                            <a :href="'https://maps.google.com/?q=' + (msg.metadata?.latitude || 0) + ',' + (msg.metadata?.longitude || 0)" target="_blank" rel="noopener" class="flex items-center gap-2 bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1 hover:bg-white/10 transition-colors">
-                                                <svg class="w-8 h-8 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
-                                                <div class="min-w-0">
-                                                    <span class="text-xs text-blue-300 block truncate" x-text="msg.content || 'Ubicación'"></span>
-                                                    <span class="text-[10px] text-wa-text-secondary">Toca para abrir en Maps</span>
-                                                </div>
-                                            </a>
-                                        </template>
-
-                                        <!-- POLL -->
-                                        <template x-if="msg.type === 'POLL'">
-                                            <div class="bg-white/5 rounded-lg p-3 mx-1 mt-1 mb-1">
-                                                <div class="flex items-center gap-1.5 mb-2">
-                                                    <svg class="w-4 h-4 text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zm0-8v2h14V9H7z"/></svg>
-                                                    <span class="text-xs font-medium" x-text="msg.content || 'Encuesta'"></span>
-                                                </div>
-                                                <template x-if="msg.metadata?.options">
-                                                    <div class="flex flex-col gap-1">
-                                                        <template x-for="opt in msg.metadata.options" :key="opt">
-                                                            <span class="text-[10px] text-wa-text-secondary bg-white/5 rounded px-2 py-1" x-text="opt"></span>
-                                                        </template>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </template>
-
-                                        <!-- Text content / caption -->
-                                        <div :class="getMediaUrl(msg) && ['IMAGE', 'VIDEO', 'STICKER'].includes(msg.type) ? (msg.content ? 'px-2.5 pt-1.5 pb-1.5 border-t border-white/5' : 'px-2.5 py-1') : ''" x-show="msg.type !== 'REACTION' || msg.content">
-                                            <span x-show="msg.content && msg.content !== '[media]'" x-html="formatMessage(msg.content)" class="whitespace-pre-wrap"></span>
-                                            <span x-show="!msg.content && !getMediaUrl(msg) && msg.type !== 'TEXT'" class="text-wa-text-secondary italic">[media]</span>
-                                            <span class="inline-flex items-center gap-1 float-right ml-2 mt-1 text-[11px] text-wa-text-secondary align-bottom leading-none translate-y-0.5">
-                                                <span x-text="shortTime(msg.createdAt)"></span>
-                                                <template x-if="msg.fromMe">
-                                                    <svg class="w-4 h-4 wa-check-blue" viewBox="0 0 16 15" fill="currentColor">
-                                                        <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.3a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l3.605 4.19a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z"/>
-                                                        <path d="M12.33 3.316l-.478-.372a.365.365 0 00-.51.063L5.986 9.88 4.96 8.65a.365.365 0 00-.519-.033l-.438.399a.376.376 0 00-.037.527l2.1 2.442a.515.515 0 00.4.2.514.514 0 00.4-.2l6.024-7.56a.376.376 0 00-.065-.507z" opacity=".75"/>
-                                                    </svg>
-                                                </template>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- Scroll-to-bottom floating button -->
-                    <div class="relative">
-                        <button
-                            x-show="showScrollDown"
-                            x-transition
-                            @click="scrollToBottom()"
-                            class="absolute bottom-3 right-3 sm:right-6 z-10 w-10 h-10 rounded-full bg-wa-bg-header border border-wa-border shadow-lg flex items-center justify-center text-wa-text-secondary hover:text-wa-green transition-colors"
-                            style="display:none;"
-                        >
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                        </button>
-                    </div>
-
-                    <!-- Attachment preview -->
-                    <div x-show="attachedFile" class="bg-wa-bg-header px-2 sm:px-4 pt-2 flex items-center gap-2 flex-shrink-0 border-t border-wa-border" style="display:none;">
-                        <div class="flex-1 flex items-center gap-2 bg-wa-bg-hover rounded-lg px-3 py-2">
-                            <svg class="w-4 h-4 text-wa-green flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                            <span class="text-xs text-wa-text-primary truncate" x-text="attachedFile?.name"></span>
-                            <span class="text-[10px] text-wa-text-secondary" x-text="attachedFile ? (attachedFile.size / 1024).toFixed(0) + ' KB' : ''"></span>
-                            <template x-if="uploadingFile">
-                                <div class="w-4 h-4 border-2 border-wa-green/30 border-t-wa-green rounded-full animate-spin"></div>
-                            </template>
-                        </div>
-                        <button @click="clearAttachment()" class="text-wa-text-secondary hover:text-red-400 transition-colors p-1">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                    </div>
-
-                    <!-- Quick replies dropdown -->
-                    <div x-show="showQuickReplies" x-transition class="bg-wa-bg-deep border-t border-wa-border px-4 py-2 flex-shrink-0 max-h-40 overflow-y-auto" style="display:none;">
-                        <template x-for="(qr, i) in quickReplies" :key="i">
-                            <button
-                                @click="messageInput = qr; showQuickReplies = false; $refs.messageInputEl.focus()"
-                                class="w-full text-left px-3 py-1.5 text-xs text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover rounded transition-colors truncate"
-                                x-text="qr"
-                            ></button>
-                        </template>
-                    </div>
-
-                    <!-- Emoji picker grid -->
-                    <div x-show="showEmojiPicker" x-transition class="bg-wa-bg-deep border-t border-wa-border px-2 sm:px-3 py-2 flex-shrink-0" style="display:none;">
-                        <div class="grid grid-cols-6 sm:grid-cols-8 gap-0.5 sm:gap-1 max-h-36 overflow-y-auto">
-                            <template x-for="emoji in ['😀','😁','😂','🤣','😊','😍','🥰','😘','😜','🤔','😎','🥳','😢','😭','😤','🤬','👍','👎','👏','🙏','❤️','🔥','⭐','✅','❌','💯','🎉','🎊','💪','🤝','👋','🫡','💀','🤯','🥺','😱','🙄','😴','🤮','🤑','💰','📱','📸','🎁','🏆','⚡','💡','🔔','📌']" :key="emoji">
-                                <button @click="messageInput += emoji; $refs.messageInputEl.focus()" class="w-9 h-9 flex items-center justify-center text-xl hover:bg-wa-bg-hover rounded transition-colors" x-text="emoji"></button>
-                            </template>
-                        </div>
-                    </div>
-
-                    <!-- Input area -->
-                    <div class="bg-wa-bg-header px-2 sm:px-4 py-2 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                        <!-- Emoji button (hidden on very small screens) -->
-                        <button
-                            @click="showEmojiPicker = !showEmojiPicker; showQuickReplies = false"
-                            class="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover items-center justify-center transition-colors flex-shrink-0"
-                            :class="showEmojiPicker ? 'text-wa-green' : ''"
-                        >
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        </button>
-                        <!-- Quick replies button (hidden on very small screens) -->
-                        <button
-                            @click="showQuickReplies = !showQuickReplies; showEmojiPicker = false"
-                            class="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover items-center justify-center transition-colors flex-shrink-0"
-                            :class="showQuickReplies ? 'text-wa-green' : ''"
-                        >
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-                        </button>
-                        <!-- Attach button -->
-                        <button
-                            @click="$refs.fileInput.click()"
-                            class="w-9 h-9 sm:w-10 sm:h-10 rounded-full text-wa-text-secondary hover:text-wa-green hover:bg-wa-bg-hover flex items-center justify-center transition-colors flex-shrink-0"
-                            :disabled="uploadingFile"
-                        >
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                        </button>
-                        <input type="file" x-ref="fileInput" @change="handleFileSelect($event)" class="hidden" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" />
-
-                        <form @submit.prevent="sendMessage()" class="flex-1 flex items-center gap-1.5 sm:gap-2">
-                            <input
-                                type="text"
-                                x-model="messageInput"
-                                x-ref="messageInputEl"
-                                class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2 sm:py-2.5 px-3 sm:px-4 rounded-full focus:outline-none placeholder-wa-text-secondary"
-                                :placeholder="attachedFile ? 'Caption...' : $t('type_message')"
-                            />
-                            <button
-                                type="submit"
-                                :disabled="(!messageInput.trim() && !attachedFile) || sending || uploadingFile"
-                                class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-wa-green text-white flex items-center justify-center hover:bg-wa-green-hover transition-colors disabled:opacity-40 flex-shrink-0"
-                            >
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                                </svg>
-                            </button>
-                        </form>
-                    </div>
+                    <ChatHeader />
+                    <NotesPanel />
+                    <MessageList />
+                    <ChatInput />
                 </div>
             </template>
         </div>
 
-        <!-- Force AI Modal -->
-        <div
-            x-show="showForceAIModal"
-            class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
-            style="display: none;"
-        >
-            <div class="bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 sm:max-w-md w-full rounded-t-2xl sm:rounded-xl" @click.outside="showForceAIModal = false">
-                <h3 class="text-sm font-bold mb-2" x-text="$t('force_ai')"></h3>
-                <p class="text-xs text-wa-text-secondary mb-4" x-text="$t('force_ai_desc')"></p>
-                <textarea
-                    x-model="forceAIContext"
-                    rows="3"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none resize-y mb-4 rounded-lg"
-                    :placeholder="$t('force_ai_context')"
-                ></textarea>
-                <div class="flex justify-end gap-2">
-                    <button
-                        @click="showForceAIModal = false"
-                        class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
-                        x-text="$t('cancel')"
-                    ></button>
-                    <button
-                        @click="forceAI()"
-                        class="px-4 py-2 bg-yellow-600 text-white text-xs hover:bg-yellow-700 transition-colors rounded-lg"
-                        x-text="$t('confirm')"
-                    ></button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Run Flow Modal -->
-        <div
-            x-show="showFlowModal"
-            class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
-            style="display: none;"
-        >
-            <div class="bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 sm:max-w-md w-full rounded-t-2xl sm:rounded-xl" @click.outside="showFlowModal = false">
-                <h3 class="text-sm font-bold mb-4" x-text="$t('run_flow')"></h3>
-                <select
-                    x-model="selectedFlowId"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-4 rounded-lg"
-                >
-                    <option value="" x-text="$t('select_flow')"></option>
-                    <template x-for="f in flows" :key="f.id">
-                        <option :value="f.id" x-text="f.name"></option>
-                    </template>
-                </select>
-                <div class="flex justify-end gap-2">
-                    <button
-                        @click="showFlowModal = false"
-                        class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
-                        x-text="$t('cancel')"
-                    ></button>
-                    <button
-                        @click="executeFlow()"
-                        :disabled="!selectedFlowId"
-                        class="px-4 py-2 bg-blue-600 text-white text-xs hover:bg-blue-700 transition-colors disabled:opacity-50 rounded-lg"
-                        x-text="$t('execute')"
-                    ></button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Run Tool Modal -->
-        <div
-            x-show="showToolModal"
-            class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
-            style="display: none;"
-        >
-            <div class="bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 sm:max-w-md w-full rounded-t-2xl sm:rounded-xl" @click.outside="showToolModal = false">
-                <h3 class="text-sm font-bold mb-4" x-text="$t('run_tool')"></h3>
-                <select
-                    x-model="selectedToolName"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-3 rounded-lg"
-                >
-                    <option value="" x-text="$t('select_tool')"></option>
-                    <template x-for="tool in tools" :key="tool.id">
-                        <option :value="tool.name" x-text="tool.name"></option>
-                    </template>
-                </select>
-                <label class="block text-[10px] text-wa-text-secondary mb-1" x-text="$t('tool_arguments')"></label>
-                <textarea
-                    x-model="toolArgsJson"
-                    rows="4"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-xs font-mono p-3 focus:border-wa-green focus:outline-none resize-y mb-4 rounded-lg"
-                    placeholder='{ "key": "value" }'
-                ></textarea>
-                <div class="flex justify-end gap-2">
-                    <button
-                        @click="showToolModal = false"
-                        class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
-                        x-text="$t('cancel')"
-                    ></button>
-                    <button
-                        @click="executeTool()"
-                        :disabled="!selectedToolName"
-                        class="px-4 py-2 bg-green-600 text-white text-xs hover:bg-green-700 transition-colors disabled:opacity-50 rounded-lg"
-                        x-text="$t('execute')"
-                    ></button>
-                </div>
-            </div>
-        </div>
-        <!-- Debug AI Context Panel -->
-        <div
-            x-show="showDebugPanel"
-            class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
-            style="display: none;"
-            @keydown.escape.window="showDebugPanel = false"
-        >
-            <div class="bg-wa-bg-panel border border-wa-border w-full sm:max-w-3xl sm:max-h-[85vh] h-full sm:h-auto sm:rounded-xl flex flex-col overflow-hidden"
-                 @click.outside="showDebugPanel = false">
-                <!-- Header -->
-                <div class="flex items-center justify-between px-5 py-3 border-b border-wa-border flex-shrink-0">
-                    <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-                        <h3 class="text-sm font-bold">Debug AI Context</h3>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <button @click="loadDebugContext()" class="text-[10px] text-wa-text-secondary hover:text-wa-green transition-colors">Refresh</button>
-                        <button @click="showDebugPanel = false" class="text-wa-text-secondary hover:text-white transition-colors text-lg leading-none">&times;</button>
-                    </div>
-                </div>
-
-                <!-- Loading -->
-                <div x-show="loadingDebug" class="flex-1 flex items-center justify-center">
-                    <span class="text-xs text-wa-text-secondary animate-pulse">Cargando contexto...</span>
-                </div>
-
-                <!-- Content -->
-                <div x-show="!loadingDebug && debugData" class="flex-1 overflow-y-auto p-5 space-y-5">
-
-                    <!-- Config summary -->
-                    <div class="flex flex-wrap gap-2">
-                        <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Provider: ' + debugData?.config?.aiProvider"></span>
-                        <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Model: ' + debugData?.config?.aiModel"></span>
-                        <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Temp: ' + debugData?.config?.temperature"></span>
-                        <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Context: ' + debugData?.config?.contextMessages + ' msgs'"></span>
-                        <span class="text-[10px] px-2 py-1 rounded border"
-                              :class="debugData?.config?.autoReadReceipts ? 'border-wa-green/30 text-wa-green bg-wa-green/10' : 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10'"
-                              x-text="debugData?.config?.autoReadReceipts ? 'Auto-read: ON' : 'Auto-read: OFF'"></span>
-                    </div>
-
-                    <!-- System Prompt -->
-                    <div>
-                        <h4 class="text-[10px] text-wa-green tracking-widest uppercase mb-2">System Prompt</h4>
-                        <pre class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 text-[11px] text-wa-text-secondary font-mono whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed" x-text="debugData?.systemPrompt || '(vacío)'"></pre>
-                    </div>
-
-                    <!-- Chat Context -->
-                    <div>
-                        <h4 class="text-[10px] text-wa-green tracking-widest uppercase mb-2">
-                            Chat Context
-                            <span class="text-wa-text-secondary normal-case" x-text="'(' + (debugData?.chatContext?.length || 0) + ' mensajes)'"></span>
-                        </h4>
-                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 max-h-64 overflow-y-auto space-y-0.5">
-                            <template x-for="(line, i) in (debugData?.chatContext || [])" :key="i">
-                                <div class="text-[11px] font-mono leading-relaxed"
-                                     :class="line.includes('Bot]') ? 'text-wa-green/80' : 'text-wa-text-secondary'">
-                                    <span x-text="line"></span>
-                                </div>
-                            </template>
-                            <div x-show="!debugData?.chatContext?.length" class="text-[11px] text-wa-text-secondary italic">Sin mensajes de contexto</div>
-                        </div>
-                    </div>
-
-                    <!-- Conversation History -->
-                    <div>
-                        <h4 class="text-[10px] text-wa-green tracking-widest uppercase mb-2">
-                            Conversation History (AI Memory)
-                            <span class="text-wa-text-secondary normal-case" x-text="'(' + (debugData?.conversationHistory?.length || 0) + ' entries)'"></span>
-                        </h4>
-                        <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 max-h-64 overflow-y-auto space-y-1.5">
-                            <template x-for="(msg, i) in (debugData?.conversationHistory || [])" :key="i">
-                                <div class="text-[11px] font-mono leading-relaxed">
-                                    <span class="font-bold"
-                                          :class="{
-                                              'text-blue-400': msg.role === 'user',
-                                              'text-wa-green': msg.role === 'assistant',
-                                              'text-yellow-400': msg.role === 'tool',
-                                              'text-purple-400': msg.role === 'system'
-                                          }"
-                                          x-text="'[' + msg.role + ']'"></span>
-                                    <span class="text-wa-text-secondary" x-text="msg.content ? (msg.content.length > 200 ? msg.content.substring(0, 200) + '...' : msg.content) : ''"></span>
-                                    <template x-if="msg.toolCalls?.length">
-                                        <span class="text-purple-400" x-text="' → tools: ' + msg.toolCalls.map(t => t.name).join(', ')"></span>
-                                    </template>
-                                </div>
-                            </template>
-                            <div x-show="!debugData?.conversationHistory?.length" class="text-[11px] text-wa-text-secondary italic">Sin historial de conversación</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <ForceAIModal />
+        <RunFlowModal />
+        <RunToolModal />
+        <DebugPanel />
     </div>
 </Layout>
 
@@ -821,9 +61,27 @@ import Layout from "../../layouts/Layout.astro";
     declare const Alpine: any;
     import { ApiClient } from "../../lib/api";
     import { BotEventSource } from "../../lib/events";
+    import {
+        avatarInitials, avatarColor, dateLabel, showDateSep, isLastInGroup,
+        shortTime, relativeTime, formatTime, formatMessage, detectMediaType,
+        getMediaUrl, labelColor,
+    } from "../../lib/monitor/format-helpers";
+    import { loadSessions, loadMoreSessions, onSessionsScroll, selectSession } from "../../lib/monitor/session-methods";
+    import {
+        loadMessages, loadMoreMessages, onChatScroll, scrollToBottom,
+        sendMessage, handleFileSelect, clearAttachment, playNotifSound,
+        reactToMessage, poll,
+    } from "../../lib/monitor/message-methods";
+    import {
+        loadDebugContext, saveNotes, toggleAI, forceAI,
+        openFlowModal, executeFlow, openToolModal, executeTool,
+        loadLabels, assignLabel, removeLabel, availableLabels,
+    } from "../../lib/monitor/action-methods";
+    import { setupSSE } from "../../lib/monitor/sse-handlers";
 
     document.addEventListener("alpine:init", () => {
         Alpine.data("botMonitor", () => ({
+            // ── State ────────────────────────────────────────────────────
             botId: null as string | null,
             botName: "",
             sessions: [] as any[],
@@ -852,8 +110,6 @@ import Layout from "../../layouts/Layout.astro";
                 'Listo, tu pedido ha sido procesado.',
                 'Disculpa la demora, estamos trabajando en ello.',
             ],
-
-            // Modals
             showForceAIModal: false,
             showFlowModal: false,
             showToolModal: false,
@@ -864,649 +120,86 @@ import Layout from "../../layouts/Layout.astro";
             selectedFlowId: "",
             selectedToolName: "",
             toolArgsJson: "{}",
-
-            // Data for modals
             flows: [] as any[],
             tools: [] as any[],
-
-            // Labels
             botLabels: [] as any[],
-
-            // Message pagination
             loadingMore: false,
             hasMoreMessages: true,
             messageLimit: 80,
-
-            // Session pagination
             sessionLimit: 50,
             sessionOffset: 0,
             hasMoreSessions: false,
             loadingMoreSessions: false,
             totalSessions: 0,
-
-            // SSE + fallback polling
             sseClient: null as BotEventSource | null,
             pollInterval: null as ReturnType<typeof setInterval> | null,
             lastMessageCount: 0,
-            timeTick: 0, // increments every 30s to force Alpine to re-evaluate relativeTime
+            timeTick: 0,
             timeTickInterval: null as ReturnType<typeof setInterval> | null,
 
+            // ── Lifecycle ────────────────────────────────────────────────
             async init() {
                 const params = new URLSearchParams(window.location.search);
-                this.botId = params.get("botId");
-
+                this.botId = params.get("botId") || params.get("id");
                 if (!this.botId) return;
-
-                try {
-                    const bot = await ApiClient.get(`/bots/${this.botId}`);
-                    this.botName = bot.name;
-                } catch {}
-
-                await this.loadSessions();
-                await this.loadLabels();
-
-                // SSE for real-time updates
-                this.sseClient = new BotEventSource(this.botId);
-                this.sseClient
-                    .on('message:received', (data: any) => {
-                        if (this.selectedSession && data.sessionId === this.selectedSession.id) {
-                            // Deduplicate: skip if message ID already exists in the array
-                            if (data.message?.id && !this.messages.some((m: any) => m.id === data.message.id)) {
-                                this.messages.push(data.message);
-                                this.$nextTick(() => this.scrollToBottom());
-                            }
-                        } else if (!data.message?.fromMe) {
-                            // Increment unread for non-selected sessions (only incoming)
-                            this.unreadCounts[data.sessionId] = (this.unreadCounts[data.sessionId] || 0) + 1;
-                            this.playNotifSound();
-                        }
-                        // Update session list lastMessage + move to top
-                        const s = this.sessions.find((s: any) => s.id === data.sessionId);
-                        if (s) {
-                            s.lastMessage = data.message;
-                            s.messageCount = (s.messageCount || 0) + 1;
-                            const idx = this.sessions.indexOf(s);
-                            if (idx > 0) {
-                                this.sessions.splice(idx, 1);
-                                this.sessions.unshift(s);
-                            }
-                        }
-                    })
-                    .on('message:sent', (data: any) => {
-                        // message:sent is a fallback event (fires only when DB persist fails)
-                        // Only update session sidebar — message:received handles the actual message
-                        const s = this.sessions.find((s: any) => s.id === data.sessionId);
-                        if (s) {
-                            s.lastMessage = { content: data.content, fromMe: true, type: 'TEXT', createdAt: new Date().toISOString() };
-                            const idx = this.sessions.indexOf(s);
-                            if (idx > 0) {
-                                this.sessions.splice(idx, 1);
-                                this.sessions.unshift(s);
-                            }
-                        }
-                    })
-                    .on('session:created', (data: any) => {
-                        if (data.session?.id && !this.sessions.some((s: any) => s.id === data.session.id)) {
-                            this.sessions.unshift(data.session);
-                        }
-                    })
-                    .on('session:labels', (data: any) => {
-                        const s = this.sessions.find((s: any) => s.id === data.sessionId);
-                        if (s) s.labels = data.labels;
-                        if (this.selectedSession?.id === data.sessionId) {
-                            this.selectedSession.labels = data.labels;
-                        }
-                    })
-                    .on('session:updated', (data: any) => {
-                        const s = this.sessions.find((s: any) => s.id === data.sessionId);
-                        if (s) s.name = data.name;
-                        if (this.selectedSession?.id === data.sessionId) {
-                            this.selectedSession.name = data.name;
-                        }
-                    })
-                    .on('session:typing', (data: any) => {
-                        const identifier = data.identifier;
-                        if (!identifier) return;
-                        // Find session by identifier
-                        const s = this.sessions.find((s: any) => s.identifier === identifier);
-                        if (!s) return;
-                        if (data.typing) {
-                            this.typingSessions[s.id] = true;
-                            // Auto-clear after 5s if no paused event
-                            if (this.typingIndicator[s.id]) clearTimeout(this.typingIndicator[s.id]!);
-                            this.typingIndicator[s.id] = setTimeout(() => { this.typingSessions[s.id] = false; }, 5000);
-                        } else {
-                            this.typingSessions[s.id] = false;
-                            if (this.typingIndicator[s.id]) { clearTimeout(this.typingIndicator[s.id]!); this.typingIndicator[s.id] = null; }
-                        }
-                    });
-                this.sseClient.connect();
-
-                // Slow fallback poll (60s)
-                this.pollInterval = setInterval(() => this.poll(), 60000);
-
-                // Tick every 30s to keep relativeTime() reactive
+                try { const bot = await ApiClient.get(`/bots/${this.botId}`); this.botName = bot.name; } catch {}
+                await loadSessions(this);
+                await loadLabels(this);
+                this.sseClient = setupSSE(this);
+                this.pollInterval = setInterval(() => poll(this), 60000);
                 this.timeTickInterval = setInterval(() => { this.timeTick++; }, 30000);
             },
-
             destroy() {
                 if (this.sseClient) this.sseClient.close();
                 if (this.pollInterval) clearInterval(this.pollInterval);
                 if (this.timeTickInterval) clearInterval(this.timeTickInterval);
             },
-
             goBack() {
-                if (this.botId) {
-                    window.location.href = `/bots/detail?id=${this.botId}`;
-                } else {
-                    window.location.href = "/bots";
-                }
+                window.location.href = this.botId ? `/bots/detail?id=${this.botId}` : "/bots";
             },
 
-            // --- UI Helpers ---
+            // ── Delegators (one-liners to imported functions) ────────────
+            avatarInitials: (name: string) => avatarInitials(name),
+            avatarColor: (name: string) => avatarColor(name),
+            dateLabel: (d: string) => dateLabel(d),
+            showDateSep: (msgs: any[], i: number) => showDateSep(msgs, i),
+            isLastInGroup: (msgs: any[], i: number) => isLastInGroup(msgs, i),
+            shortTime: (d: string) => shortTime(d),
+            relativeTime(d: string) { return relativeTime(d, this.timeTick); },
+            formatTime: (d: string) => formatTime(d),
+            formatMessage: (t: string) => formatMessage(t),
+            getMediaUrl: (msg: any) => getMediaUrl(msg),
+            labelColor: (c: number) => labelColor(c),
+            detectMediaType: (f: File) => detectMediaType(f),
 
-            avatarInitials(name: string): string {
-                if (!name) return "?";
-                const parts = name.trim().split(/\s+/);
-                if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-                return name.slice(0, 2).toUpperCase();
-            },
+            async loadSessions() { await loadSessions(this); },
+            async loadMoreSessions() { await loadMoreSessions(this); },
+            onSessionsScroll(e: Event) { onSessionsScroll(this, e); },
+            async selectSession(s: any) { await selectSession(this, s); },
 
-            avatarColor(name: string): string {
-                const colors = [
-                    '#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706',
-                    '#dc2626', '#db2777', '#9333ea', '#4f46e5', '#0d9488',
-                    '#ca8a04', '#e11d48', '#6366f1', '#14b8a6', '#f59e0b',
-                ];
-                let hash = 0;
-                for (let i = 0; i < (name || '').length; i++) {
-                    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-                }
-                return colors[Math.abs(hash) % colors.length];
-            },
+            async loadMessages(merge = false) { await loadMessages(this, merge); },
+            async loadMoreMessages() { await loadMoreMessages(this); },
+            onChatScroll() { onChatScroll(this); },
+            scrollToBottom() { scrollToBottom(this); },
+            async sendMessage() { await sendMessage(this); },
+            async handleFileSelect(e: Event) { await handleFileSelect(this, e); },
+            clearAttachment() { clearAttachment(this); },
+            playNotifSound() { playNotifSound(); },
+            async reactToMessage(id: string, emoji: string) { await reactToMessage(this, id, emoji); },
+            async poll() { await poll(this); },
 
-            dateLabel(dateStr: string): string {
-                if (!dateStr) return "";
-                const d = new Date(dateStr);
-                const now = new Date();
-                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-                const diff = (today.getTime() - msgDay.getTime()) / 86400000;
-                if (diff === 0) return "Hoy";
-                if (diff === 1) return "Ayer";
-                return d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            },
-
-            showDateSep(msgs: any[], i: number): boolean {
-                if (i === 0) return true;
-                const prev = new Date(msgs[i - 1].createdAt);
-                const curr = new Date(msgs[i].createdAt);
-                return prev.getFullYear() !== curr.getFullYear()
-                    || prev.getMonth() !== curr.getMonth()
-                    || prev.getDate() !== curr.getDate();
-            },
-
-            isLastInGroup(msgs: any[], i: number): boolean {
-                if (i === msgs.length - 1) return true;
-                return msgs[i].fromMe !== msgs[i + 1].fromMe;
-            },
-
-            shortTime(dateStr: string): string {
-                if (!dateStr) return "";
-                const d = new Date(dateStr);
-                return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
-            },
-
-            // --- Debug ---
-
-            async loadDebugContext() {
-                if (!this.selectedSession) return;
-                this.loadingDebug = true;
-                this.showDebugPanel = true;
-                try {
-                    this.debugData = await ApiClient.get(`/sessions/${this.selectedSession.id}/ai-context`);
-                } catch (e: any) {
-                    window.__toast.error("Failed to load debug data: " + (e.message || "Unknown"));
-                } finally {
-                    this.loadingDebug = false;
-                }
-            },
-
-            // --- Data Loading ---
-
-            async loadSessions() {
-                // Reset pagination on fresh load (initial or search change)
-                this.sessionOffset = 0;
-                try {
-                    const params = this.buildSessionParams();
-                    params.append("offset", "0");
-                    const res = await ApiClient.get(`/sessions?${params.toString()}`);
-                    this.sessions = res.data || [];
-                    this.totalSessions = res.pagination?.total || 0;
-                    this.hasMoreSessions = this.sessions.length < this.totalSessions;
-                } catch (e) {
-                    console.error("Failed to load sessions", e);
-                }
-            },
-
-            buildSessionParams(): URLSearchParams {
-                const params = new URLSearchParams();
-                if (this.botId) params.append("botId", this.botId);
-                if (this.searchQuery) params.append("search", this.searchQuery);
-                if (this.filterLabelId) params.append("labelId", this.filterLabelId);
-                params.append("limit", String(this.sessionLimit));
-                return params;
-            },
-
-            async loadMoreSessions() {
-                if (this.loadingMoreSessions || !this.hasMoreSessions) return;
-                this.loadingMoreSessions = true;
-                try {
-                    this.sessionOffset += this.sessionLimit;
-                    const params = this.buildSessionParams();
-                    params.append("offset", String(this.sessionOffset));
-                    const res = await ApiClient.get(`/sessions?${params.toString()}`);
-                    const newSessions = res.data || [];
-                    // Avoid duplicates (SSE may have added new sessions)
-                    const existingIds = new Set(this.sessions.map((s: any) => s.id));
-                    for (const s of newSessions) {
-                        if (!existingIds.has(s.id)) this.sessions.push(s);
-                    }
-                    this.totalSessions = res.pagination?.total || this.totalSessions;
-                    this.hasMoreSessions = this.sessions.length < this.totalSessions;
-                } catch (e) {
-                    console.error("Failed to load more sessions", e);
-                    this.sessionOffset -= this.sessionLimit; // rollback offset on failure
-                } finally {
-                    this.loadingMoreSessions = false;
-                }
-            },
-
-            onSessionsScroll(e: Event) {
-                const el = e.target as HTMLElement;
-                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
-                    this.loadMoreSessions();
-                }
-            },
-
-            async selectSession(session: any) {
-                this.selectedSession = session;
-                this.unreadCounts[session.id] = 0; // clear unread badge
-                this.sessionNotes = session.notes || '';
-                this.showNotesPanel = false;
-                this.messages = [];
-                this.hasMoreMessages = true;
-                this.loadingMore = false;
-                await this.loadMessages();
-                // Mark as read (fire-and-forget)
-                ApiClient.post(`/sessions/${session.id}/mark-read`, {}).catch(() => {});
-            },
-
-            async loadMessages(merge = false) {
-                if (!this.selectedSession) return;
-                try {
-                    const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=${this.messageLimit}`);
-                    if (merge && this.messages.length > 0) {
-                        // Merge: only add messages that don't already exist
-                        const existingIds = new Set(this.messages.map((m: any) => m.id));
-                        const newMsgs = (res.data || []).filter((m: any) => !existingIds.has(m.id));
-                        if (newMsgs.length > 0) {
-                            this.messages.push(...newMsgs);
-                            this.$nextTick(() => this.scrollToBottom());
-                        }
-                    } else {
-                        this.messages = res.data;
-                        this.$nextTick(() => this.scrollToBottom());
-                    }
-                    this.lastMessageCount = res.pagination.total;
-                    this.hasMoreMessages = (merge ? this.messages.length : res.data.length) < res.pagination.total;
-                } catch (e) {
-                    console.error("Failed to load messages", e);
-                }
-            },
-
-            async loadMoreMessages() {
-                if (!this.selectedSession || this.loadingMore || !this.hasMoreMessages) return;
-                this.loadingMore = true;
-                const container = this.$refs.messagesContainer as HTMLElement;
-                const prevHeight = container?.scrollHeight || 0;
-                try {
-                    const offset = this.messages.length;
-                    const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=${this.messageLimit}&offset=${offset}`);
-                    if (res.data.length === 0) {
-                        this.hasMoreMessages = false;
-                    } else {
-                        // Prepend older messages
-                        this.messages = [...res.data, ...this.messages];
-                        this.hasMoreMessages = this.messages.length < res.pagination.total;
-                        // Restore scroll position so it doesn't jump
-                        this.$nextTick(() => {
-                            if (container) {
-                                container.scrollTop = container.scrollHeight - prevHeight;
-                            }
-                        });
-                    }
-                } catch (e) {
-                    console.error("Failed to load more messages", e);
-                } finally {
-                    this.loadingMore = false;
-                }
-            },
-
-            onChatScroll() {
-                const container = this.$refs.messagesContainer as HTMLElement;
-                if (!container) return;
-                // Load older messages when scrolled near top
-                if (container.scrollTop < 100 && this.hasMoreMessages && !this.loadingMore) {
-                    this.loadMoreMessages();
-                }
-                // Show/hide scroll-to-bottom button
-                const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-                this.showScrollDown = distFromBottom > 200;
-            },
-
-            async poll() {
-                await this.loadSessions();
-                if (this.selectedSession) {
-                    try {
-                        const res = await ApiClient.get(`/sessions/${this.selectedSession.id}/messages?limit=${this.messageLimit}`);
-                        if (res.pagination.total !== this.lastMessageCount) {
-                            // Only append new messages instead of replacing the array
-                            const existingIds = new Set(this.messages.map((m: any) => m.id));
-                            const newMsgs = (res.data || []).filter((m: any) => !existingIds.has(m.id));
-                            if (newMsgs.length > 0) {
-                                this.messages.push(...newMsgs);
-                                this.$nextTick(() => this.scrollToBottom());
-                            }
-                            this.lastMessageCount = res.pagination.total;
-                            this.hasMoreMessages = this.messages.length < res.pagination.total;
-                        }
-                    } catch {}
-                }
-            },
-
-            scrollToBottom() {
-                const container = this.$refs.messagesContainer as HTMLElement;
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
-                }
-            },
-
-            async sendMessage() {
-                if (!this.messageInput.trim() && !this.attachedFile) return;
-                if (!this.selectedSession) return;
-                this.sending = true;
-                try {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const payload: any = {};
-                    if (this.messageInput.trim()) payload.text = this.messageInput;
-                    if (this.attachedUrl && this.attachedMediaType) {
-                        payload.mediaUrl = this.attachedUrl;
-                        payload.mediaType = this.attachedMediaType;
-                        if (this.attachedFile) payload.fileName = this.attachedFile.name;
-                    }
-                    await ApiClient.post(`/sessions/${this.selectedSession.id}/send`, payload);
-                    this.messageInput = "";
-                    this.clearAttachment();
-                    // Delayed merge reload — SSE may deliver it first (dedup prevents doubles)
-                    setTimeout(() => this.loadMessages(true), 1500);
-                } catch (e: any) {
-                    window.__toast.error("Send failed: " + (e.message || "Unknown error"));
-                } finally {
-                    this.sending = false;
-                }
-            },
-
-            async handleFileSelect(e: Event) {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (!file) return;
-                this.attachedFile = file;
-                this.uploadingFile = true;
-                try {
-                    const res = await ApiClient.uploadFile(file);
-                    this.attachedUrl = res.url;
-                    this.attachedMediaType = this.detectMediaType(file);
-                } catch (err: any) {
-                    window.__toast.error("Upload failed: " + (err.message || "Unknown"));
-                    this.clearAttachment();
-                } finally {
-                    this.uploadingFile = false;
-                    (this.$refs.fileInput as HTMLInputElement).value = '';
-                }
-            },
-
-            detectMediaType(file: File): string {
-                const t = file.type;
-                if (t.startsWith('image/')) return 'IMAGE';
-                if (t.startsWith('video/')) return 'VIDEO';
-                if (t.startsWith('audio/')) return 'AUDIO';
-                return 'DOCUMENT';
-            },
-
-            clearAttachment() {
-                this.attachedFile = null;
-                this.attachedUrl = '';
-                this.attachedMediaType = '';
-            },
-
-            playNotifSound() {
-                try {
-                    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.frequency.value = 800;
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-                    osc.start(ctx.currentTime);
-                    osc.stop(ctx.currentTime + 0.3);
-                } catch {}
-            },
-
-            async reactToMessage(messageId: string, emoji: string) {
-                if (!this.selectedSession) return;
-                try {
-                    await ApiClient.post(`/sessions/${this.selectedSession.id}/react`, { messageId, emoji });
-                } catch (e: any) {
-                    window.__toast.error("Reaction failed: " + (e.message || "Unknown"));
-                }
-            },
-
-            async saveNotes() {
-                if (!this.selectedSession) return;
-                try {
-                    await ApiClient.patch(`/sessions/${this.selectedSession.id}/notes`, { notes: this.sessionNotes });
-                    this.selectedSession.notes = this.sessionNotes;
-                    const s = this.sessions.find((s: any) => s.id === this.selectedSession.id);
-                    if (s) s.notes = this.sessionNotes;
-                } catch (e: any) {
-                    window.__toast.error("Failed to save notes");
-                }
-            },
-
-            async toggleAI() {
-                if (!this.selectedSession) return;
-                const newValue = !this.selectedSession.aiEnabled;
-                try {
-                    await ApiClient.patch(`/sessions/${this.selectedSession.id}/ai-enabled`, { enabled: newValue });
-                    this.selectedSession.aiEnabled = newValue;
-                    const s = this.sessions.find((s: any) => s.id === this.selectedSession.id);
-                    if (s) s.aiEnabled = newValue;
-                    window.__toast.info(newValue ? 'IA activada' : 'IA desactivada');
-                } catch (e: any) {
-                    window.__toast.error("Failed to toggle AI");
-                }
-            },
-
-            async forceAI() {
-                if (!this.selectedSession) return;
-                try {
-                    await ApiClient.post(`/sessions/${this.selectedSession.id}/force-ai`, {
-                        context: this.forceAIContext || undefined,
-                    });
-                    this.showForceAIModal = false;
-                    this.forceAIContext = "";
-                    // Wait a bit then reload messages
-                    setTimeout(() => this.loadMessages(true), 2000);
-                } catch (e: any) {
-                    window.__toast.error("Force AI failed: " + (e.message || "Unknown error"));
-                }
-            },
-
-            async openFlowModal() {
-                if (!this.botId) return;
-                try {
-                    this.flows = await ApiClient.get(`/flows?botId=${this.botId}`);
-                } catch {}
-                this.selectedFlowId = "";
-                this.showFlowModal = true;
-            },
-
-            async executeFlow() {
-                if (!this.selectedSession || !this.selectedFlowId) return;
-                try {
-                    await ApiClient.post(`/sessions/${this.selectedSession.id}/execute-flow`, {
-                        flowId: this.selectedFlowId,
-                    });
-                    this.showFlowModal = false;
-                    setTimeout(() => this.loadMessages(true), 2000);
-                } catch (e: any) {
-                    window.__toast.error("Execute flow failed: " + (e.message || "Unknown error"));
-                }
-            },
-
-            async openToolModal() {
-                if (!this.botId) return;
-                try {
-                    this.tools = await ApiClient.get(`/tools?botId=${this.botId}`);
-                } catch {}
-                this.selectedToolName = "";
-                this.toolArgsJson = "{}";
-                this.showToolModal = true;
-            },
-
-            async executeTool() {
-                if (!this.selectedSession || !this.selectedToolName) return;
-                let args: Record<string, any> = {};
-                try {
-                    args = JSON.parse(this.toolArgsJson);
-                } catch {
-                    window.__toast.error("Invalid JSON in arguments");
-                    return;
-                }
-                try {
-                    const res = await ApiClient.post(`/sessions/${this.selectedSession.id}/execute-tool`, {
-                        toolName: this.selectedToolName,
-                        args,
-                    });
-                    this.showToolModal = false;
-                    window.__toast.info("Tool result: " + JSON.stringify(res.result, null, 2));
-                } catch (e: any) {
-                    window.__toast.error("Execute tool failed: " + (e.message || "Unknown error"));
-                }
-            },
-
-            async loadLabels() {
-                if (!this.botId) return;
-                try {
-                    this.botLabels = await ApiClient.get(`/sessions/labels?botId=${this.botId}`);
-                } catch (e) {
-                    console.error("Failed to load labels", e);
-                }
-            },
-
-            async assignLabel(labelId: string) {
-                if (!this.selectedSession) return;
-                try {
-                    await ApiClient.post(`/sessions/${this.selectedSession.id}/labels`, { labelId });
-                    const label = this.botLabels.find((l: any) => l.id === labelId);
-                    if (label) {
-                        if (!this.selectedSession.labels) this.selectedSession.labels = [];
-                        this.selectedSession.labels.push({ id: label.id, name: label.name, color: label.color, waLabelId: label.waLabelId });
-                        // Also update in the sessions list
-                        const s = this.sessions.find((s: any) => s.id === this.selectedSession.id);
-                        if (s) s.labels = [...this.selectedSession.labels];
-                    }
-                } catch (e: any) {
-                    window.__toast.error("Assign label failed: " + (e.message || "Unknown error"));
-                }
-            },
-
-            async removeLabel(labelId: string) {
-                if (!this.selectedSession) return;
-                try {
-                    await ApiClient.delete(`/sessions/${this.selectedSession.id}/labels/${labelId}`);
-                    this.selectedSession.labels = (this.selectedSession.labels || []).filter((l: any) => l.id !== labelId);
-                    // Also update in the sessions list
-                    const s = this.sessions.find((s: any) => s.id === this.selectedSession.id);
-                    if (s) s.labels = [...this.selectedSession.labels];
-                } catch (e: any) {
-                    window.__toast.error("Remove label failed: " + (e.message || "Unknown error"));
-                }
-            },
-
-            availableLabels() {
-                if (!this.selectedSession) return [];
-                const assignedIds = new Set((this.selectedSession.labels || []).map((l: any) => l.id));
-                return this.botLabels.filter((l: any) => !assignedIds.has(l.id));
-            },
-
-            labelColor(colorIndex: number): string {
-                const colors = [
-                    '#00a884', '#53bdeb', '#009de2', '#025bfe', '#7c3aed',
-                    '#ff2e74', '#ef4444', '#ff9a00', '#ffcb00', '#a4c639',
-                    '#00d166', '#00bfa5', '#02c6cf', '#7986cb', '#b39ddb',
-                    '#f48fb1', '#9e9e9e', '#78909c', '#8d6e63', '#a1887f',
-                ];
-                return colors[colorIndex % colors.length] || colors[0];
-            },
-
-            getMediaUrl(msg: any): string | null {
-                const url = msg.metadata?.mediaUrl;
-                if (!url) return null;
-                // R2 or external URL: use directly
-                if (url.startsWith('http://') || url.startsWith('https://')) return url;
-                // Local file: serve via upload endpoint
-                const filename = url.split('/').pop();
-                const base = (import.meta.env.PUBLIC_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : 'https://agentic-api.w-gateway.cc'));
-                return `${base}/upload/files/${filename}`;
-            },
-
-            formatMessage(text: string): string {
-                if (!text) return '';
-                // Escape HTML first
-                let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                // WhatsApp formatting: *bold*, _italic_, ~strikethrough~, ```code```
-                s = s.replace(/```([\s\S]*?)```/g, '<code class="bg-white/10 px-1 py-0.5 rounded text-xs font-mono">$1</code>');
-                s = s.replace(/\*([^\s*](?:[^*]*[^\s*])?)\*/g, '<strong>$1</strong>');
-                s = s.replace(/(?<!\w)_([^\s_](?:[^_]*[^\s_])?)_(?!\w)/g, '<em>$1</em>');
-                s = s.replace(/~([^\s~](?:[^~]*[^\s~])?)~/g, '<del>$1</del>');
-                // URLs → clickable links
-                s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-blue-300 hover:underline break-all">$1</a>');
-                return s;
-            },
-
-            relativeTime(dateStr: string) {
-                if (!dateStr) return "";
-                void this.timeTick; // reactive dependency — forces re-evaluation every 30s
-                const now = Date.now();
-                const then = new Date(dateStr).getTime();
-                const diff = now - then;
-                const minutes = Math.floor(diff / 60000);
-                if (minutes < 1) return "now";
-                if (minutes < 60) return `${minutes}m`;
-                const hours = Math.floor(minutes / 60);
-                if (hours < 24) return `${hours}h`;
-                const days = Math.floor(hours / 24);
-                return `${days}d`;
-            },
-
-            formatTime(dateStr: string) {
-                if (!dateStr) return "";
-                return new Date(dateStr).toLocaleString();
-            },
+            async loadDebugContext() { await loadDebugContext(this); },
+            async saveNotes() { await saveNotes(this); },
+            async toggleAI() { await toggleAI(this); },
+            async forceAI() { await forceAI(this); },
+            async openFlowModal() { await openFlowModal(this); },
+            async executeFlow() { await executeFlow(this); },
+            async openToolModal() { await openToolModal(this); },
+            async executeTool() { await executeTool(this); },
+            async loadLabels() { await loadLabels(this); },
+            async assignLabel(id: string) { await assignLabel(this, id); },
+            async removeLabel(id: string) { await removeLabel(this, id); },
+            availableLabels() { return availableLabels(this); },
         }));
     });
 </script>

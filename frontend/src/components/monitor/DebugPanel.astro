@@ -1,0 +1,94 @@
+---
+---
+<!-- Debug AI Context Panel -->
+<div
+    x-show="showDebugPanel"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
+    style="display: none;"
+    @keydown.escape.window="showDebugPanel = false"
+>
+    <div class="bg-wa-bg-panel border border-wa-border w-full sm:max-w-3xl sm:max-h-[85vh] h-full sm:h-auto sm:rounded-xl flex flex-col overflow-hidden"
+         @click.outside="showDebugPanel = false">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-3 border-b border-wa-border flex-shrink-0">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                <h3 class="text-sm font-bold">Debug AI Context</h3>
+            </div>
+            <div class="flex items-center gap-3">
+                <button @click="loadDebugContext()" class="text-[10px] text-wa-text-secondary hover:text-wa-green transition-colors">Refresh</button>
+                <button @click="showDebugPanel = false" class="text-wa-text-secondary hover:text-white transition-colors text-lg leading-none">&times;</button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div x-show="loadingDebug" class="flex-1 flex items-center justify-center">
+            <span class="text-xs text-wa-text-secondary animate-pulse">Cargando contexto...</span>
+        </div>
+
+        <!-- Content -->
+        <div x-show="!loadingDebug && debugData" class="flex-1 overflow-y-auto p-5 space-y-5">
+
+            <!-- Config summary -->
+            <div class="flex flex-wrap gap-2">
+                <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Provider: ' + debugData?.config?.aiProvider"></span>
+                <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Model: ' + debugData?.config?.aiModel"></span>
+                <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Temp: ' + debugData?.config?.temperature"></span>
+                <span class="text-[10px] px-2 py-1 rounded bg-wa-bg-hover border border-wa-border text-wa-text-secondary" x-text="'Context: ' + debugData?.config?.contextMessages + ' msgs'"></span>
+                <span class="text-[10px] px-2 py-1 rounded border"
+                      :class="debugData?.config?.autoReadReceipts ? 'border-wa-green/30 text-wa-green bg-wa-green/10' : 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10'"
+                      x-text="debugData?.config?.autoReadReceipts ? 'Auto-read: ON' : 'Auto-read: OFF'"></span>
+            </div>
+
+            <!-- System Prompt -->
+            <div>
+                <h4 class="text-[10px] text-wa-green tracking-widest uppercase mb-2">System Prompt</h4>
+                <pre class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 text-[11px] text-wa-text-secondary font-mono whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed" x-text="debugData?.systemPrompt || '(vacío)'"></pre>
+            </div>
+
+            <!-- Chat Context -->
+            <div>
+                <h4 class="text-[10px] text-wa-green tracking-widest uppercase mb-2">
+                    Chat Context
+                    <span class="text-wa-text-secondary normal-case" x-text="'(' + (debugData?.chatContext?.length || 0) + ' mensajes)'"></span>
+                </h4>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 max-h-64 overflow-y-auto space-y-0.5">
+                    <template x-for="(line, i) in (debugData?.chatContext || [])" :key="i">
+                        <div class="text-[11px] font-mono leading-relaxed"
+                             :class="line.includes('Bot]') ? 'text-wa-green/80' : 'text-wa-text-secondary'">
+                            <span x-text="line"></span>
+                        </div>
+                    </template>
+                    <div x-show="!debugData?.chatContext?.length" class="text-[11px] text-wa-text-secondary italic">Sin mensajes de contexto</div>
+                </div>
+            </div>
+
+            <!-- Conversation History -->
+            <div>
+                <h4 class="text-[10px] text-wa-green tracking-widest uppercase mb-2">
+                    Conversation History (AI Memory)
+                    <span class="text-wa-text-secondary normal-case" x-text="'(' + (debugData?.conversationHistory?.length || 0) + ' entries)'"></span>
+                </h4>
+                <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-3 max-h-64 overflow-y-auto space-y-1.5">
+                    <template x-for="(msg, i) in (debugData?.conversationHistory || [])" :key="i">
+                        <div class="text-[11px] font-mono leading-relaxed">
+                            <span class="font-bold"
+                                  :class="{
+                                      'text-blue-400': msg.role === 'user',
+                                      'text-wa-green': msg.role === 'assistant',
+                                      'text-yellow-400': msg.role === 'tool',
+                                      'text-purple-400': msg.role === 'system'
+                                  }"
+                                  x-text="'[' + msg.role + ']'"></span>
+                            <span class="text-wa-text-secondary" x-text="msg.content ? (msg.content.length > 200 ? msg.content.substring(0, 200) + '...' : msg.content) : ''"></span>
+                            <template x-if="msg.toolCalls?.length">
+                                <span class="text-purple-400" x-text="' → tools: ' + msg.toolCalls.map(t => t.name).join(', ')"></span>
+                            </template>
+                        </div>
+                    </template>
+                    <div x-show="!debugData?.conversationHistory?.length" class="text-[11px] text-wa-text-secondary italic">Sin historial de conversación</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
