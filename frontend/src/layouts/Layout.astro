@@ -99,7 +99,7 @@ const { title, fullWidth = false } = Astro.props;
 		<script src="/registerSW.js" is:inline></script>
 	</head>
 	<body
-		class="selection:bg-wa-green selection:text-white relative bg-wa-bg-deep min-h-screen text-wa-text-primary font-sans antialiased overflow-x-hidden"
+		class="selection:bg-wa-green selection:text-white relative bg-wa-bg-deep min-h-dvh text-wa-text-primary font-sans antialiased overflow-x-hidden"
 		x-data
 		x-cloak
 		style="display: none !important;"
@@ -109,7 +109,7 @@ const { title, fullWidth = false } = Astro.props;
 		<!-- Main Content (animated on navigation) -->
 		<main class:list={[
 			fullWidth
-				? "md:px-2 md:pt-2 min-h-screen"
+				? "md:px-2 md:pt-2 min-h-dvh"
 				: "px-4 pt-4 md:px-8 md:pt-8 pb-20 max-w-7xl mx-auto"
 		]} transition:animate="fade">
 			<slot />

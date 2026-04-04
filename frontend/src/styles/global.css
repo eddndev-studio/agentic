@@ -35,7 +35,7 @@
 /* Body */
 body {
   @apply bg-wa-bg-deep text-wa-text-primary font-sans antialiased;
-  min-height: 100vh;
+  min-height: 100dvh;
   overflow-y: auto;
 }
 
