@@ -15,7 +15,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         if (query.active === "true") where.isActive = true;
         return prisma.worker.findMany({
             where,
-            include: { adAccount: { select: { id: true, fbAccountId: true, name: true } } },
+            include: {
+                adAccount: { select: { id: true, fbAccountId: true, name: true } },
+                membership: { select: { id: true, role: true, user: { select: { id: true, email: true, fullName: true, avatarUrl: true } } } },
+            },
             orderBy: { name: "asc" },
         });
     })
@@ -25,6 +28,7 @@ export const financeController = new Elysia({ prefix: "/finance" })
             where: { id, orgId: user!.orgId },
             include: {
                 adAccount: { select: { id: true, fbAccountId: true, name: true } },
+                membership: { select: { id: true, role: true, user: { select: { id: true, email: true, fullName: true, avatarUrl: true } } } },
                 workerPeriods: { orderBy: { period: { startDate: "desc" } }, take: 5, include: { period: true } },
             },
         });
@@ -32,13 +36,26 @@ export const financeController = new Elysia({ prefix: "/finance" })
         return worker;
     })
 
-    .post("/workers", async ({ body, user }) => {
+    .post("/workers", async ({ body, set, user }) => {
+        // Validate membership belongs to this org
+        if (body.membershipId) {
+            const membership = await prisma.membership.findFirst({
+                where: { id: body.membershipId, orgId: user!.orgId },
+            });
+            if (!membership) { set.status = 400; return { error: "Membership not found in this organization" }; }
+
+            // Check no existing Worker for this membership
+            const existing = await prisma.worker.findUnique({ where: { membershipId: body.membershipId } });
+            if (existing) { set.status = 409; return { error: "This member already has a worker profile" }; }
+        }
+
         return prisma.worker.create({
             data: {
                 name: body.name,
                 baseSalary: body.baseSalary,
                 bonusPercent: body.bonusPercent ?? 0,
                 bonusMinLicenses: body.bonusMinLicenses ?? 0,
+                membershipId: body.membershipId ?? null,
                 orgId: user!.orgId,
             },
         });
@@ -48,19 +65,27 @@ export const financeController = new Elysia({ prefix: "/finance" })
             baseSalary: t.Number(),
             bonusPercent: t.Optional(t.Number()),
             bonusMinLicenses: t.Optional(t.Number()),
+            membershipId: t.Optional(t.String()),
         }),
     })
 
     .put("/workers/:id", async ({ params: { id }, body, set, user }) => {
         const existing = await prisma.worker.findFirst({ where: { id, orgId: user!.orgId } });
         if (!existing) { set.status = 404; return { error: "Not found" }; }
-        const { name, baseSalary, bonusPercent, bonusMinLicenses, isActive } = body as any;
+        const { name, baseSalary, bonusPercent, bonusMinLicenses, isActive, membershipId } = body as any;
         const data: any = {};
         if (name !== undefined) data.name = name;
         if (baseSalary !== undefined) data.baseSalary = Number(baseSalary);
         if (bonusPercent !== undefined) data.bonusPercent = Number(bonusPercent);
         if (bonusMinLicenses !== undefined) data.bonusMinLicenses = Number(bonusMinLicenses);
         if (isActive !== undefined) data.isActive = isActive;
+        if (membershipId !== undefined) {
+            if (membershipId) {
+                const membership = await prisma.membership.findFirst({ where: { id: membershipId, orgId: user!.orgId } });
+                if (!membership) { set.status = 400; return { error: "Membership not found" }; }
+            }
+            data.membershipId = membershipId || null;
+        }
         try {
             return await prisma.worker.update({ where: { id }, data });
         } catch {

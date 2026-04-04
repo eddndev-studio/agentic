@@ -25,7 +25,6 @@ model User {
   updatedAt     DateTime     @updatedAt
 
   memberships Membership[]
-  workers     Worker[]
 }
 
 model Organization {
@@ -55,6 +54,7 @@ model Membership {
   user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   workerBots WorkerBot[]
+  worker     Worker?
 
   @@unique([userId, orgId])
 }
@@ -517,7 +517,7 @@ enum AdInsightLevel {
 model Worker {
   id               String         @id @default(uuid())
   orgId            String
-  userId           String?
+  membershipId     String?        @unique
   name             String
   baseSalary       Float
   bonusPercent     Float          @default(0)
@@ -529,10 +529,10 @@ model Worker {
   workerPeriods    WorkerPeriod[]
   adAccount        AdAccount?
   org              Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  membership       Membership?    @relation(fields: [membershipId], references: [id], onDelete: SetNull)
 
   @@index([orgId])
-  @@index([userId])
+  @@index([membershipId])
 }
 
 model BankAccount {
