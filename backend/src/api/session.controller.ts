@@ -129,6 +129,66 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         body: t.Object({ botId: t.String() }),
     })
 
+    // POST /sessions/labels — Create a new label
+    .post("/labels", async ({ body, set }) => {
+        const { botId, name, color } = body;
+        if (!name?.trim()) { set.status = 400; return { error: "name is required" }; }
+        if (color < 0 || color > 19) { set.status = 400; return { error: "color must be 0-19" }; }
+        try {
+            const provider = await providerRegistry.forBot(botId);
+            const { waLabelId } = await provider.createLabel(botId, name.trim(), color);
+            const label = await prisma.label.findUnique({
+                where: { botId_waLabelId: { botId, waLabelId } },
+            });
+            return { success: true, label };
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            set.status = msg.includes('not connected') ? 503 : 500;
+            return { error: msg };
+        }
+    }, {
+        body: t.Object({ botId: t.String(), name: t.String(), color: t.Number() }),
+    })
+
+    // PATCH /sessions/labels/:labelId — Rename or change color
+    .patch("/labels/:labelId", async ({ params: { labelId }, body, set }) => {
+        const label = await prisma.label.findUnique({ where: { id: labelId } });
+        if (!label || label.deleted) { set.status = 404; return { error: "Label not found" }; }
+        if (body.color !== undefined && (body.color < 0 || body.color > 19)) {
+            set.status = 400; return { error: "color must be 0-19" };
+        }
+        try {
+            const provider = await providerRegistry.forBot(label.botId);
+            const data: { name?: string; color?: number } = {};
+            if (body.name !== undefined) data.name = body.name;
+            if (body.color !== undefined) data.color = body.color;
+            await provider.updateLabel(label.botId, label.waLabelId, data);
+            const updated = await prisma.label.findUnique({ where: { id: labelId } });
+            return { success: true, label: updated };
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            set.status = msg.includes('not connected') ? 503 : 500;
+            return { error: msg };
+        }
+    }, {
+        body: t.Object({ name: t.Optional(t.String()), color: t.Optional(t.Number()) }),
+    })
+
+    // DELETE /sessions/labels/:labelId — Soft-delete a label
+    .delete("/labels/:labelId", async ({ params: { labelId }, set }) => {
+        const label = await prisma.label.findUnique({ where: { id: labelId } });
+        if (!label) { set.status = 404; return { error: "Label not found" }; }
+        try {
+            const provider = await providerRegistry.forBot(label.botId);
+            await provider.deleteLabel(label.botId, label.waLabelId);
+            return { success: true };
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            set.status = msg.includes('not connected') ? 503 : 500;
+            return { error: msg };
+        }
+    })
+
     // GET /sessions/:id/ai-context — Debug: show exactly what the AI receives
     .get("/:id/ai-context", async ({ params: { id }, set }) => {
         const session = await prisma.session.findUnique({

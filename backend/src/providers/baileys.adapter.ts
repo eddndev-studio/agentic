@@ -93,4 +93,10 @@ export const baileysProvider: IMessagingProvider = {
 
     markLabelEventHandled: (botId, sessionId, labelId, action) =>
         BaileysService.markLabelEventHandled(botId, sessionId, labelId, action),
+
+    createLabel: (botId, name, color) => BaileysService.createLabel(botId, name, color),
+
+    updateLabel: (botId, waLabelId, data) => BaileysService.updateLabel(botId, waLabelId, data),
+
+    deleteLabel: (botId, waLabelId) => BaileysService.deleteLabel(botId, waLabelId),
 };

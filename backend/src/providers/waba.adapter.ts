@@ -92,6 +92,16 @@ export const wabaProvider: IMessagingProvider = {
     async addChatLabel(_botId: string, _chatId: string, _labelId: string): Promise<void> {},
     async removeChatLabel(_botId: string, _chatId: string, _labelId: string): Promise<void> {},
     markLabelEventHandled(_botId: string, _sessionId: string, _labelId: string, _action: 'add' | 'remove'): void {},
+
+    async createLabel(): Promise<{ waLabelId: string }> {
+        throw new Error('WABA Cloud API does not support label management');
+    },
+    async updateLabel(): Promise<void> {
+        throw new Error('WABA Cloud API does not support label management');
+    },
+    async deleteLabel(): Promise<void> {
+        throw new Error('WABA Cloud API does not support label management');
+    },
 };
 
 /**

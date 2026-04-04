@@ -64,6 +64,79 @@ export class BaileysLabelService {
         await (sock as any).removeChatLabel(jid, waLabelId);
     }
 
+    // ── Label CRUD ───────────────────────────────────────────────────────────
+
+    /**
+     * Create a new WhatsApp label.
+     * Generates a numeric ID (max existing + 1, min 6 to avoid predefined slots).
+     */
+    static async createLabel(sock: WASocket, botId: string, name: string, color: number): Promise<{ waLabelId: string }> {
+        const existing = await prisma.label.findMany({
+            where: { botId },
+            select: { waLabelId: true },
+        });
+        const maxId = existing.reduce((max, l) => {
+            const n = parseInt(l.waLabelId, 10);
+            return isNaN(n) ? max : Math.max(max, n);
+        }, 5); // min 5 so first custom label is 6
+        const newId = String(maxId + 1);
+
+        await (sock as any).addLabel('', { id: newId, name, color });
+
+        // Optimistic DB upsert
+        await LabelPersistenceService.handleLabelEdit(botId, {
+            id: newId, name, color, deleted: false,
+        });
+
+        log.info(`Created label "${name}" (id=${newId}, color=${color}) for Bot ${botId}`);
+        return { waLabelId: newId };
+    }
+
+    /**
+     * Update a label's name and/or color.
+     */
+    static async updateLabel(sock: WASocket, botId: string, waLabelId: string, data: { name?: string; color?: number }): Promise<void> {
+        const body: Record<string, unknown> = { id: waLabelId };
+        if (data.name !== undefined) body.name = data.name;
+        if (data.color !== undefined) body.color = data.color;
+
+        await (sock as any).addLabel('', body);
+
+        // Optimistic DB update
+        const updateData: Record<string, unknown> = {};
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.color !== undefined) updateData.color = data.color;
+        if (Object.keys(updateData).length > 0) {
+            await prisma.label.update({
+                where: { botId_waLabelId: { botId, waLabelId } },
+                data: updateData,
+            });
+        }
+
+        log.info(`Updated label ${waLabelId} for Bot ${botId}:`, data);
+    }
+
+    /**
+     * Soft-delete a label and clean up associations.
+     */
+    static async deleteLabel(sock: WASocket, botId: string, waLabelId: string): Promise<void> {
+        await (sock as any).addLabel('', { id: waLabelId, deleted: true });
+
+        // Optimistic: soft-delete + remove associations
+        const label = await prisma.label.findUnique({
+            where: { botId_waLabelId: { botId, waLabelId } },
+        });
+        if (label) {
+            await prisma.sessionLabel.deleteMany({ where: { labelId: label.id } });
+            await prisma.label.update({
+                where: { id: label.id },
+                data: { deleted: true },
+            });
+        }
+
+        log.info(`Deleted label ${waLabelId} for Bot ${botId}`);
+    }
+
     // ── Reconciliation ──────────────────────────────────────────────────────
 
     static async reconcileLabels(botId: string, getSocket: () => WASocket | undefined): Promise<void> {

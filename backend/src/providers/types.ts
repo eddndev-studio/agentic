@@ -82,4 +82,9 @@ export interface IMessagingProvider {
     addChatLabel(botId: string, chatId: string, labelId: string): Promise<void>;
     removeChatLabel(botId: string, chatId: string, labelId: string): Promise<void>;
     markLabelEventHandled(botId: string, sessionId: string, labelId: string, action: 'add' | 'remove'): void;
+
+    // ── Label CRUD ──────────────────────────────────────────────────────────
+    createLabel(botId: string, name: string, color: number): Promise<{ waLabelId: string }>;
+    updateLabel(botId: string, waLabelId: string, data: { name?: string; color?: number }): Promise<void>;
+    deleteLabel(botId: string, waLabelId: string): Promise<void>;
 }

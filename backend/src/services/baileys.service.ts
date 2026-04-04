@@ -865,6 +865,24 @@ export class BaileysService {
         LabelPersistenceService.markLabelEventHandled(botId, sessionId, labelId, action);
     }
 
+    static async createLabel(botId: string, name: string, color: number): Promise<{ waLabelId: string }> {
+        const sock = sessions.get(botId);
+        if (!sock) throw new Error(`Bot ${botId} not connected`);
+        return BaileysLabelService.createLabel(sock, botId, name, color);
+    }
+
+    static async updateLabel(botId: string, waLabelId: string, data: { name?: string; color?: number }): Promise<void> {
+        const sock = sessions.get(botId);
+        if (!sock) throw new Error(`Bot ${botId} not connected`);
+        return BaileysLabelService.updateLabel(sock, botId, waLabelId, data);
+    }
+
+    static async deleteLabel(botId: string, waLabelId: string): Promise<void> {
+        const sock = sessions.get(botId);
+        if (!sock) throw new Error(`Bot ${botId} not connected`);
+        return BaileysLabelService.deleteLabel(sock, botId, waLabelId);
+    }
+
     /**
      * Graceful shutdown: cancel all reconnect timers and close all sockets.
      */
