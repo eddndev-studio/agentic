@@ -1,0 +1,28 @@
+---
+interface Props {
+    label: string;
+    type?: string;
+    placeholder?: string;
+    'x-model': string;
+    required?: boolean;
+    class?: string;
+}
+const { label, type = 'text', placeholder = '', required = false, class: cls = '', ...rest } = Astro.props;
+const xModel = rest['x-model'];
+---
+
+<div class="space-y-2">
+    <label class="text-xs text-wa-text-secondary">{label}</label>
+    <input
+        type={type}
+        x-model={xModel}
+        class:list={[
+            "w-full bg-wa-bg-hover border border-wa-border text-white p-3 text-sm rounded-lg",
+            "focus:border-wa-green/50 focus:outline-none focus:ring-1 focus:ring-wa-green/50",
+            "transition-all placeholder:text-white/20",
+            cls
+        ]}
+        placeholder={placeholder}
+        required={required}
+    />
+</div>

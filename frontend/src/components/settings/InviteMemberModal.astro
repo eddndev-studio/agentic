@@ -1,0 +1,41 @@
+<!-- Invite Member Modal -->
+<div x-show="showInviteModal" x-cloak style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="fixed inset-0 bg-black/60" @click="showInviteModal = false"></div>
+    <div class="relative bg-wa-bg-panel border border-wa-border rounded-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-semibold mb-6">Invitar Miembro</h3>
+
+        <div x-show="inviteError" class="mb-4 p-3 border border-red-500/30 bg-red-500/10 text-red-200 text-xs rounded-lg">
+            <span x-text="inviteError"></span>
+        </div>
+
+        <div class="space-y-4">
+            <div class="space-y-2">
+                <label class="text-xs text-wa-text-secondary">Email</label>
+                <input type="email" x-model="inviteEmail"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white p-3 text-sm rounded-lg focus:border-wa-green/50 focus:outline-none focus:ring-1 focus:ring-wa-green/50"
+                    placeholder="email@ejemplo.com" />
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs text-wa-text-secondary">Rol</label>
+                <select x-model="inviteRole"
+                    class="w-full bg-wa-bg-hover border border-wa-border text-white p-3 text-sm rounded-lg focus:border-wa-green/50 focus:outline-none">
+                    <option value="ADMIN">Admin</option>
+                    <option value="SUPERVISOR">Supervisor</option>
+                    <option value="WORKER">Worker</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+            <button @click="showInviteModal = false"
+                class="flex-1 py-2.5 text-sm border border-wa-border rounded-lg text-wa-text-secondary hover:bg-wa-bg-hover transition-colors">
+                Cancelar
+            </button>
+            <button @click="sendInvite()" :disabled="inviteLoading"
+                class="flex-1 py-2.5 text-sm bg-wa-green text-white rounded-lg hover:bg-wa-green-hover transition-colors disabled:opacity-50">
+                <span x-show="!inviteLoading">Enviar Invitacion</span>
+                <span x-show="inviteLoading" class="animate-pulse">Enviando...</span>
+            </button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,78 @@
+---
+import "../styles/global.css";
+import AuthCard from "../components/auth/AuthCard.astro";
+import AuthInput from "../components/auth/AuthInput.astro";
+import AuthButton from "../components/auth/AuthButton.astro";
+import AuthError from "../components/auth/AuthError.astro";
+import AuthLink from "../components/auth/AuthLink.astro";
+---
+
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width" />
+        <meta name="theme-color" content="#0b141a" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <title>Crear Cuenta | Agentic</title>
+    </head>
+    <body class="bg-wa-bg-deep min-h-screen flex items-center justify-center font-sans text-wa-text-primary antialiased relative overflow-hidden">
+        <main x-data="registerForm">
+            <AuthCard title="Crea tu cuenta" subtitle="Se creara tu organizacion automaticamente">
+                <form @submit.prevent="submit" class="relative">
+                    <AuthError />
+                    <AuthInput label="Nombre completo" type="text" x-model="fullName" placeholder="Tu nombre" required />
+                    <div class="mt-5">
+                        <AuthInput label="Email" type="email" x-model="email" placeholder="tu@email.com" required />
+                    </div>
+                    <div class="mt-5">
+                        <AuthInput label="Password" type="password" x-model="password" placeholder="Minimo 8 caracteres" required />
+                    </div>
+                    <AuthButton loadingText="Creando cuenta...">Crear Cuenta</AuthButton>
+                </form>
+
+                <Fragment slot="footer">
+                    <div class="mt-6 text-center">
+                        <span class="text-xs text-wa-text-secondary">Ya tienes cuenta? </span>
+                        <AuthLink href="/login">Iniciar sesion</AuthLink>
+                    </div>
+                </Fragment>
+            </AuthCard>
+        </main>
+
+        <script>
+            import { ApiClient as api } from "../lib/api";
+
+            document.addEventListener("alpine:init", () => {
+                Alpine.data("registerForm", () => ({
+                    fullName: "",
+                    email: "",
+                    password: "",
+                    loading: false,
+                    errorMessage: "",
+
+                    async submit() {
+                        this.loading = true;
+                        this.errorMessage = '';
+                        try {
+                            const response = await api.post('/auth/register', {
+                                fullName: this.fullName,
+                                email: this.email,
+                                password: this.password
+                            });
+                            if (response.token) {
+                                localStorage.setItem('token', response.token);
+                                localStorage.setItem('user', JSON.stringify(response.user));
+                                window.location.href = '/';
+                            }
+                        } catch (err) {
+                            this.errorMessage = err instanceof Error ? err.message : 'Registration failed';
+                        } finally {
+                            this.loading = false;
+                        }
+                    }
+                }));
+            });
+        </script>
+    </body>
+</html>

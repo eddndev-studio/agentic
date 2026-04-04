@@ -1,5 +1,10 @@
 ---
 import "../styles/global.css";
+import AuthCard from "../components/auth/AuthCard.astro";
+import AuthInput from "../components/auth/AuthInput.astro";
+import AuthButton from "../components/auth/AuthButton.astro";
+import AuthError from "../components/auth/AuthError.astro";
+import AuthLink from "../components/auth/AuthLink.astro";
 ---
 
 <html lang="en">
@@ -7,7 +12,7 @@ import "../styles/global.css";
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width" />
         <meta name="theme-color" content="#0b141a" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Agentic" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -16,98 +21,43 @@ import "../styles/global.css";
         <title>Login | Agentic</title>
         <script src="/registerSW.js" is:inline></script>
     </head>
-    <body
-        class="bg-wa-bg-deep min-h-screen flex items-center justify-center font-sans text-wa-text-primary antialiased relative overflow-hidden"
-    >
-        <!-- Login Container -->
-        <main class="w-full max-w-md p-4 sm:p-8 relative z-10" x-data="loginForm">
-            <!-- Header -->
-            <div class="mb-12 text-center">
-                <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
-                    Agentic <span
-                        class="text-wa-green text-xs tracking-wide align-top"
-                        >ID</span
-                    >
-                </h1>
-                <p
-                    class="text-xs text-wa-text-secondary"
-                >
-                    Authorized Personnel Only
-                </p>
-            </div>
-
-            <!-- Form -->
-            <form @submit.prevent="submit" class="space-y-6 relative">
-                <div
-                    class="p-4 sm:p-8 bg-wa-bg-panel border border-wa-border rounded-xl relative"
-                >
-                    <!-- Error Message -->
-                    <div
-                        x-show="errorMessage"
-                        x-transition
-                        class="mb-6 p-3 border border-red-500/30 bg-red-500/10 text-red-200 text-xs text-center rounded-lg"
-                    >
-                        <span x-text="errorMessage"></span>
+    <body class="bg-wa-bg-deep min-h-screen flex items-center justify-center font-sans text-wa-text-primary antialiased relative overflow-hidden">
+        <main x-data="loginForm">
+            <AuthCard title="Inicia sesion en tu cuenta">
+                <form @submit.prevent="submit" class="relative">
+                    <AuthError />
+                    <AuthInput label="Email" type="email" x-model="email" placeholder="tu@email.com" required />
+                    <div class="mt-6">
+                        <AuthInput label="Password" type="password" x-model="password" placeholder="••••••••" required />
                     </div>
-
-                    <!-- Email -->
-                    <div class="space-y-2">
-                        <label
-                            class="text-xs text-wa-text-secondary"
-                            >Email</label
-                        >
-                        <input
-                            type="email"
-                            x-model="email"
-                            class="w-full bg-wa-bg-hover border border-wa-border text-white p-3 text-sm rounded-lg focus:border-wa-green/50 focus:outline-none focus:ring-1 focus:ring-wa-green/50 transition-all placeholder:text-white/20"
-                            placeholder="admin@agentic.com"
-                            required
-                        />
+                    <div class="flex justify-end mt-3">
+                        <AuthLink href="/forgot-password">Olvidaste tu password?</AuthLink>
                     </div>
+                    <AuthButton loadingText="Verificando...">Iniciar Sesion</AuthButton>
+                </form>
 
-                    <!-- Password -->
-                    <div class="space-y-2 mt-6">
-                        <label
-                            class="text-xs text-wa-text-secondary"
-                            >Password</label
-                        >
-                        <input
-                            type="password"
-                            x-model="password"
-                            class="w-full bg-wa-bg-hover border border-wa-border text-white p-3 text-sm rounded-lg focus:border-wa-green/50 focus:outline-none focus:ring-1 focus:ring-wa-green/50 transition-all placeholder:text-white/20"
-                            placeholder="••••••••"
-                            required
-                        />
-                    </div>
-
-                    <!-- Submit -->
-                    <button
-                        type="submit"
-                        class="w-full mt-8 bg-wa-green text-white py-3 text-sm font-semibold rounded-lg hover:bg-wa-green-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        :disabled="loading"
-                    >
-                        <span x-show="!loading">Sign In</span>
-                        <span x-show="loading" class="animate-pulse"
-                            >Verifying...</span
-                        >
-                    </button>
+                <!-- Divider -->
+                <div class="flex items-center gap-3 my-6">
+                    <div class="flex-1 border-t border-wa-border"></div>
+                    <span class="text-xs text-wa-text-secondary">o</span>
+                    <div class="flex-1 border-t border-wa-border"></div>
                 </div>
-            </form>
 
-            <!-- Footer -->
-            <div class="mt-8 text-center">
-                <p class="text-[10px] text-wa-text-secondary">
-                    Secure Connection &middot; <span class="text-wa-green"
-                        >Encrypted</span
-                    >
-                </p>
-            </div>
+                <!-- Google Sign-In -->
+                <div id="google-signin-btn" class="flex justify-center"></div>
+
+                <Fragment slot="footer">
+                    <div class="mt-6 text-center">
+                        <span class="text-xs text-wa-text-secondary">No tienes cuenta? </span>
+                        <AuthLink href="/register">Crear cuenta</AuthLink>
+                    </div>
+                </Fragment>
+            </AuthCard>
         </main>
 
         <script>
             import { ApiClient as api } from "../lib/api";
 
-            // Auth Helpers
             const setToken = (token: string) => localStorage.setItem('token', token);
             const setUser = (user: any) => localStorage.setItem('user', JSON.stringify(user));
 
@@ -121,13 +71,11 @@ import "../styles/global.css";
                     async submit() {
                         this.loading = true;
                         this.errorMessage = '';
-
                         try {
                             const response = await api.post('/auth/login', {
                                 email: this.email,
                                 password: this.password
                             });
-
                             if (response.token) {
                                 setToken(response.token);
                                 setUser(response.user);
@@ -142,6 +90,37 @@ import "../styles/global.css";
                         }
                     }
                 }));
+            });
+
+            // Google Sign-In
+            window.handleGoogleCredential = async (response: any) => {
+                try {
+                    const result = await api.post('/auth/google', { idToken: response.credential });
+                    if (result.token) {
+                        setToken(result.token);
+                        setUser(result.user);
+                        window.location.href = '/';
+                    }
+                } catch (err) {
+                    console.error('Google auth failed:', err);
+                }
+            };
+        </script>
+
+        <!-- Google Identity Services -->
+        <script is:inline src="https://accounts.google.com/gsi/client" async defer></script>
+        <script is:inline>
+            window.addEventListener('load', () => {
+                if (window.google) {
+                    google.accounts.id.initialize({
+                        client_id: '1089660527623-1djn0h3aok3pguj8ni097qbr34rqt1e3.apps.googleusercontent.com',
+                        callback: window.handleGoogleCredential
+                    });
+                    google.accounts.id.renderButton(
+                        document.getElementById('google-signin-btn'),
+                        { theme: 'filled_black', size: 'large', width: '100%', shape: 'pill', text: 'signin_with' }
+                    );
+                }
             });
         </script>
     </body>

@@ -9,12 +9,13 @@ const currentPath = Astro.url.pathname;
         isActive(href) {
             return href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(href);
         },
-        showMenu: false
+        showMenu: false,
+        role: JSON.parse(localStorage.getItem('user') || '{}').role || 'WORKER'
     }"
 >
     <div class="flex items-stretch justify-around max-w-md mx-auto h-14">
 
-        <!-- Bots (primary) -->
+        <!-- Bots (visible to all) -->
         <a href="/bots"
            class="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
            :class="isActive('/bots') ? 'text-wa-green' : 'text-wa-text-secondary'">
@@ -26,8 +27,9 @@ const currentPath = Astro.url.pathname;
             <span class="text-[10px] leading-none" x-text="$t('bots')">Bots</span>
         </a>
 
-        <!-- Templates -->
+        <!-- Templates (OWNER, ADMIN only) -->
         <a href="/templates"
+           x-show="role === 'OWNER' || role === 'ADMIN'"
            class="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
            :class="isActive('/templates') ? 'text-wa-green' : 'text-wa-text-secondary'">
             <div class="rounded-xl px-4 py-1 transition-colors" :class="isActive('/templates') && 'bg-wa-green/10'">
@@ -38,8 +40,9 @@ const currentPath = Astro.url.pathname;
             <span class="text-[10px] leading-none" x-text="$t('templates')">Plantillas</span>
         </a>
 
-        <!-- Logs -->
+        <!-- Logs (OWNER, ADMIN only) -->
         <a href="/logs"
+           x-show="role === 'OWNER' || role === 'ADMIN'"
            class="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
            :class="isActive('/logs') ? 'text-wa-green' : 'text-wa-text-secondary'">
             <div class="rounded-xl px-4 py-1 transition-colors" :class="isActive('/logs') && 'bg-wa-green/10'">
@@ -50,8 +53,9 @@ const currentPath = Astro.url.pathname;
             <span class="text-[10px] leading-none" x-text="$t('logs')">Logs</span>
         </a>
 
-        <!-- Finance -->
+        <!-- Finance (OWNER, ADMIN only) -->
         <a href="/finance"
+           x-show="role === 'OWNER' || role === 'ADMIN'"
            class="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all relative"
            :class="isActive('/finance') ? 'text-wa-green' : 'text-wa-text-secondary'">
             <div class="rounded-xl px-4 py-1 transition-colors" :class="isActive('/finance') && 'bg-wa-green/10'">
@@ -62,12 +66,12 @@ const currentPath = Astro.url.pathname;
             <span class="text-[10px] leading-none" x-text="$t('fin_finance')">Finanzas</span>
         </a>
 
-        <!-- More menu (Dashboard, Help, Logout) -->
+        <!-- More menu -->
         <div class="flex flex-col items-center justify-center gap-0.5 flex-1 relative">
             <button @click="showMenu = !showMenu"
                     class="flex flex-col items-center gap-0.5 transition-colors"
-                    :class="showMenu || isActive('/') || isActive('/help') ? 'text-wa-green' : 'text-wa-text-secondary'">
-                <div class="rounded-xl px-4 py-1 transition-colors" :class="(showMenu || isActive('/') || isActive('/help')) && 'bg-wa-green/10'">
+                    :class="showMenu || isActive('/') || isActive('/help') || isActive('/settings') ? 'text-wa-green' : 'text-wa-text-secondary'">
+                <div class="rounded-xl px-4 py-1 transition-colors" :class="(showMenu || isActive('/') || isActive('/help') || isActive('/settings')) && 'bg-wa-green/10'">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path>
                     </svg>
@@ -94,6 +98,17 @@ const currentPath = Astro.url.pathname;
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
                     </svg>
                     <span x-text="$t('dashboard')">Dashboard</span>
+                </a>
+
+                <!-- Members (OWNER, ADMIN only) -->
+                <a href="/settings/members" @click="showMenu = false"
+                   x-show="role === 'OWNER' || role === 'ADMIN'"
+                   class="flex items-center gap-3 px-4 py-3 text-sm transition-colors"
+                   :class="isActive('/settings') ? 'text-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:bg-wa-bg-hover hover:text-white'">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                    <span>Miembros</span>
                 </a>
 
                 <a href="/help" @click="showMenu = false"

@@ -1,0 +1,149 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import MemberList from "../../components/settings/MemberList.astro";
+import InviteMemberModal from "../../components/settings/InviteMemberModal.astro";
+---
+
+<Layout title="Miembros">
+    <div x-data="membersPage" x-init="init()">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold">Miembros</h1>
+                <p class="text-sm text-wa-text-secondary mt-1" x-text="`${members.length} miembros`"></p>
+            </div>
+            <button @click="showInviteModal = true"
+                class="px-5 py-2.5 bg-wa-green text-white text-sm font-semibold rounded-lg hover:bg-wa-green-hover transition-colors">
+                + Invitar
+            </button>
+        </div>
+
+        <!-- Loading -->
+        <div x-show="loading" class="text-center py-12">
+            <span class="text-sm text-wa-text-secondary animate-pulse">Cargando miembros...</span>
+        </div>
+
+        <!-- Members -->
+        <div x-show="!loading">
+            <MemberList />
+        </div>
+
+        <!-- Pending Invitations -->
+        <div x-show="invitations.length > 0" class="mt-10">
+            <h2 class="text-lg font-semibold mb-4">Invitaciones Pendientes</h2>
+            <div class="space-y-3">
+                <template x-for="inv in invitations" :key="inv.id">
+                    <div class="flex items-center justify-between p-4 bg-wa-bg-hover border border-wa-border/50 border-dashed rounded-xl">
+                        <div>
+                            <p class="text-sm" x-text="inv.email"></p>
+                            <p class="text-xs text-wa-text-secondary">
+                                Rol: <span x-text="inv.role" class="text-wa-green"></span>
+                                &middot; Expira <span x-text="new Date(inv.expiresAt).toLocaleDateString()"></span>
+                            </p>
+                        </div>
+                        <button @click="cancelInvite(inv.id)"
+                            class="p-1.5 text-red-400 hover:bg-red-500/10 rounded transition-colors" title="Cancelar">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <InviteMemberModal />
+    </div>
+
+    <script>
+        import { ApiClient as api } from "../../lib/api";
+
+        document.addEventListener("alpine:init", () => {
+            Alpine.data("membersPage", () => ({
+                members: [] as any[],
+                invitations: [] as any[],
+                loading: true,
+                currentUserId: '',
+
+                // Invite modal
+                showInviteModal: false,
+                inviteEmail: '',
+                inviteRole: 'WORKER',
+                inviteLoading: false,
+                inviteError: '',
+
+                async init() {
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    this.currentUserId = user.id;
+                    await this.refresh();
+                },
+
+                async refresh() {
+                    this.loading = true;
+                    try {
+                        const [members, invitations] = await Promise.all([
+                            api.get('/org/members'),
+                            api.get('/org/invitations').catch(() => [])
+                        ]);
+                        this.members = members;
+                        this.invitations = invitations;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async changeRole(membershipId: string, role: string) {
+                    if (!role) return;
+                    try {
+                        await api.put(`/org/members/${membershipId}/role`, { role });
+                        await this.refresh();
+                        (window as any).__toast?.success('Rol actualizado');
+                    } catch (err: any) {
+                        (window as any).__toast?.error(err.message);
+                    }
+                },
+
+                async removeMember(membershipId: string) {
+                    if (!confirm('Eliminar este miembro de la organizacion?')) return;
+                    try {
+                        await api.delete(`/org/members/${membershipId}`);
+                        await this.refresh();
+                        (window as any).__toast?.success('Miembro eliminado');
+                    } catch (err: any) {
+                        (window as any).__toast?.error(err.message);
+                    }
+                },
+
+                async sendInvite() {
+                    this.inviteLoading = true;
+                    this.inviteError = '';
+                    try {
+                        await api.post('/org/invitations', {
+                            email: this.inviteEmail,
+                            role: this.inviteRole
+                        });
+                        this.showInviteModal = false;
+                        this.inviteEmail = '';
+                        this.inviteRole = 'WORKER';
+                        await this.refresh();
+                        (window as any).__toast?.success('Invitacion enviada');
+                    } catch (err: any) {
+                        this.inviteError = err.message;
+                    } finally {
+                        this.inviteLoading = false;
+                    }
+                },
+
+                async cancelInvite(invitationId: string) {
+                    try {
+                        await api.delete(`/org/invitations/${invitationId}`);
+                        await this.refresh();
+                        (window as any).__toast?.success('Invitacion cancelada');
+                    } catch (err: any) {
+                        (window as any).__toast?.error(err.message);
+                    }
+                }
+            }));
+        });
+    </script>
+</Layout>

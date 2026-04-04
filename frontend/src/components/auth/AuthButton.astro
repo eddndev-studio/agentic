@@ -1,0 +1,20 @@
+---
+interface Props {
+    loadingText?: string;
+    class?: string;
+}
+const { loadingText = 'Procesando...', class: cls = '' } = Astro.props;
+---
+
+<button
+    type="submit"
+    class:list={[
+        "w-full mt-8 bg-wa-green text-white py-3 text-sm font-semibold rounded-lg",
+        "hover:bg-wa-green-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+        cls
+    ]}
+    :disabled="loading"
+>
+    <span x-show="!loading"><slot /></span>
+    <span x-show="loading" class="animate-pulse">{loadingText}</span>
+</button>
