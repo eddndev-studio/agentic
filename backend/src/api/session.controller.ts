@@ -12,7 +12,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     .guard({ isSignIn: true })
 
     // GET /sessions — List sessions with last message preview (paginated)
-    .get("/", async ({ query }) => {
+    .get("/", async ({ query, user }) => {
         const { botId, search, limit, offset, labelId } = query;
         const take = Math.min(Number(limit) || 50, 200);
         const skip = Number(offset) || 0;
@@ -21,6 +21,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         const where: any = {
             // Hide emulator sessions from the production monitor
             NOT: { identifier: { startsWith: 'emu://' } },
+            bot: { orgId: user!.orgId },
         };
         if (botId) where.botId = botId;
         if (search) {
@@ -87,7 +88,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // GET /sessions/labels — List all labels for a bot
-    .get("/labels", async ({ query, set }) => {
+    .get("/labels", async ({ query, set, user }) => {
         const { botId } = query;
         if (!botId) {
             set.status = 400;
@@ -95,7 +96,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         }
 
         const labels = await prisma.label.findMany({
-            where: { botId, deleted: false },
+            where: { botId, deleted: false, bot: { orgId: user!.orgId } },
             include: { _count: { select: { sessions: true } } },
             orderBy: [{ position: "asc" }, { name: "asc" }],
         });
@@ -116,8 +117,10 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/labels/sync — Force label sync from WhatsApp
-    .post("/labels/sync", async ({ body, set }) => {
+    .post("/labels/sync", async ({ body, set, user }) => {
         const { botId } = body;
+        const bot = await prisma.bot.findFirst({ where: { id: botId, orgId: user!.orgId } });
+        if (!bot) { set.status = 404; return { error: "Not found" }; }
         try {
             const provider = await providerRegistry.forBot(botId);
             await provider.syncLabels(botId);
@@ -131,10 +134,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/labels — Create a new label
-    .post("/labels", async ({ body, set }) => {
+    .post("/labels", async ({ body, set, user }) => {
         const { botId, name, color } = body;
         if (!name?.trim()) { set.status = 400; return { error: "name is required" }; }
         if (color < 0 || color > 19) { set.status = 400; return { error: "color must be 0-19" }; }
+        const bot = await prisma.bot.findFirst({ where: { id: botId, orgId: user!.orgId } });
+        if (!bot) { set.status = 404; return { error: "Not found" }; }
         try {
             const provider = await providerRegistry.forBot(botId);
             const { waLabelId } = await provider.createLabel(botId, name.trim(), color);
@@ -152,9 +157,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // PATCH /sessions/labels/:labelId — Rename or change color
-    .patch("/labels/:labelId", async ({ params: { labelId }, body, set }) => {
-        const label = await prisma.label.findUnique({ where: { id: labelId } });
-        if (!label || label.deleted) { set.status = 404; return { error: "Label not found" }; }
+    .patch("/labels/:labelId", async ({ params: { labelId }, body, set, user }) => {
+        const label = await prisma.label.findFirst({ where: { id: labelId, bot: { orgId: user!.orgId } } });
+        if (!label || label.deleted) { set.status = 404; return { error: "Not found" }; }
         if (body.color !== undefined && (body.color < 0 || body.color > 19)) {
             set.status = 400; return { error: "color must be 0-19" };
         }
@@ -176,9 +181,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // DELETE /sessions/labels/:labelId — Soft-delete a label
-    .delete("/labels/:labelId", async ({ params: { labelId }, set }) => {
-        const label = await prisma.label.findUnique({ where: { id: labelId } });
-        if (!label) { set.status = 404; return { error: "Label not found" }; }
+    .delete("/labels/:labelId", async ({ params: { labelId }, set, user }) => {
+        const label = await prisma.label.findFirst({ where: { id: labelId, bot: { orgId: user!.orgId } } });
+        if (!label) { set.status = 404; return { error: "Not found" }; }
         try {
             const provider = await providerRegistry.forBot(label.botId);
             await provider.deleteLabel(label.botId, label.waLabelId);
@@ -191,9 +196,18 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // PUT /sessions/labels/reorder — Update label positions
-    .put("/labels/reorder", async ({ body, set }) => {
+    .put("/labels/reorder", async ({ body, set, user }) => {
         const { labelIds } = body;
         try {
+            // Verify all labels belong to org before reordering
+            const labels = await prisma.label.findMany({
+                where: { id: { in: labelIds }, bot: { orgId: user!.orgId } },
+                select: { id: true },
+            });
+            if (labels.length !== labelIds.length) {
+                set.status = 404;
+                return { error: "Not found" };
+            }
             await prisma.$transaction(
                 labelIds.map((id: string, i: number) =>
                     prisma.label.update({ where: { id }, data: { position: i } })
@@ -209,14 +223,14 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // GET /sessions/:id/ai-context — Debug: show exactly what the AI receives
-    .get("/:id/ai-context", async ({ params: { id }, set }) => {
-        const session = await prisma.session.findUnique({
-            where: { id },
+    .get("/:id/ai-context", async ({ params: { id }, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
             include: { bot: { include: { template: true } } },
         });
         if (!session || !session.bot) {
             set.status = 404;
-            return { error: "Session not found" };
+            return { error: "Not found" };
         }
 
         const { BotConfigService } = await import("../services/bot-config.service");
@@ -255,15 +269,15 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/:id/labels — Assign label to session
-    .post("/:id/labels", async ({ params: { id }, body, set }) => {
-        const session = await prisma.session.findUnique({
-            where: { id },
+    .post("/:id/labels", async ({ params: { id }, body, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
             include: { bot: true },
         });
 
         if (!session) {
             set.status = 404;
-            return { error: "Session not found" };
+            return { error: "Not found" };
         }
 
         const label = await prisma.label.findUnique({ where: { id: body.labelId } });
@@ -292,15 +306,15 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // DELETE /sessions/:id/labels/:labelId — Remove label from session
-    .delete("/:id/labels/:labelId", async ({ params: { id, labelId }, set }) => {
-        const session = await prisma.session.findUnique({
-            where: { id },
+    .delete("/:id/labels/:labelId", async ({ params: { id, labelId }, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
             include: { bot: true },
         });
 
         if (!session) {
             set.status = 404;
-            return { error: "Session not found" };
+            return { error: "Not found" };
         }
 
         const label = await prisma.label.findUnique({ where: { id: labelId } });
@@ -328,7 +342,14 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // GET /sessions/:id/messages — Paginated messages
-    .get("/:id/messages", async ({ params: { id }, query }) => {
+    .get("/:id/messages", async ({ params: { id }, query, user }) => {
+        // Verify session belongs to org
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
+            select: { id: true },
+        });
+        if (!session) { return { data: [], pagination: { total: 0, limit: 50, offset: 0 } }; }
+
         const limit = Number(query.limit) || 50;
         const offset = Number(query.offset) || 0;
 
@@ -355,15 +376,15 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/:id/send — Send message as bot (text or media)
-    .post("/:id/send", async ({ params: { id }, body, set }) => {
-        const session = await prisma.session.findUnique({
-            where: { id },
+    .post("/:id/send", async ({ params: { id }, body, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
             include: { bot: true },
         });
 
         if (!session) {
             set.status = 404;
-            return { error: "Session not found" };
+            return { error: "Not found" };
         }
 
         // Build normalized outgoing payload
@@ -428,15 +449,15 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/:id/force-ai — Create synthetic message + trigger AI
-    .post("/:id/force-ai", async ({ params: { id }, body, set }) => {
-        const session = await prisma.session.findUnique({
-            where: { id },
+    .post("/:id/force-ai", async ({ params: { id }, body, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
             include: { bot: true },
         });
 
         if (!session) {
             set.status = 404;
-            return { error: "Session not found" };
+            return { error: "Not found" };
         }
 
         // Create a synthetic message
@@ -464,22 +485,24 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/:id/execute-flow — Execute a flow directly
-    .post("/:id/execute-flow", async ({ params: { id }, body, set }) => {
-        const session = await prisma.session.findUnique({ where: { id } });
+    .post("/:id/execute-flow", async ({ params: { id }, body, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
+        });
 
         if (!session) {
             set.status = 404;
-            return { error: "Session not found" };
+            return { error: "Not found" };
         }
 
-        const flow = await prisma.flow.findUnique({
-            where: { id: body.flowId },
+        const flow = await prisma.flow.findFirst({
+            where: { id: body.flowId, bot: { orgId: user!.orgId } },
             include: { steps: { orderBy: { order: "asc" } } },
         });
 
         if (!flow) {
             set.status = 404;
-            return { error: "Flow not found" };
+            return { error: "Not found" };
         }
 
         // Create execution directly (bypass TriggerMatcher)
@@ -505,15 +528,15 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/:id/execute-tool — Execute a tool manually
-    .post("/:id/execute-tool", async ({ params: { id }, body, set }) => {
-        const session = await prisma.session.findUnique({
-            where: { id },
+    .post("/:id/execute-tool", async ({ params: { id }, body, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
             include: { bot: true },
         });
 
         if (!session) {
             set.status = 404;
-            return { error: "Session not found" };
+            return { error: "Not found" };
         }
 
         try {
@@ -536,9 +559,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // PATCH /sessions/:id/notes — Update session notes
-    .patch("/:id/notes", async ({ params: { id }, body, set }) => {
-        const session = await prisma.session.findUnique({ where: { id } });
-        if (!session) { set.status = 404; return { error: "Session not found" }; }
+    .patch("/:id/notes", async ({ params: { id }, body, set, user }) => {
+        const session = await prisma.session.findFirst({ where: { id, bot: { orgId: user!.orgId } } });
+        if (!session) { set.status = 404; return { error: "Not found" }; }
 
         const updated = await prisma.session.update({
             where: { id },
@@ -551,9 +574,9 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // PATCH /sessions/:id/ai-enabled — Toggle AI per session
-    .patch("/:id/ai-enabled", async ({ params: { id }, body, set }) => {
-        const session = await prisma.session.findUnique({ where: { id } });
-        if (!session) { set.status = 404; return { error: "Session not found" }; }
+    .patch("/:id/ai-enabled", async ({ params: { id }, body, set, user }) => {
+        const session = await prisma.session.findFirst({ where: { id, bot: { orgId: user!.orgId } } });
+        if (!session) { set.status = 404; return { error: "Not found" }; }
 
         const updated = await prisma.session.update({
             where: { id },
@@ -566,12 +589,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/:id/mark-read — Mark messages as read
-    .post("/:id/mark-read", async ({ params: { id }, set }) => {
-        const session = await prisma.session.findUnique({
-            where: { id },
+    .post("/:id/mark-read", async ({ params: { id }, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
             include: { bot: true },
         });
-        if (!session) { set.status = 404; return { error: "Session not found" }; }
+        if (!session) { set.status = 404; return { error: "Not found" }; }
 
         // Get latest unread message IDs
         const unreadMessages = await prisma.message.findMany({
@@ -601,12 +624,12 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
     })
 
     // POST /sessions/:id/react — React to a message
-    .post("/:id/react", async ({ params: { id }, body, set }) => {
-        const session = await prisma.session.findUnique({
-            where: { id },
+    .post("/:id/react", async ({ params: { id }, body, set, user }) => {
+        const session = await prisma.session.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
             include: { bot: true },
         });
-        if (!session) { set.status = 404; return { error: "Session not found" }; }
+        if (!session) { set.status = 404; return { error: "Not found" }; }
 
         const message = await prisma.message.findUnique({ where: { id: body.messageId } });
         if (!message) { set.status = 404; return { error: "Message not found" }; }

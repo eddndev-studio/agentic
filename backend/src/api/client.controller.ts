@@ -1,4 +1,3 @@
-import type { Context } from "elysia";
 import { prisma } from "../services/postgres.service";
 
 /**
@@ -8,9 +7,9 @@ export const ClientController = {
     /**
      * Get all clients
      */
-    getAll: async ({ query }: Context) => {
+    getAll: async ({ query, user }: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped query
-        const filters: any = {};
+        const filters: any = { bot: { orgId: user!.orgId } };
         const q = query as Record<string, string | undefined>;
 
         if (q && q.botId) {
@@ -23,7 +22,7 @@ export const ClientController = {
             take: 100
         });
 
-        return clients.map(c => {
+        return clients.map((c: any) => {
             const { encryptedPassword, ...rest } = c;
             return rest;
         });
@@ -32,13 +31,13 @@ export const ClientController = {
     /**
      * Get single client by ID
      */
-    getOne: async ({ params: { id } }: Context) => {
-        const client = await prisma.client.findUnique({
-            where: { id: id as string }
+    getOne: async ({ params: { id }, user }: any) => {
+        const client = await prisma.client.findFirst({
+            where: { id: id as string, bot: { orgId: user!.orgId } }
         });
 
         if (!client) {
-            return new Response("Client not found", { status: 404 });
+            return new Response("Not found", { status: 404 });
         }
 
         const { encryptedPassword, ...rest } = client;
@@ -48,7 +47,7 @@ export const ClientController = {
     /**
      * Create new client
      */
-    create: async ({ body }: Context) => {
+    create: async ({ body, user }: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const data = body as any;
 
@@ -57,9 +56,9 @@ export const ClientController = {
         }
 
         try {
-            const bot = await prisma.bot.findUnique({ where: { id: data.botId } });
+            const bot = await prisma.bot.findFirst({ where: { id: data.botId, orgId: user!.orgId } });
             if (!bot) {
-                return new Response("Bot not found", { status: 404 });
+                return new Response("Not found", { status: 404 });
             }
 
             const newClient = await prisma.client.create({
@@ -88,9 +87,17 @@ export const ClientController = {
     /**
      * Update client
      */
-    update: async ({ params: { id }, body }: Context) => {
+    update: async ({ params: { id }, body, user }: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const data = body as any;
+
+        // Verify client belongs to org
+        const existing = await prisma.client.findFirst({
+            where: { id: id as string, bot: { orgId: user!.orgId } },
+        });
+        if (!existing) {
+            return new Response("Not found", { status: 404 });
+        }
 
         try {
             const { plainTextPassword, botId, ...updateData } = data;
@@ -111,7 +118,15 @@ export const ClientController = {
     /**
      * Delete client
      */
-    delete: async ({ params: { id } }: Context) => {
+    delete: async ({ params: { id }, user }: any) => {
+        // Verify client belongs to org
+        const existing = await prisma.client.findFirst({
+            where: { id: id as string, bot: { orgId: user!.orgId } },
+        });
+        if (!existing) {
+            return new Response("Not found", { status: 404 });
+        }
+
         await prisma.client.delete({
             where: { id: id as string }
         });

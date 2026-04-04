@@ -35,14 +35,15 @@ export const botController = new Elysia({ prefix: "/bots" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
     // List all bots
-    .get("/", async () => {
+    .get("/", async ({ user }) => {
         return prisma.bot.findMany({
+            where: { orgId: user!.orgId },
             orderBy: { name: 'asc' },
             include: { template: { select: { id: true, name: true } } },
         });
     })
     // Create bot
-    .post("/", async ({ body, set }) => {
+    .post("/", async ({ body, set, user }) => {
         try {
             // Auto-assign IPv6
             const assignedIPv6 = generateRandomIPv6();
@@ -53,7 +54,8 @@ export const botController = new Elysia({ prefix: "/bots" })
                     platform: (body.platform as Platform) || Platform.WHATSAPP,
                     identifier: body.identifier,
                     ipv6Address: assignedIPv6,
-                    credentials: {}
+                    credentials: {},
+                    orgId: user!.orgId,
                 }
             });
             await bindIPv6(assignedIPv6);
@@ -74,8 +76,11 @@ export const botController = new Elysia({ prefix: "/bots" })
         })
     })
     // Connection Management (provider-agnostic)
-    .post("/:id/connect", async ({ params: { id }, set }) => {
+    .post("/:id/connect", async ({ params: { id }, set, user }) => {
         try {
+            const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            if (!bot) { set.status = 404; return { error: "Bot not found" }; }
+
             const provider = await providerRegistry.forBot(id);
             await provider.startSession(id);
             return { success: true, message: "Session initialization started" };
@@ -84,7 +89,10 @@ export const botController = new Elysia({ prefix: "/bots" })
             return `Failed to start session: ${e instanceof Error ? e.message : e}`;
         }
     })
-    .get("/:id/qr", async ({ params: { id }, set }) => {
+    .get("/:id/qr", async ({ params: { id }, set, user }) => {
+        const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+        if (!bot) { set.status = 404; return { error: "Bot not found" }; }
+
         const provider = await providerRegistry.forBot(id);
         const qr = provider.getQR(id);
         if (!qr) {
@@ -93,12 +101,18 @@ export const botController = new Elysia({ prefix: "/bots" })
         }
         return { qr };
     })
-    .get("/:id/status", async ({ params: { id } }) => {
+    .get("/:id/status", async ({ params: { id }, set, user }) => {
+        const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+        if (!bot) { set.status = 404; return { error: "Bot not found" }; }
+
         const provider = await providerRegistry.forBot(id);
         return provider.getStatus(id);
     })
-    .post("/:id/disconnect", async ({ params: { id }, set }) => {
+    .post("/:id/disconnect", async ({ params: { id }, set, user }) => {
         try {
+            const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            if (!bot) { set.status = 404; return { error: "Bot not found" }; }
+
             const provider = await providerRegistry.forBot(id);
             await provider.stopSession(id);
             return { success: true, message: "Session disconnected successfully" };
@@ -108,8 +122,8 @@ export const botController = new Elysia({ prefix: "/bots" })
         }
     })
     // Generate a public connect link
-    .post("/:id/generate-link", async ({ params: { id }, set }) => {
-        const bot = await prisma.bot.findUnique({ where: { id } });
+    .post("/:id/generate-link", async ({ params: { id }, set, user }) => {
+        const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
         if (!bot) { set.status = 404; return { error: "Bot not found" }; }
 
         const token = crypto.randomBytes(32).toString('hex');
@@ -122,9 +136,9 @@ export const botController = new Elysia({ prefix: "/bots" })
         return { token, expiresAt: expiresAt.toISOString(), link: `/connect?token=${token}` };
     })
     // Generic /:id routes
-    .get("/:id", async ({ params: { id }, set }) => {
-        const bot = await prisma.bot.findUnique({
-            where: { id },
+    .get("/:id", async ({ params: { id }, set, user }) => {
+        const bot = await prisma.bot.findFirst({
+            where: { id, orgId: user!.orgId },
             include: { template: { select: { id: true, name: true } } },
         });
         if (!bot) {
@@ -133,20 +147,23 @@ export const botController = new Elysia({ prefix: "/bots" })
         }
         return bot;
     })
-    .put("/:id", async ({ params: { id }, body, set }) => {
+    .put("/:id", async ({ params: { id }, body, set, user }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body (many optional fields)
         const b = body as any;
 
         try {
+            // Verify bot belongs to this org
+            const existingBot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            if (!existingBot) { set.status = 404; return { error: "Bot not found" }; }
+
             // Check if system prompt or provider/model changed — if so, clear conversations
             let shouldClearConversations = false;
             if (b.systemPrompt !== undefined || b.aiProvider !== undefined || b.aiModel !== undefined) {
-                const currentBot = await prisma.bot.findUnique({ where: { id }, select: { systemPrompt: true, aiProvider: true, aiModel: true } });
-                if (currentBot) {
+                if (existingBot) {
                     shouldClearConversations =
-                        (b.systemPrompt !== undefined && b.systemPrompt !== currentBot.systemPrompt) ||
-                        (b.aiProvider !== undefined && b.aiProvider !== currentBot.aiProvider) ||
-                        (b.aiModel !== undefined && b.aiModel !== currentBot.aiModel);
+                        (b.systemPrompt !== undefined && b.systemPrompt !== existingBot.systemPrompt) ||
+                        (b.aiProvider !== undefined && b.aiProvider !== existingBot.aiProvider) ||
+                        (b.aiModel !== undefined && b.aiModel !== existingBot.aiModel);
                 }
             }
 
@@ -201,8 +218,11 @@ export const botController = new Elysia({ prefix: "/bots" })
         }
     })
     // Clear all conversation histories for a bot
-    .post("/:id/clear-conversations", async ({ params: { id }, set }) => {
+    .post("/:id/clear-conversations", async ({ params: { id }, set, user }) => {
         try {
+            const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            if (!bot) { set.status = 404; return { error: "Bot not found" }; }
+
             const sessions = await prisma.session.findMany({
                 where: { botId: id },
                 select: { id: true },
@@ -219,7 +239,7 @@ export const botController = new Elysia({ prefix: "/bots" })
         }
     })
     // Clone bot with all flows, tools, and automations
-    .post("/:id/clone", async ({ params: { id }, body, set }) => {
+    .post("/:id/clone", async ({ params: { id }, body, set, user }) => {
         const { name, identifier } = body as { name: string; identifier: string };
 
         if (!name || !identifier) {
@@ -227,8 +247,8 @@ export const botController = new Elysia({ prefix: "/bots" })
             return { error: "Name and identifier are required" };
         }
 
-        const source = await prisma.bot.findUnique({
-            where: { id },
+        const source = await prisma.bot.findFirst({
+            where: { id, orgId: user!.orgId },
             include: {
                 flows: { include: { steps: true, triggers: true } },
                 tools: true,
@@ -260,6 +280,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                         excludeGroups: source.excludeGroups,
                         ignoredLabels: source.ignoredLabels,
                         notificationChannels: source.notificationChannels || [],
+                        orgId: user!.orgId,
                     },
                 });
 
@@ -307,7 +328,7 @@ export const botController = new Elysia({ prefix: "/bots" })
                             const remappedExcludes = flow.excludesFlows
                                 .map((oldId) => flowIdMap.get(oldId))
                                 .filter(Boolean) as string[];
-                            
+
                             await tx.flow.update({
                                 where: { id: newFlowId },
                                 data: { excludesFlows: remappedExcludes },
@@ -368,8 +389,11 @@ export const botController = new Elysia({ prefix: "/bots" })
             identifier: t.String(),
         }),
     })
-    .delete("/:id", async ({ params: { id }, set }) => {
+    .delete("/:id", async ({ params: { id }, set, user }) => {
         try {
+            const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+            if (!bot) { set.status = 404; return { error: "Bot not found" }; }
+
             await prisma.bot.delete({
                 where: { id }
             });

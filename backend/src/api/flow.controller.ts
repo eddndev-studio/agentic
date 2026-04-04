@@ -7,15 +7,26 @@ import { authMiddleware } from "../middleware/auth.middleware";
 export const flowController = new Elysia({ prefix: "/flows" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
-    .get("/", async ({ query }) => {
+    .get("/", async ({ query, user }) => {
         const { botId, templateId } = query as { botId?: string; templateId?: string };
 
-        const where: { botId?: string; templateId?: string } = {};
-        if (templateId) where.templateId = templateId;
-        else if (botId) where.botId = botId;
+        const where: any = {};
+        if (templateId) {
+            where.templateId = templateId;
+            where.template = { orgId: user!.orgId };
+        } else if (botId) {
+            where.botId = botId;
+            where.bot = { orgId: user!.orgId };
+        } else {
+            // No filter — return all flows for this org via bot OR template
+            where.OR = [
+                { bot: { orgId: user!.orgId } },
+                { template: { orgId: user!.orgId } },
+            ];
+        }
 
         const flows = await prisma.flow.findMany({
-            where: Object.keys(where).length > 0 ? where : undefined,
+            where,
             include: {
                 steps: {
                     orderBy: { order: "asc" }
@@ -25,9 +36,15 @@ export const flowController = new Elysia({ prefix: "/flows" })
         });
         return flows;
     })
-    .get("/:id", async ({ params: { id }, set }) => {
-        const flow = await prisma.flow.findUnique({
-            where: { id },
+    .get("/:id", async ({ params: { id }, set, user }) => {
+        const flow = await prisma.flow.findFirst({
+            where: {
+                id,
+                OR: [
+                    { bot: { orgId: user!.orgId } },
+                    { template: { orgId: user!.orgId } },
+                ],
+            },
             include: {
                 steps: { orderBy: { order: "asc" } },
                 triggers: true
@@ -39,12 +56,21 @@ export const flowController = new Elysia({ prefix: "/flows" })
         }
         return flow;
     })
-    .post("/", async ({ body, set }) => {
+    .post("/", async ({ body, set, user }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body with nested arrays
         const b = body as any;
         const { botId, templateId, name, description, steps, triggers } = b;
 
         try {
+            // Verify parent belongs to org
+            if (templateId) {
+                const tmpl = await prisma.template.findFirst({ where: { id: templateId, orgId: user!.orgId } });
+                if (!tmpl) { set.status = 403; return { error: "Template not found or not in your organization" }; }
+            } else if (botId) {
+                const bot = await prisma.bot.findFirst({ where: { id: botId, orgId: user!.orgId } });
+                if (!bot) { set.status = 403; return { error: "Bot not found or not in your organization" }; }
+            }
+
             const owner = templateId
                 ? { templateId }
                 : { botId };
@@ -93,12 +119,27 @@ export const flowController = new Elysia({ prefix: "/flows" })
             return { error: `Failed to create flow: ${e instanceof Error ? e.message : e}` };
         }
     })
-    .put("/:id", async ({ params: { id }, body, set }) => {
+    .put("/:id", async ({ params: { id }, body, set, user }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body with nested arrays
         const b = body as any;
         const { botId, templateId, name, description, steps, triggers } = b;
 
         try {
+            // Verify flow belongs to org
+            const existing = await prisma.flow.findFirst({
+                where: {
+                    id,
+                    OR: [
+                        { bot: { orgId: user!.orgId } },
+                        { template: { orgId: user!.orgId } },
+                    ],
+                },
+            });
+            if (!existing) {
+                set.status = 404;
+                return { error: "Flow not found" };
+            }
+
             const triggerOwner = templateId
                 ? { templateId }
                 : botId ? { botId } : {};
@@ -150,8 +191,23 @@ export const flowController = new Elysia({ prefix: "/flows" })
             return { error: `Failed to update flow: ${e instanceof Error ? e.message : e}` };
         }
     })
-    .delete("/:id", async ({ params: { id }, set }) => {
+    .delete("/:id", async ({ params: { id }, set, user }) => {
         try {
+            // Verify flow belongs to org
+            const existing = await prisma.flow.findFirst({
+                where: {
+                    id,
+                    OR: [
+                        { bot: { orgId: user!.orgId } },
+                        { template: { orgId: user!.orgId } },
+                    ],
+                },
+            });
+            if (!existing) {
+                set.status = 404;
+                return { error: "Flow not found" };
+            }
+
             await prisma.flow.delete({ where: { id } });
             return { success: true };
         } catch (e) {
@@ -159,7 +215,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
             return { error: "Failed to delete flow" };
         }
     })
-    .get("/export", async ({ query, set }) => {
+    .get("/export", async ({ query, set, user }) => {
         const { botId, templateId, flowId } = query as {
             botId?: string;
             templateId?: string;
@@ -169,10 +225,16 @@ export const flowController = new Elysia({ prefix: "/flows" })
         const where: any = {};
         if (flowId) {
             where.id = flowId;
+            where.OR = [
+                { bot: { orgId: user!.orgId } },
+                { template: { orgId: user!.orgId } },
+            ];
         } else if (templateId) {
             where.templateId = templateId;
+            where.template = { orgId: user!.orgId };
         } else if (botId) {
             where.botId = botId;
+            where.bot = { orgId: user!.orgId };
         } else {
             set.status = 400;
             return { error: "Provide botId, templateId, or flowId" };
@@ -191,7 +253,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
             return { error: "No flows found" };
         }
 
-        // Build ID→name map for excludesFlows resolution
+        // Build ID->name map for excludesFlows resolution
         const idToName = new Map(flows.map(f => [f.id, f.name]));
 
         const exported = flows.map(f => ({
@@ -228,7 +290,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
             flows: exported,
         };
     })
-    .post("/import-json", async ({ body, set }) => {
+    .post("/import-json", async ({ body, set, user }) => {
         const b = body as any;
         const { botId, templateId, flows } = b;
 
@@ -242,6 +304,15 @@ export const flowController = new Elysia({ prefix: "/flows" })
         }
 
         try {
+            // Verify parent belongs to org
+            if (templateId) {
+                const tmpl = await prisma.template.findFirst({ where: { id: templateId, orgId: user!.orgId } });
+                if (!tmpl) { set.status = 403; return { error: "Template not found or not in your organization" }; }
+            } else if (botId) {
+                const bot = await prisma.bot.findFirst({ where: { id: botId, orgId: user!.orgId } });
+                if (!bot) { set.status = 403; return { error: "Bot not found or not in your organization" }; }
+            }
+
             const owner = templateId ? { templateId } : { botId };
             const triggerOwner = templateId ? { templateId } : { botId };
 
@@ -288,7 +359,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
                 created.push({ flow, originalExcludes: f.excludesFlows || [] });
             }
 
-            // Second pass: resolve excludesFlows by name → new ID
+            // Second pass: resolve excludesFlows by name -> new ID
             for (const { flow, originalExcludes } of created) {
                 if (originalExcludes.length > 0) {
                     const resolvedIds = originalExcludes
@@ -316,7 +387,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
             return { error: `Import failed: ${e instanceof Error ? e.message : e}` };
         }
     })
-    .post("/import", async ({ body, set }) => {
+    .post("/import", async ({ body, set, user }) => {
         const { sourceFlowId, targetBotId } = body as { sourceFlowId: string, targetBotId: string };
 
         if (!sourceFlowId || !targetBotId) {
@@ -325,14 +396,28 @@ export const flowController = new Elysia({ prefix: "/flows" })
         }
 
         try {
-            const sourceFlow = await prisma.flow.findUnique({
-                where: { id: sourceFlowId },
+            // Verify source flow belongs to org
+            const sourceFlow = await prisma.flow.findFirst({
+                where: {
+                    id: sourceFlowId,
+                    OR: [
+                        { bot: { orgId: user!.orgId } },
+                        { template: { orgId: user!.orgId } },
+                    ],
+                },
                 include: { steps: true, triggers: true }
             });
 
             if (!sourceFlow) {
                 set.status = 404;
                 return { error: "Source flow not found" };
+            }
+
+            // Verify target bot belongs to org
+            const targetBot = await prisma.bot.findFirst({ where: { id: targetBotId, orgId: user!.orgId } });
+            if (!targetBot) {
+                set.status = 403;
+                return { error: "Target bot not found or not in your organization" };
             }
 
             const newFlow = await prisma.flow.create({
@@ -377,4 +462,3 @@ export const flowController = new Elysia({ prefix: "/flows" })
             return { error: `Import failed: ${e instanceof Error ? e.message : e}` };
         }
     });
-

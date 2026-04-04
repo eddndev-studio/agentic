@@ -6,21 +6,34 @@ import { authMiddleware } from "../middleware/auth.middleware";
 export const triggerController = new Elysia({ prefix: "/triggers" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
-    .get("/", async ({ query }) => {
+    .get("/", async ({ query, user }) => {
         const { botId, flowId } = query as { botId?: string, flowId?: string };
 
+        const where: any = {};
+        if (botId) {
+            where.botId = botId;
+            where.bot = { orgId: user!.orgId };
+        }
+        if (flowId) {
+            where.flowId = flowId;
+        }
+        // Always ensure org isolation: if no botId filter, scope via bot relation
+        if (!botId) {
+            where.bot = { orgId: user!.orgId };
+        }
+
         return prisma.trigger.findMany({
-            where: {
-                botId: botId || undefined,
-                flowId: flowId || undefined
-            },
+            where,
             include: { flow: true },
             orderBy: { createdAt: "desc" }
         });
     })
-    .get("/:id", async ({ params: { id }, set }) => {
-        const trigger = await prisma.trigger.findUnique({
-            where: { id }
+    .get("/:id", async ({ params: { id }, set, user }) => {
+        const trigger = await prisma.trigger.findFirst({
+            where: {
+                id,
+                bot: { orgId: user!.orgId },
+            },
         });
         if (!trigger) {
             set.status = 404;
@@ -28,12 +41,19 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
         }
         return trigger;
     })
-    .post("/", async ({ body, set }) => {
+    .post("/", async ({ body, set, user }) => {
         // body is typed by Elysia's t.Object() below
 
         if (!body.flowId) {
             set.status = 400;
             return "flowId is required";
+        }
+
+        // Verify bot belongs to org
+        const bot = await prisma.bot.findFirst({ where: { id: body.botId, orgId: user!.orgId } });
+        if (!bot) {
+            set.status = 403;
+            return "Bot not found or not in your organization";
         }
 
         try {
@@ -62,9 +82,18 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
             isActive: t.Optional(t.Boolean()),
         })
     })
-    .put("/:id", async ({ params: { id }, body, set }) => {
+    .put("/:id", async ({ params: { id }, body, set, user }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { keyword, matchType, isActive, flowId, scope } = body as any;
+
+        // Verify trigger belongs to org via bot
+        const existing = await prisma.trigger.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
+        });
+        if (!existing) {
+            set.status = 404;
+            return "Trigger not found";
+        }
 
         try {
             const trigger = await prisma.trigger.update({
@@ -83,7 +112,16 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
             return "Failed to update trigger";
         }
     })
-    .delete("/:id", async ({ params: { id }, set }) => {
+    .delete("/:id", async ({ params: { id }, set, user }) => {
+        // Verify trigger belongs to org via bot
+        const existing = await prisma.trigger.findFirst({
+            where: { id, bot: { orgId: user!.orgId } },
+        });
+        if (!existing) {
+            set.status = 404;
+            return "Trigger not found";
+        }
+
         try {
             await prisma.trigger.delete({
                 where: { id }

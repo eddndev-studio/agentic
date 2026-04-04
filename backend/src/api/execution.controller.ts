@@ -5,7 +5,7 @@ import { authMiddleware } from "../middleware/auth.middleware";
 export const executionController = new Elysia({ prefix: "/executions" })
     .use(authMiddleware)
     .guard({ isSignIn: true })
-    .get("/", async ({ query, set }) => {
+    .get("/", async ({ query, set, user }) => {
         const {
             botId,
             status,
@@ -26,10 +26,10 @@ export const executionController = new Elysia({ prefix: "/executions" })
 
         // Filter executions via the flow relationship (Execution -> Flow -> Bot)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma dynamic where clause
-        const where: any = {};
+        const where: any = { flow: { bot: { orgId: user!.orgId } } };
 
         if (botId) {
-            where.flow = { botId };
+            where.flow = { ...where.flow, botId };
         }
 
         if (status && status !== 'ALL') {

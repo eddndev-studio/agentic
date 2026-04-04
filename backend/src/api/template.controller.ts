@@ -8,8 +8,9 @@ export const templateController = new Elysia({ prefix: "/templates" })
     .guard({ isSignIn: true })
 
     // List all templates
-    .get("/", async () => {
+    .get("/", async ({ user }) => {
         return prisma.template.findMany({
+            where: { orgId: user!.orgId },
             orderBy: { name: "asc" },
             include: {
                 _count: { select: { bots: true, flows: true, tools: true } },
@@ -18,9 +19,9 @@ export const templateController = new Elysia({ prefix: "/templates" })
     })
 
     // Get template by id (with full relations)
-    .get("/:id", async ({ params: { id }, set }) => {
-        const template = await prisma.template.findUnique({
-            where: { id },
+    .get("/:id", async ({ params: { id }, set, user }) => {
+        const template = await prisma.template.findFirst({
+            where: { id, orgId: user!.orgId },
             include: {
                 bots: { select: { id: true, name: true, identifier: true } },
                 flows: { include: { steps: true, triggers: true } },
@@ -36,7 +37,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
     })
 
     // Create template
-    .post("/", async ({ body, set }) => {
+    .post("/", async ({ body, set, user }) => {
         const { name, description, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel } = body;
 
         try {
@@ -49,6 +50,7 @@ export const templateController = new Elysia({ prefix: "/templates" })
                     systemPrompt: systemPrompt ?? null,
                     temperature: temperature ?? 0.7,
                     thinkingLevel: thinkingLevel ?? "LOW",
+                    orgId: user!.orgId,
                 },
             });
         } catch (_e: unknown) {
@@ -68,11 +70,15 @@ export const templateController = new Elysia({ prefix: "/templates" })
     })
 
     // Update template
-    .put("/:id", async ({ params: { id }, body, set }) => {
+    .put("/:id", async ({ params: { id }, body, set, user }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { name, description, aiEnabled, defaultSessionAi, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, contextMessages, autoReadReceipts, excludeGroups, ignoredLabels, variables } = body as any;
 
         try {
+            // Verify template belongs to this org
+            const existingTemplate = await prisma.template.findFirst({ where: { id, orgId: user!.orgId } });
+            if (!existingTemplate) { set.status = 404; return { error: "Template not found" }; }
+
             // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
             const data: any = {};
             if (name !== undefined) data.name = name;
@@ -99,8 +105,11 @@ export const templateController = new Elysia({ prefix: "/templates" })
     })
 
     // Delete template (bots keep working, templateId becomes null via SetNull)
-    .delete("/:id", async ({ params: { id }, set }) => {
+    .delete("/:id", async ({ params: { id }, set, user }) => {
         try {
+            const template = await prisma.template.findFirst({ where: { id, orgId: user!.orgId } });
+            if (!template) { set.status = 404; return { error: "Template not found" }; }
+
             await prisma.template.delete({ where: { id } });
             return { success: true };
         } catch (_e: unknown) {

@@ -7,21 +7,28 @@ export const automationController = new Elysia({ prefix: "/bots" })
     .guard({ isSignIn: true })
 
     // List automations for a bot
-    .get("/:id/automations", async ({ params: { id } }) => {
+    .get("/:id/automations", async ({ params: { id }, user }) => {
         return prisma.automation.findMany({
-            where: { botId: id },
+            where: { botId: id, bot: { orgId: user!.orgId } },
             orderBy: { createdAt: "desc" },
         });
     })
 
     // Create automation
-    .post("/:id/automations", async ({ params: { id }, body, set }) => {
+    .post("/:id/automations", async ({ params: { id }, body, set, user }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { name, description, enabled, event, labelName, timeoutMs, prompt } = body as any;
 
         if (!name || !event || !timeoutMs || !prompt) {
             set.status = 400;
             return { error: "name, event, timeoutMs, and prompt are required" };
+        }
+
+        // Verify bot belongs to org
+        const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
+        if (!bot) {
+            set.status = 403;
+            return { error: "Bot not found or not in your organization" };
         }
 
         return prisma.automation.create({
@@ -39,9 +46,18 @@ export const automationController = new Elysia({ prefix: "/bots" })
     })
 
     // Update automation
-    .put("/:id/automations/:automationId", async ({ params: { automationId }, body, set }) => {
+    .put("/:id/automations/:automationId", async ({ params: { automationId }, body, set, user }) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
         const { name, description, enabled, event, labelName, timeoutMs, prompt } = body as any;
+
+        // Verify automation belongs to org via bot
+        const existing = await prisma.automation.findFirst({
+            where: { id: automationId, bot: { orgId: user!.orgId } },
+        });
+        if (!existing) {
+            set.status = 404;
+            return { error: "Automation not found" };
+        }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
         const data: any = {};
@@ -62,7 +78,16 @@ export const automationController = new Elysia({ prefix: "/bots" })
     })
 
     // Delete automation
-    .delete("/:id/automations/:automationId", async ({ params: { automationId }, set }) => {
+    .delete("/:id/automations/:automationId", async ({ params: { automationId }, set, user }) => {
+        // Verify automation belongs to org via bot
+        const existing = await prisma.automation.findFirst({
+            where: { id: automationId, bot: { orgId: user!.orgId } },
+        });
+        if (!existing) {
+            set.status = 404;
+            return { error: "Automation not found" };
+        }
+
         try {
             await prisma.automation.delete({ where: { id: automationId } });
             return { success: true };

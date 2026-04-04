@@ -10,8 +10,8 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // Workers
     // ═══════════════════════════════════════════════════════════════════════
 
-    .get("/workers", async ({ query }) => {
-        const where: any = {};
+    .get("/workers", async ({ query, user }) => {
+        const where: any = { orgId: user!.orgId };
         if (query.active === "true") where.isActive = true;
         return prisma.worker.findMany({
             where,
@@ -20,25 +20,26 @@ export const financeController = new Elysia({ prefix: "/finance" })
         });
     })
 
-    .get("/workers/:id", async ({ params: { id }, set }) => {
-        const worker = await prisma.worker.findUnique({
-            where: { id },
+    .get("/workers/:id", async ({ params: { id }, set, user }) => {
+        const worker = await prisma.worker.findFirst({
+            where: { id, orgId: user!.orgId },
             include: {
                 adAccount: { select: { id: true, fbAccountId: true, name: true } },
                 workerPeriods: { orderBy: { period: { startDate: "desc" } }, take: 5, include: { period: true } },
             },
         });
-        if (!worker) { set.status = 404; return { error: "Worker not found" }; }
+        if (!worker) { set.status = 404; return { error: "Not found" }; }
         return worker;
     })
 
-    .post("/workers", async ({ body }) => {
+    .post("/workers", async ({ body, user }) => {
         return prisma.worker.create({
             data: {
                 name: body.name,
                 baseSalary: body.baseSalary,
                 bonusPercent: body.bonusPercent ?? 0,
                 bonusMinLicenses: body.bonusMinLicenses ?? 0,
+                orgId: user!.orgId,
             },
         });
     }, {
@@ -50,7 +51,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }),
     })
 
-    .put("/workers/:id", async ({ params: { id }, body, set }) => {
+    .put("/workers/:id", async ({ params: { id }, body, set, user }) => {
+        const existing = await prisma.worker.findFirst({ where: { id, orgId: user!.orgId } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         const { name, baseSalary, bonusPercent, bonusMinLicenses, isActive } = body as any;
         const data: any = {};
         if (name !== undefined) data.name = name;
@@ -62,17 +65,19 @@ export const financeController = new Elysia({ prefix: "/finance" })
             return await prisma.worker.update({ where: { id }, data });
         } catch {
             set.status = 404;
-            return { error: "Worker not found" };
+            return { error: "Not found" };
         }
     })
 
-    .delete("/workers/:id", async ({ params: { id }, set }) => {
+    .delete("/workers/:id", async ({ params: { id }, set, user }) => {
+        const existing = await prisma.worker.findFirst({ where: { id, orgId: user!.orgId } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         try {
             await prisma.worker.update({ where: { id }, data: { isActive: false } });
             return { success: true };
         } catch {
             set.status = 404;
-            return { error: "Worker not found" };
+            return { error: "Not found" };
         }
     })
 
@@ -80,16 +85,16 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // Bank Accounts
     // ═══════════════════════════════════════════════════════════════════════
 
-    .get("/bank-accounts", async () => {
+    .get("/bank-accounts", async ({ user }) => {
         return prisma.bankAccount.findMany({
-            where: { isActive: true },
+            where: { isActive: true, orgId: user!.orgId },
             orderBy: { name: "asc" },
         });
     })
 
-    .post("/bank-accounts", async ({ body }) => {
+    .post("/bank-accounts", async ({ body, user }) => {
         return prisma.bankAccount.create({
-            data: { name: body.name, bankName: body.bankName, identifier: body.identifier },
+            data: { name: body.name, bankName: body.bankName, identifier: body.identifier, orgId: user!.orgId },
         });
     }, {
         body: t.Object({
@@ -99,7 +104,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }),
     })
 
-    .put("/bank-accounts/:id", async ({ params: { id }, body, set }) => {
+    .put("/bank-accounts/:id", async ({ params: { id }, body, set, user }) => {
+        const existing = await prisma.bankAccount.findFirst({ where: { id, orgId: user!.orgId } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         const { name, bankName, identifier, isActive } = body as any;
         const data: any = {};
         if (name !== undefined) data.name = name;
@@ -110,17 +117,19 @@ export const financeController = new Elysia({ prefix: "/finance" })
             return await prisma.bankAccount.update({ where: { id }, data });
         } catch {
             set.status = 404;
-            return { error: "Bank account not found" };
+            return { error: "Not found" };
         }
     })
 
-    .delete("/bank-accounts/:id", async ({ params: { id }, set }) => {
+    .delete("/bank-accounts/:id", async ({ params: { id }, set, user }) => {
+        const existing = await prisma.bankAccount.findFirst({ where: { id, orgId: user!.orgId } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         try {
             await prisma.bankAccount.update({ where: { id }, data: { isActive: false } });
             return { success: true };
         } catch {
             set.status = 404;
-            return { error: "Bank account not found" };
+            return { error: "Not found" };
         }
     })
 
@@ -128,8 +137,8 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // Periods
     // ═══════════════════════════════════════════════════════════════════════
 
-    .get("/periods", async ({ query }) => {
-        const where: any = {};
+    .get("/periods", async ({ query, user }) => {
+        const where: any = { orgId: user!.orgId };
         if (query.status) where.status = query.status;
         return prisma.financialPeriod.findMany({
             where,
@@ -137,26 +146,27 @@ export const financeController = new Elysia({ prefix: "/finance" })
         });
     })
 
-    .get("/periods/:id", async ({ params: { id }, set }) => {
-        const period = await prisma.financialPeriod.findUnique({
-            where: { id },
+    .get("/periods/:id", async ({ params: { id }, set, user }) => {
+        const period = await prisma.financialPeriod.findFirst({
+            where: { id, orgId: user!.orgId },
             include: {
                 incomes: { include: { worker: true, bankAccount: true }, orderBy: { date: "desc" } },
                 expenses: { orderBy: { date: "desc" } },
                 workerPeriods: { include: { worker: true }, orderBy: { worker: { name: "asc" } } },
             },
         });
-        if (!period) { set.status = 404; return { error: "Period not found" }; }
+        if (!period) { set.status = 404; return { error: "Not found" }; }
         return period;
     })
 
-    .post("/periods", async ({ body }) => {
-        const activeWorkers = await prisma.worker.findMany({ where: { isActive: true }, select: { id: true } });
+    .post("/periods", async ({ body, user }) => {
+        const activeWorkers = await prisma.worker.findMany({ where: { isActive: true, orgId: user!.orgId }, select: { id: true } });
         const period = await prisma.financialPeriod.create({
             data: {
                 type: body.type,
                 startDate: new Date(body.startDate),
                 endDate: new Date(body.endDate),
+                orgId: user!.orgId,
                 workerPeriods: {
                     create: activeWorkers.map(w => ({ workerId: w.id })),
                 },
@@ -172,17 +182,17 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }),
     })
 
-    .post("/periods/:id/close", async ({ params: { id }, set }) => {
-        const period = await prisma.financialPeriod.findUnique({
-            where: { id },
+    .post("/periods/:id/close", async ({ params: { id }, set, user }) => {
+        const period = await prisma.financialPeriod.findFirst({
+            where: { id, orgId: user!.orgId },
             include: { workerPeriods: { include: { worker: true } }, incomes: true },
         });
-        if (!period) { set.status = 404; return { error: "Period not found" }; }
+        if (!period) { set.status = 404; return { error: "Not found" }; }
         if (period.status === "CLOSED") { set.status = 400; return { error: "Period already closed" }; }
 
         // Find or create the next open period for debt carry-over
         const nextPeriod = await prisma.financialPeriod.findFirst({
-            where: { status: "OPEN", startDate: { gt: period.endDate } },
+            where: { status: "OPEN", startDate: { gt: period.endDate }, orgId: user!.orgId },
             orderBy: { startDate: "asc" },
         });
 
@@ -252,8 +262,8 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // Incomes
     // ═══════════════════════════════════════════════════════════════════════
 
-    .get("/incomes", async ({ query }) => {
-        const where: any = {};
+    .get("/incomes", async ({ query, user }) => {
+        const where: any = { period: { orgId: user!.orgId } };
         if (query.periodId) where.periodId = query.periodId;
         if (query.workerId) where.workerId = query.workerId;
         if (query.bankAccountId) where.bankAccountId = query.bankAccountId;
@@ -264,8 +274,8 @@ export const financeController = new Elysia({ prefix: "/finance" })
         });
     })
 
-    .post("/incomes", async ({ body, set }) => {
-        const period = await prisma.financialPeriod.findUnique({ where: { id: body.periodId } });
+    .post("/incomes", async ({ body, set, user }) => {
+        const period = await prisma.financialPeriod.findFirst({ where: { id: body.periodId, orgId: user!.orgId } });
         if (!period || period.status !== "OPEN") {
             set.status = 400;
             return { error: "Period is not open" };
@@ -292,7 +302,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }),
     })
 
-    .put("/incomes/:id", async ({ params: { id }, body, set }) => {
+    .put("/incomes/:id", async ({ params: { id }, body, set, user }) => {
+        const existing = await prisma.income.findFirst({ where: { id, period: { orgId: user!.orgId } } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         const { amount, bankAccountId, workerId, date, notes } = body as any;
         const data: any = {};
         if (amount !== undefined) data.amount = Number(amount);
@@ -304,17 +316,19 @@ export const financeController = new Elysia({ prefix: "/finance" })
             return await prisma.income.update({ where: { id }, data, include: { worker: true, bankAccount: true } });
         } catch {
             set.status = 404;
-            return { error: "Income not found" };
+            return { error: "Not found" };
         }
     })
 
-    .delete("/incomes/:id", async ({ params: { id }, set }) => {
+    .delete("/incomes/:id", async ({ params: { id }, set, user }) => {
+        const existing = await prisma.income.findFirst({ where: { id, period: { orgId: user!.orgId } } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         try {
             await prisma.income.delete({ where: { id } });
             return { success: true };
         } catch {
             set.status = 404;
-            return { error: "Income not found" };
+            return { error: "Not found" };
         }
     })
 
@@ -322,8 +336,8 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // Expenses
     // ═══════════════════════════════════════════════════════════════════════
 
-    .get("/expenses", async ({ query }) => {
-        const where: any = {};
+    .get("/expenses", async ({ query, user }) => {
+        const where: any = { period: { orgId: user!.orgId } };
         if (query.periodId) where.periodId = query.periodId;
         return prisma.expense.findMany({
             where,
@@ -331,8 +345,8 @@ export const financeController = new Elysia({ prefix: "/finance" })
         });
     })
 
-    .post("/expenses", async ({ body, set }) => {
-        const period = await prisma.financialPeriod.findUnique({ where: { id: body.periodId } });
+    .post("/expenses", async ({ body, set, user }) => {
+        const period = await prisma.financialPeriod.findFirst({ where: { id: body.periodId, orgId: user!.orgId } });
         if (!period || period.status !== "OPEN") {
             set.status = 400;
             return { error: "Period is not open" };
@@ -349,7 +363,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }),
     })
 
-    .put("/expenses/:id", async ({ params: { id }, body, set }) => {
+    .put("/expenses/:id", async ({ params: { id }, body, set, user }) => {
+        const existing = await prisma.expense.findFirst({ where: { id, period: { orgId: user!.orgId } } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         const { description, amount, date } = body as any;
         const data: any = {};
         if (description !== undefined) data.description = description;
@@ -359,17 +375,19 @@ export const financeController = new Elysia({ prefix: "/finance" })
             return await prisma.expense.update({ where: { id }, data });
         } catch {
             set.status = 404;
-            return { error: "Expense not found" };
+            return { error: "Not found" };
         }
     })
 
-    .delete("/expenses/:id", async ({ params: { id }, set }) => {
+    .delete("/expenses/:id", async ({ params: { id }, set, user }) => {
+        const existing = await prisma.expense.findFirst({ where: { id, period: { orgId: user!.orgId } } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         try {
             await prisma.expense.delete({ where: { id } });
             return { success: true };
         } catch {
             set.status = 404;
-            return { error: "Expense not found" };
+            return { error: "Not found" };
         }
     })
 
@@ -377,8 +395,8 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // Worker Periods
     // ═══════════════════════════════════════════════════════════════════════
 
-    .get("/worker-periods", async ({ query }) => {
-        const where: any = {};
+    .get("/worker-periods", async ({ query, user }) => {
+        const where: any = { period: { orgId: user!.orgId } };
         if (query.periodId) where.periodId = query.periodId;
         return prisma.workerPeriod.findMany({
             where,
@@ -387,7 +405,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         });
     })
 
-    .put("/worker-periods/:id", async ({ params: { id }, body, set }) => {
+    .put("/worker-periods/:id", async ({ params: { id }, body, set, user }) => {
+        const existing = await prisma.workerPeriod.findFirst({ where: { id, period: { orgId: user!.orgId } } });
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
         const { licenseSales, debtCarryOver } = body as any;
         const data: any = {};
         if (licenseSales !== undefined) data.licenseSales = Number(licenseSales);
@@ -396,7 +416,7 @@ export const financeController = new Elysia({ prefix: "/finance" })
             return await prisma.workerPeriod.update({ where: { id }, data, include: { worker: true } });
         } catch {
             set.status = 404;
-            return { error: "Worker period not found" };
+            return { error: "Not found" };
         }
     })
 
@@ -404,13 +424,13 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // Dashboard & Reports
     // ═══════════════════════════════════════════════════════════════════════
 
-    .get("/dashboard", async ({ query, set }) => {
+    .get("/dashboard", async ({ query, set, user }) => {
         // Find period (by id or latest open)
         let period;
         if (query.periodId) {
-            period = await prisma.financialPeriod.findUnique({ where: { id: query.periodId } });
+            period = await prisma.financialPeriod.findFirst({ where: { id: query.periodId, orgId: user!.orgId } });
         } else {
-            period = await prisma.financialPeriod.findFirst({ where: { status: "OPEN" }, orderBy: { startDate: "desc" } });
+            period = await prisma.financialPeriod.findFirst({ where: { status: "OPEN", orgId: user!.orgId }, orderBy: { startDate: "desc" } });
         }
         if (!period) { set.status = 404; return { error: "No period found" }; }
 
@@ -419,7 +439,7 @@ export const financeController = new Elysia({ prefix: "/finance" })
             where: { periodId: period.id },
         }))._sum.amount || 0;
 
-        const activeWorkers = await prisma.worker.findMany({ where: { isActive: true } });
+        const activeWorkers = await prisma.worker.findMany({ where: { isActive: true, orgId: user!.orgId } });
         const totalSalaries = activeWorkers.reduce((sum, w) => {
             return sum + (period.type === "WEEKLY" ? w.baseSalary / 4.33 : w.baseSalary);
         }, 0);
@@ -456,12 +476,12 @@ export const financeController = new Elysia({ prefix: "/finance" })
         };
     })
 
-    .get("/dashboard/reports/workers", async ({ query, set }) => {
+    .get("/dashboard/reports/workers", async ({ query, set, user }) => {
         let period;
         if (query.periodId) {
-            period = await prisma.financialPeriod.findUnique({ where: { id: query.periodId } });
+            period = await prisma.financialPeriod.findFirst({ where: { id: query.periodId, orgId: user!.orgId } });
         } else {
-            period = await prisma.financialPeriod.findFirst({ where: { status: "OPEN" }, orderBy: { startDate: "desc" } });
+            period = await prisma.financialPeriod.findFirst({ where: { status: "OPEN", orgId: user!.orgId }, orderBy: { startDate: "desc" } });
         }
         if (!period) { set.status = 404; return { error: "No period found" }; }
 
@@ -510,17 +530,17 @@ export const financeController = new Elysia({ prefix: "/finance" })
         return { period, report };
     })
 
-    .get("/dashboard/reports/summary", async ({ query, set }) => {
+    .get("/dashboard/reports/summary", async ({ query, set, user }) => {
         let period;
         if (query.periodId) {
-            period = await prisma.financialPeriod.findUnique({ where: { id: query.periodId } });
+            period = await prisma.financialPeriod.findFirst({ where: { id: query.periodId, orgId: user!.orgId } });
         } else {
-            period = await prisma.financialPeriod.findFirst({ where: { status: "OPEN" }, orderBy: { startDate: "desc" } });
+            period = await prisma.financialPeriod.findFirst({ where: { status: "OPEN", orgId: user!.orgId }, orderBy: { startDate: "desc" } });
         }
         if (!period) { set.status = 404; return { error: "No period found" }; }
 
         const totalIncome = (await prisma.income.aggregate({ _sum: { amount: true }, where: { periodId: period.id } }))._sum.amount || 0;
-        const activeWorkers = await prisma.worker.findMany({ where: { isActive: true } });
+        const activeWorkers = await prisma.worker.findMany({ where: { isActive: true, orgId: user!.orgId } });
         const totalSalaries = activeWorkers.reduce((s, w) => s + (period.type === "WEEKLY" ? w.baseSalary / 4.33 : w.baseSalary), 0);
         const totalAdSpend = (await prisma.adInsight.aggregate({ _sum: { spend: true }, where: { level: "CAMPAIGN", date: { gte: period.startDate, lte: period.endDate } } }))._sum.spend || 0;
         const totalExpenses = (await prisma.expense.aggregate({ _sum: { amount: true }, where: { periodId: period.id } }))._sum.amount || 0;
@@ -557,8 +577,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // Facebook Connection & Ad Accounts
     // ═══════════════════════════════════════════════════════════════════════
 
-    .get("/facebook/connection", async () => {
+    .get("/facebook/connection", async ({ user }) => {
         const conn = await prisma.facebookConnection.findFirst({
+            where: { orgId: user!.orgId },
             include: { adAccounts: { include: { worker: { select: { id: true, name: true } } } } },
         });
         if (!conn) return { connected: false };
@@ -600,21 +621,24 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }
     })
 
-    .post("/facebook/disconnect", async () => {
-        await prisma.facebookConnection.deleteMany();
+    .post("/facebook/disconnect", async ({ user }) => {
+        await prisma.facebookConnection.deleteMany({ where: { orgId: user!.orgId } });
         return { success: true };
     })
 
-    .get("/facebook/ad-accounts", async () => {
+    .get("/facebook/ad-accounts", async ({ user }) => {
         return prisma.adAccount.findMany({
+            where: { connection: { orgId: user!.orgId } },
             include: { worker: { select: { id: true, name: true } } },
             orderBy: { name: "asc" },
         });
     })
 
-    .put("/facebook/ad-accounts/:id/assign", async ({ params: { id }, body, set }) => {
+    .put("/facebook/ad-accounts/:id/assign", async ({ params: { id }, body, set, user }) => {
         const { workerId } = body as any;
         if (!workerId) { set.status = 400; return { error: "workerId is required" }; }
+        const adAccount = await prisma.adAccount.findFirst({ where: { id, connection: { orgId: user!.orgId } } });
+        if (!adAccount) { set.status = 404; return { error: "Not found" }; }
         try {
             return await prisma.adAccount.update({
                 where: { id },
@@ -627,12 +651,14 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }
     })
 
-    .put("/facebook/ad-accounts/:id/unassign", async ({ params: { id }, set }) => {
+    .put("/facebook/ad-accounts/:id/unassign", async ({ params: { id }, set, user }) => {
+        const adAccount = await prisma.adAccount.findFirst({ where: { id, connection: { orgId: user!.orgId } } });
+        if (!adAccount) { set.status = 404; return { error: "Not found" }; }
         try {
             return await prisma.adAccount.update({ where: { id }, data: { workerId: null } });
         } catch {
             set.status = 404;
-            return { error: "Ad account not found" };
+            return { error: "Not found" };
         }
     })
 
@@ -647,8 +673,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }
     })
 
-    .get("/facebook/sync-status", async () => {
+    .get("/facebook/sync-status", async ({ user }) => {
         const conn = await prisma.facebookConnection.findFirst({
+            where: { orgId: user!.orgId },
             select: { syncStatus: true, lastSyncAt: true, lastSyncError: true, tokenExpiry: true },
         });
         if (!conn) return { connected: false };
@@ -661,8 +688,8 @@ export const financeController = new Elysia({ prefix: "/finance" })
         };
     })
 
-    .get("/facebook/campaigns", async ({ query }) => {
-        const where: any = {};
+    .get("/facebook/campaigns", async ({ query, user }) => {
+        const where: any = { adAccount: { connection: { orgId: user!.orgId } } };
         if (query.adAccountId) where.adAccountId = query.adAccountId;
         return prisma.campaign.findMany({
             where,
@@ -671,28 +698,28 @@ export const financeController = new Elysia({ prefix: "/finance" })
         });
     })
 
-    .get("/facebook/campaigns/:id/adsets", async ({ params: { id } }) => {
+    .get("/facebook/campaigns/:id/adsets", async ({ params: { id }, user }) => {
         return prisma.adSet.findMany({
-            where: { campaignId: id },
+            where: { campaignId: id, campaign: { adAccount: { connection: { orgId: user!.orgId } } } },
             orderBy: { name: "asc" },
         });
     })
 
-    .get("/facebook/adsets/:id/ads", async ({ params: { id } }) => {
+    .get("/facebook/adsets/:id/ads", async ({ params: { id }, user }) => {
         return prisma.ad.findMany({
-            where: { adSetId: id },
+            where: { adSetId: id, adSet: { campaign: { adAccount: { connection: { orgId: user!.orgId } } } } },
             orderBy: { name: "asc" },
         });
     })
 
-    .get("/facebook/insights", async ({ query }) => {
-        const where: any = {};
+    .get("/facebook/insights", async ({ query, user }) => {
+        const where: any = { campaign: { adAccount: { connection: { orgId: user!.orgId } } } };
         if (query.level) where.level = query.level;
         if (query.since && query.until) {
             where.date = { gte: new Date(query.since as string), lte: new Date(query.until as string) };
         }
         if (query.adAccountId) {
-            where.campaign = { adAccountId: query.adAccountId };
+            where.campaign = { ...where.campaign, adAccountId: query.adAccountId };
         }
         return prisma.adInsight.findMany({
             where,
@@ -702,14 +729,14 @@ export const financeController = new Elysia({ prefix: "/finance" })
         });
     })
 
-    .get("/facebook/worker-spend", async ({ query }) => {
+    .get("/facebook/worker-spend", async ({ query, user }) => {
         const dateFilter: any = {};
         if (query.since && query.until) {
             dateFilter.date = { gte: new Date(query.since as string), lte: new Date(query.until as string) };
         }
 
         const adAccounts = await prisma.adAccount.findMany({
-            where: { workerId: { not: null } },
+            where: { workerId: { not: null }, connection: { orgId: user!.orgId } },
             include: { worker: { select: { id: true, name: true } } },
         });
 
