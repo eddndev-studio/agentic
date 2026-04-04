@@ -87,8 +87,16 @@ const { title, fullWidth = false } = Astro.props;
 		<meta name="description" content="Agentic Bot Orchestrator" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
+		<meta name="theme-color" content="#0b141a" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="Agentic" />
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+		<link rel="manifest" href="/manifest.webmanifest" />
 		<title>{title} | Agentic</title>
 		<ViewTransitions />
+		<script src="/registerSW.js" is:inline></script>
 	</head>
 	<body
 		class="selection:bg-wa-green selection:text-white relative bg-wa-bg-deep min-h-screen text-wa-text-primary font-sans antialiased overflow-x-hidden"
