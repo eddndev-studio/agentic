@@ -83,11 +83,11 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
 
     return (
         <div ref={setNodeRef} style={style} {...attributes} className="relative">
-            {/* Background layer — rounded, looks like it's behind the card */}
-            <div className="absolute inset-0 flex items-stretch justify-end rounded-lg overflow-hidden">
+            {/* Background action layer — sits behind the card, fully rounded */}
+            <div className="absolute inset-y-0 right-0 w-[140px] flex items-stretch rounded-lg overflow-hidden">
                 <button
                     onClick={() => { closeSwipe(); onEdit(); }}
-                    className="w-[65px] flex items-center justify-center bg-blue-500 text-white transition-colors active:bg-blue-600"
+                    className="flex-1 flex items-center justify-center bg-blue-500 text-white transition-colors active:bg-blue-600"
                 >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -95,7 +95,7 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
                 </button>
                 <button
                     onClick={() => { closeSwipe(); onDelete(); }}
-                    className="w-[65px] flex items-center justify-center bg-red-500 text-white rounded-r-lg transition-colors active:bg-red-600"
+                    className="flex-1 flex items-center justify-center bg-red-500 text-white transition-colors active:bg-red-600"
                 >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -103,9 +103,9 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
                 </button>
             </div>
 
-            {/* Foreground card — slides left to reveal background */}
+            {/* Foreground card — slides left to reveal background layer */}
             <div
-                className={`relative bg-wa-bg-panel border border-wa-border rounded-lg flex items-center min-h-[56px] shadow-lg ${swiping ? '' : 'transition-transform duration-200 ease-out'}`}
+                className={`relative bg-wa-bg-panel border border-wa-border rounded-lg flex items-center min-h-[56px] z-10 ${swiping ? '' : 'transition-transform duration-200 ease-out'}`}
                 style={{ transform: `translateX(${swipeX}px)` }}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
