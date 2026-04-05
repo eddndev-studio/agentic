@@ -1,8 +1,9 @@
 ---
 import AutoTextarea from '../ui/AutoTextarea.astro';
+import Card from '../ui/Card.astro';
 ---
 <!-- Trigger card (used inside x-for="(trigger, index) in flow.triggers") -->
-<div class="bg-wa-bg-deep p-3 border border-wa-border space-y-3 rounded-lg"
+<Card variant="deep" size="sm" class="space-y-3"
      :class="trigger.triggerType === 'LABEL' ? 'border-purple-500/30' : ''">
     <!-- Header: Type badge + Delete -->
     <div class="flex justify-between items-center">
@@ -79,4 +80,4 @@ import AutoTextarea from '../ui/AutoTextarea.astro';
             </template>
         </div>
     </template>
-</div>
+</Card>

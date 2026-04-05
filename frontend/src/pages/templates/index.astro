@@ -1,5 +1,8 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import Card from "../../components/ui/Card.astro";
+import Button from "../../components/ui/Button.astro";
+import Modal from "../../components/ui/Modal.astro";
 ---
 
 <Layout title="Templates">
@@ -12,23 +15,20 @@ import Layout from "../../layouts/Layout.astro";
 					<span x-text="templates.length">0</span> <span x-text="$t('templates')">templates</span>
 				</p>
 			</div>
-			<button
-				@click="$dispatch('open-create-template')"
-				class="px-6 py-2 bg-wa-green text-white text-sm font-medium rounded-lg hover:bg-wa-green-hover transition-colors flex items-center gap-2"
-			>
+			<Button variant="primary" size="lg" x-on:click="$dispatch('open-create-template')" class="flex items-center gap-2">
 				<span>+</span>
 				<span x-text="$t('create_template')">Create Template</span>
-			</button>
+			</Button>
 		</header>
 
 		<!-- Loading -->
 		<div x-show="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			<template x-for="i in 3">
-				<div class="bg-wa-bg-panel border border-wa-border rounded-xl p-6 animate-pulse h-40">
+				<Card size="lg" class="animate-pulse h-40">
 					<div class="w-16 h-4 bg-wa-bg-hover mb-4 rounded"></div>
 					<div class="w-3/4 h-6 bg-wa-bg-hover mb-2 rounded"></div>
 					<div class="w-1/2 h-4 bg-wa-bg-hover rounded"></div>
-				</div>
+				</Card>
 			</template>
 		</div>
 
@@ -73,43 +73,34 @@ import Layout from "../../layouts/Layout.astro";
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
 				</svg>
 				<p class="text-sm mb-4" x-text="$t('no_templates')">No templates created</p>
-				<button
-					@click="$dispatch('open-create-template')"
-					class="px-6 py-2 bg-wa-green text-white hover:bg-wa-green-hover transition-colors text-sm rounded-lg"
-				>
+				<Button variant="primary" size="lg" x-on:click="$dispatch('open-create-template')">
 					+ <span x-text="$t('create_template')">Create Template</span>
-				</button>
+				</Button>
 			</div>
 		</div>
 	</main>
 
 	<!-- Create Template Modal -->
-	<div
-		x-data="createTemplateModal"
-		x-show="visible"
-		x-cloak
-		@open-create-template.window="open()"
-		class="fixed inset-0 z-50 flex items-center justify-center p-4"
-		style="display: none;"
-	>
-		<div class="absolute inset-0 bg-black/70" @click="close()"></div>
-		<div class="relative bg-wa-bg-panel border border-wa-border rounded-xl p-4 sm:p-8 w-full max-w-md">
+	<div x-data="createTemplateModal" @open-create-template.window="open()">
+		<Modal show="visible">
 			<h2 class="text-xl font-bold tracking-tight mb-6" x-text="$t('create_template')">Create Template</h2>
 			<form @submit.prevent="submit()" class="space-y-4">
 				<div>
 					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_name')"></label>
-					<input type="text" x-model="form.name" required class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="Mi Plantilla" />
+					<input type="text" x-model="form.name" required placeholder="Mi Plantilla"
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
 				</div>
 				<div>
 					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_description')"></label>
-					<textarea x-model="form.description" rows="2" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white resize-none" placeholder="Descripción opcional..."></textarea>
+					<textarea x-model="form.description" rows="2" placeholder="Descripcion opcional..."
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white resize-none"></textarea>
 				</div>
 				<div class="flex gap-4 pt-4">
-					<button type="button" @click="close()" class="flex-1 px-4 py-3 border border-wa-border text-wa-text-secondary text-sm rounded-lg hover:bg-wa-bg-hover" x-text="$t('cancel')">Cancel</button>
-					<button type="submit" :disabled="loading" class="flex-1 px-4 py-3 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="loading ? $t('loading') : $t('create_template')">Create</button>
+					<Button variant="secondary" size="lg" type="button" class="flex-1" x-on:click="close()" x-text="$t('cancel')">Cancel</Button>
+					<Button variant="primary" size="lg" type="submit" class="flex-1" x-bind:disabled="loading" x-text="loading ? $t('loading') : $t('create_template')">Create</Button>
 				</div>
 			</form>
-		</div>
+		</Modal>
 	</div>
 </Layout>
 

@@ -2,10 +2,11 @@
 import StepToolConfig from './StepToolConfig.astro';
 import StepTimeConfig from './StepTimeConfig.astro';
 import AutoTextarea from '../ui/AutoTextarea.astro';
+import Card from '../ui/Card.astro';
 ---
 
 <!-- Step card (used inside x-for="(step, index) in flow.steps") -->
-<div class="step-card bg-wa-bg-deep border border-wa-border rounded-lg p-3 sm:p-4 relative group hover:border-wa-green/50 transition-colors overflow-hidden"
+<Card variant="deep" size="sm" class="step-card relative group hover:border-wa-green/50 transition-colors overflow-hidden"
      :data-id="index">
 
     <!-- Header: drag + type + delete -->
@@ -98,4 +99,4 @@ import AutoTextarea from '../ui/AutoTextarea.astro';
             <StepTimeConfig />
         </template>
     </div>
-</div>
+</Card>

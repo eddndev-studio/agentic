@@ -1,0 +1,34 @@
+---
+interface Props {
+    /** "panel" uses bg-wa-bg-panel (top-level cards), "deep" uses bg-wa-bg-deep (nested cards) */
+    variant?: "panel" | "deep";
+    /** Padding size */
+    size?: "sm" | "md" | "lg";
+    /** Additional classes (hover states, animations, etc.) */
+    class?: string;
+    /** Any other HTML attributes are spread onto the wrapper */
+    [key: string]: unknown;
+}
+
+const {
+    variant = "panel",
+    size = "md",
+    class: className = "",
+    ...rest
+} = Astro.props;
+
+const variants: Record<string, string> = {
+    panel: "bg-wa-bg-panel border border-wa-border rounded-xl",
+    deep: "bg-wa-bg-deep border border-wa-border rounded-lg",
+};
+
+const sizes: Record<string, string> = {
+    sm: "p-3 sm:p-4",
+    md: "p-4 sm:p-6",
+    lg: "p-6 sm:p-8",
+};
+---
+
+<div class:list={[variants[variant], sizes[size], className]} {...rest}>
+    <slot />
+</div>

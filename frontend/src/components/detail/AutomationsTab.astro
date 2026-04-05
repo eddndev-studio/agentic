@@ -1,17 +1,21 @@
+---
+import Card from "../ui/Card.astro";
+import Button from "../ui/Button.astro";
+import Modal from "../ui/Modal.astro";
+---
 <div class="flex justify-between items-center mb-6 gap-3 flex-wrap">
     <h3 class="text-xs text-wa-green tracking-normal" x-text="$t('automations')">Automatizaciones</h3>
-    <button @click="openCreateAutomation()"
-        class="px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg flex items-center gap-2">
+    <Button variant="primary" x-on:click="openCreateAutomation()" class="flex items-center gap-2">
         <span>+</span>
         <span x-text="$t('create_automation')">Create Automation</span>
-    </button>
+    </Button>
 </div>
 
 <!-- Automation List -->
 <template x-if="automations.length > 0">
     <div class="space-y-3">
         <template x-for="auto in automations" :key="auto.id">
-            <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+            <Card variant="deep" size="sm">
                 <div class="flex justify-between items-start gap-3">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1 flex-wrap">
@@ -49,7 +53,7 @@
                         </button>
                     </div>
                 </div>
-            </div>
+            </Card>
         </template>
     </div>
 </template>
@@ -58,20 +62,14 @@
 <template x-if="automations.length === 0">
     <div class="text-center py-12 border border-dashed border-wa-border mt-4 rounded-xl">
         <p class="text-xs font-sans text-wa-text-secondary mb-4" x-text="$t('no_automations')">No automations configured</p>
-        <button @click="openCreateAutomation()"
-            class="inline-block px-6 py-2 bg-wa-green text-white font-sans text-xs tracking-normal hover:bg-wa-green-hover transition-colors rounded-lg">
+        <Button variant="primary" x-on:click="openCreateAutomation()">
             + <span x-text="$t('create_automation')">Create Automation</span>
-        </button>
+        </Button>
     </div>
 </template>
 
 <!-- Create/Edit Automation Modal -->
-<div x-show="showAutomationModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-    style="display: none;">
-    <div class="bg-wa-bg-deep border border-wa-border p-6 sm:p-8 max-w-md w-full relative rounded-xl"
-        @click.outside="showAutomationModal = false">
-
+<Modal show="showAutomationModal">
         <h2 class="text-xl font-bold mb-6 tracking-tight"
             x-text="editingAutomationId ? 'Edit Automation' : $t('create_automation')">Create Automation</h2>
 
@@ -129,13 +127,8 @@
             </div>
 
             <div class="pt-4 flex justify-end gap-3">
-                <button type="button" @click="showAutomationModal = false"
-                    class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
-                    x-text="$t('cancel')">Cancel</button>
-                <button type="submit"
-                    class="px-6 py-2 bg-wa-green text-white text-xs hover:bg-wa-green-hover transition-colors rounded-lg"
-                    x-text="editingAutomationId ? ($t('save') || 'Save') : $t('create_automation')">Create</button>
+                <Button variant="secondary" type="button" x-on:click="showAutomationModal = false" x-text="$t('cancel')">Cancel</Button>
+                <Button variant="primary" type="submit" x-text="editingAutomationId ? ($t('save') || 'Save') : $t('create_automation')">Create</Button>
             </div>
         </form>
-    </div>
-</div>
+</Modal>

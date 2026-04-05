@@ -1,3 +1,6 @@
+---
+import Card from "../ui/Card.astro";
+---
 <!-- Template override notice -->
 <div x-show="bot.templateId" class="mb-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-start gap-3 max-w-2xl">
     <svg class="w-5 h-5 text-purple-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -12,16 +15,16 @@
 </div>
 
 <!-- Template-inherited filters (read-only) -->
-<div x-show="bot.templateId" class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl mb-4 opacity-75">
+<Card x-show="bot.templateId" class="relative max-w-2xl mb-4 opacity-75">
     <h3 class="text-xs text-wa-green tracking-normal mb-4">Filtros <span class="text-purple-400 text-[10px]">(heredados de plantilla)</span></h3>
     <div class="space-y-3">
-        <div class="flex items-center justify-between gap-4 p-3 bg-wa-bg-deep border border-wa-border rounded-lg">
+        <Card variant="deep" size="sm" class="flex items-center justify-between gap-4">
             <div class="min-w-0">
                 <label class="text-sm font-medium text-white" x-text="$t('exclude_groups')">Excluir grupos</label>
             </div>
             <span class="text-xs" :class="bot.template?.excludeGroups ? 'text-wa-green' : 'text-wa-text-secondary'" x-text="bot.template?.excludeGroups ? 'Activo' : 'Inactivo'"></span>
-        </div>
-        <div x-show="bot.template?.ignoredLabels?.length > 0" class="p-3 bg-wa-bg-deep border border-wa-border rounded-lg">
+        </Card>
+        <Card variant="deep" size="sm" x-show="bot.template?.ignoredLabels?.length > 0">
             <label class="block text-sm font-medium text-white mb-2" x-text="$t('ignored_labels')">Etiquetas ignoradas</label>
             <div class="flex flex-wrap gap-2">
                 <template x-for="varName in (bot.template?.ignoredLabels || [])" :key="varName">
@@ -30,17 +33,17 @@
                     </span>
                 </template>
             </div>
-        </div>
+        </Card>
     </div>
-</div>
+</Card>
 
-<div x-show="!bot.templateId" class="bg-wa-bg-panel border border-wa-border p-4 sm:p-6 relative max-w-2xl rounded-xl">
+<Card x-show="!bot.templateId" class="relative max-w-2xl">
 
     <h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
 
     <form @submit.prevent="saveAIConfig()" class="space-y-6">
         <!-- AI Enabled Toggle -->
-        <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+        <Card variant="deep" size="sm" class="flex items-center justify-between gap-4">
             <div class="min-w-0">
                 <label class="text-sm font-medium text-white" x-text="$t('ai_enabled')">AI Enabled</label>
                 <p class="text-xs text-wa-text-secondary mt-1" x-text="$t('ai_enabled_desc')"></p>
@@ -51,10 +54,10 @@
                 <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
                     :class="aiConfig.aiEnabled ? 'left-6' : 'left-0.5'"></span>
             </button>
-        </div>
+        </Card>
 
         <!-- Default Session AI Toggle -->
-        <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+        <Card variant="deep" size="sm" class="flex items-center justify-between gap-4">
             <div class="min-w-0">
                 <label class="text-sm font-medium text-white">IA encendida por defecto</label>
                 <p class="text-xs text-wa-text-secondary mt-1">Las sesiones nuevas inician con IA activa. Los flujos pueden cambiarla por sesión.</p>
@@ -65,7 +68,7 @@
                 <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
                     :class="aiConfig.defaultSessionAi ? 'left-6' : 'left-0.5'"></span>
             </button>
-        </div>
+        </Card>
 
         <!-- Provider -->
         <div>
@@ -150,7 +153,7 @@
             <h4 class="text-xs text-wa-green tracking-normal mb-4">Filtros</h4>
 
             <!-- Auto Read Receipts Toggle -->
-            <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
+            <Card variant="deep" size="sm" class="flex items-center justify-between gap-4 mb-4">
                 <div class="min-w-0">
                     <label class="text-sm font-medium text-white">Lectura automática</label>
                     <p class="text-xs text-wa-text-secondary mt-1">Marcar mensajes como leídos automáticamente. Si se desactiva, la IA decide cuándo marcar como leído usando la herramienta mark_as_read.</p>
@@ -161,10 +164,10 @@
                     <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
                         :class="aiConfig.autoReadReceipts ? 'left-6' : 'left-0.5'"></span>
                 </button>
-            </div>
+            </Card>
 
             <!-- Exclude Groups Toggle -->
-            <div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
+            <Card variant="deep" size="sm" class="flex items-center justify-between gap-4 mb-4">
                 <div class="min-w-0">
                     <label class="text-sm font-medium text-white" x-text="$t('exclude_groups')">Exclude Groups</label>
                     <p class="text-xs text-wa-text-secondary mt-1" x-text="$t('exclude_groups_desc')"></p>
@@ -175,10 +178,10 @@
                     <span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
                         :class="aiConfig.excludeGroups ? 'left-6' : 'left-0.5'"></span>
                 </button>
-            </div>
+            </Card>
 
             <!-- Ignored Labels -->
-            <div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
+            <Card variant="deep" size="sm">
                 <div class="flex items-center justify-between mb-1">
                     <label class="block text-sm font-medium text-white" x-text="$t('ignored_labels')">Ignored Labels</label>
                 </div>
@@ -204,7 +207,7 @@
                         <span x-text="aiConfig.ignoredLabels.length"></span> label(s) ignored — AI will not respond to sessions with these labels
                     </p>
                 </div>
-            </div>
+            </Card>
         </div>
 
         <!-- Actions -->
@@ -219,4 +222,4 @@
             </button>
         </div>
     </form>
-</div>
+</Card>

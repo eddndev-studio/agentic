@@ -1,5 +1,8 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import Card from "../../components/ui/Card.astro";
+import Button from "../../components/ui/Button.astro";
+import Modal from "../../components/ui/Modal.astro";
 ---
 
 <Layout title="Bots">
@@ -21,13 +24,10 @@ import Layout from "../../layouts/Layout.astro";
 				</p>
 			</div>
 
-			<button
-				@click="$dispatch('open-create-bot')"
-				class="px-6 py-2 bg-wa-green text-white text-sm font-medium rounded-lg hover:bg-wa-green-hover transition-colors flex items-center gap-2"
-			>
+			<Button variant="primary" size="lg" x-on:click="$dispatch('open-create-bot')" class="flex items-center gap-2">
 				<span>+</span>
 				<span x-text="$t('create_bot')">Create Bot</span>
-			</button>
+			</Button>
 		</header>
 
 		<!-- Error State -->
@@ -46,13 +46,11 @@ import Layout from "../../layouts/Layout.astro";
 			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
 		>
 			<template x-for="i in 3">
-				<div
-					class="bg-wa-bg-panel border border-wa-border rounded-xl p-6 relative animate-pulse h-40"
-				>
+				<Card size="lg" class="relative animate-pulse h-40">
 					<div class="w-16 h-4 bg-wa-bg-hover mb-4 rounded"></div>
 					<div class="w-3/4 h-6 bg-wa-bg-hover mb-2 rounded"></div>
 					<div class="w-1/2 h-4 bg-wa-bg-hover rounded"></div>
-				</div>
+				</Card>
 			</template>
 		</div>
 
@@ -156,93 +154,44 @@ import Layout from "../../layouts/Layout.astro";
 				>
 					No bots registered
 				</p>
-				<button
-					@click="$dispatch('open-create-bot')"
-					class="px-6 py-2 bg-wa-green text-white hover:bg-wa-green-hover transition-colors text-sm rounded-lg"
-				>
+				<Button variant="primary" size="lg" x-on:click="$dispatch('open-create-bot')">
 					+ <span x-text="$t('create_bot')">Create First Bot</span>
-				</button>
+				</Button>
 			</div>
 		</div>
 	</main>
 
 	<!-- Create Bot Modal -->
-	<div
-		x-data="createBotModal"
-		x-show="visible"
-		x-cloak
-		@open-create-bot.window="open()"
-		class="fixed inset-0 z-50 flex items-center justify-center p-4"
-		style="display: none;"
-	>
-		<!-- Backdrop -->
-		<div
-			class="absolute inset-0 bg-black/70"
-			@click="close()"
-		>
-		</div>
-
-		<!-- Modal -->
-		<div
-			class="relative bg-wa-bg-panel border border-wa-border rounded-xl p-4 sm:p-8 w-full max-w-md"
-		>
-			<h2
-				class="text-xl font-bold tracking-tight mb-6"
-				x-text="$t('create_bot')"
-			>
-				Create Bot
-			</h2>
+	<div x-data="createBotModal" @open-create-bot.window="open()">
+		<Modal show="visible">
+			<h2 class="text-xl font-bold tracking-tight mb-6" x-text="$t('create_bot')">Create Bot</h2>
 
 			<form @submit.prevent="submit()" class="space-y-4">
 				<div>
-					<label
-						class="block text-xs text-wa-text-secondary mb-2"
-						x-text="$t('bot_name')"></label>
-					<input
-						type="text"
-						x-model="form.name"
-						required
-						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
-						placeholder="My WhatsApp Bot"
-					/>
+					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('bot_name')"></label>
+					<input type="text" x-model="form.name" required placeholder="My WhatsApp Bot"
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
 				</div>
 
 				<div>
-					<label
-						class="block text-xs text-wa-text-secondary mb-2"
-						x-text="$t('bot_identifier')"></label>
-					<input
-						type="text"
-						x-model="form.identifier"
-						required
-						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
-						placeholder="+1234567890"
-					/>
+					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('bot_identifier')"></label>
+					<input type="text" x-model="form.identifier" required placeholder="+1234567890"
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
 				</div>
 
 				<div>
-					<label
-						class="block text-xs text-wa-text-secondary mb-2"
-						>Platform</label
-					>
-					<select
-						x-model="form.platform"
-						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
-					>
+					<label class="block text-xs text-wa-text-secondary mb-2">Platform</label>
+					<select x-model="form.platform"
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white">
 						<option value="WHATSAPP">WhatsApp</option>
 						<option value="TELEGRAM">Telegram</option>
 					</select>
 				</div>
 
 				<div>
-					<label
-						class="block text-xs text-wa-text-secondary mb-2"
-						x-text="$t('template_assigned')">Template</label
-					>
-					<select
-						x-model="form.templateId"
-						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white"
-					>
+					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_assigned')">Template</label>
+					<select x-model="form.templateId"
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white">
 						<option value="" x-text="$t('no_template')">None (Custom)</option>
 						<template x-for="tpl in templates" :key="tpl.id">
 							<option :value="tpl.id" x-text="tpl.name"></option>
@@ -251,25 +200,11 @@ import Layout from "../../layouts/Layout.astro";
 				</div>
 
 				<div class="flex gap-4 pt-4">
-					<button
-						type="button"
-						@click="close()"
-						class="flex-1 px-4 py-3 border border-wa-border text-wa-text-secondary text-sm rounded-lg hover:bg-wa-bg-hover"
-						x-text="$t('cancel')"
-					>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						:disabled="loading"
-						class="flex-1 px-4 py-3 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50"
-						x-text="loading ? $t('loading') : $t('create_bot')"
-					>
-						Create
-					</button>
+					<Button variant="secondary" size="lg" type="button" class="flex-1" x-on:click="close()" x-text="$t('cancel')">Cancel</Button>
+					<Button variant="primary" size="lg" type="submit" class="flex-1" x-bind:disabled="loading" x-text="loading ? $t('loading') : $t('create_bot')">Create</Button>
 				</div>
 			</form>
-		</div>
+		</Modal>
 	</div>
 </Layout>
 
