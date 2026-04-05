@@ -36,17 +36,14 @@ export function MediaStepForm({ step, onChange }: Props) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <label>
-                <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Media URL</span>
+                <span className="fe-label">Media URL</span>
                 <div style={{ display: 'flex', gap: 4 }}>
                     <input
                         type="text"
                         value={step.mediaUrl || ''}
                         onChange={e => onChange({ mediaUrl: e.target.value })}
-                        style={{
-                            flex: 1, background: '#202c33', border: '1px solid #2a3942',
-                            color: '#e9edef', padding: '6px 8px', borderRadius: 8, fontSize: 10,
-                            fontFamily: 'ui-monospace, monospace', outline: 'none',
-                        }}
+                        className="fe-input"
+                        style={{ flex: 1, width: 'auto' }}
                         placeholder="https://... o {{VARIABLE}}"
                     />
                     <button onClick={openMediaPicker} style={{
@@ -108,16 +105,12 @@ export function MediaStepForm({ step, onChange }: Props) {
 
             {(step.type === 'IMAGE' || step.type === 'VIDEO') && (
                 <label>
-                    <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Caption</span>
+                    <span className="fe-label">Caption</span>
                     <textarea
                         value={step.content || ''}
                         onChange={e => onChange({ content: e.target.value })}
                         rows={2}
-                        style={{
-                            width: '100%', background: '#202c33', border: '1px solid #2a3942',
-                            color: '#e9edef', padding: '8px', borderRadius: 8, fontSize: 11,
-                            fontFamily: 'ui-monospace, monospace', outline: 'none', resize: 'vertical',
-                        }}
+                        className="fe-textarea"
                         placeholder="Caption (optional)"
                     />
                 </label>

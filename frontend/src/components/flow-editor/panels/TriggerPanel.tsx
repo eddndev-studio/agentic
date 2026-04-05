@@ -52,30 +52,30 @@ export function TriggerPanel() {
                     {(!trigger.triggerType || trigger.triggerType === 'TEXT') && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             <div style={{ display: 'flex', gap: 4 }}>
-                                <select value={trigger.scope || 'INCOMING'} onChange={e => updateTrigger(index, { scope: e.target.value })} style={{ ...selectStyle, flex: 1 }}>
+                                <select value={trigger.scope || 'INCOMING'} onChange={e => updateTrigger(index, { scope: e.target.value })} className="fe-select" style={{ flex: 1 }}>
                                     <option value="INCOMING">INCOMING</option>
                                     <option value="OUTGOING">OUTGOING</option>
                                     <option value="BOTH">ALL</option>
                                 </select>
-                                <select value={trigger.matchType} onChange={e => updateTrigger(index, { matchType: e.target.value })} style={{ ...selectStyle, flex: 1 }}>
+                                <select value={trigger.matchType} onChange={e => updateTrigger(index, { matchType: e.target.value })} className="fe-select" style={{ flex: 1 }}>
                                     <option value="CONTAINS">CONTAINS</option>
                                     <option value="EXACT">EXACT</option>
                                     <option value="REGEX">REGEX</option>
                                 </select>
                             </div>
                             <input type="text" value={trigger.keyword} onChange={e => updateTrigger(index, { keyword: e.target.value })}
-                                style={inputStyle} placeholder="Keyword or regex..." />
+                                className="fe-input" placeholder="Keyword or regex..." />
                         </div>
                     )}
 
                     {trigger.triggerType === 'LABEL' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <select value={trigger.labelAction || 'ADD'} onChange={e => updateTrigger(index, { labelAction: e.target.value as any })} style={selectStyle}>
+                            <select value={trigger.labelAction || 'ADD'} onChange={e => updateTrigger(index, { labelAction: e.target.value as any })} className="fe-select">
                                 <option value="ADD">When assigned</option>
                                 <option value="REMOVE">When removed</option>
                             </select>
                             {templateId ? (
-                                <select value={trigger.labelName || ''} onChange={e => updateTrigger(index, { labelName: e.target.value })} style={selectStyle}>
+                                <select value={trigger.labelName || ''} onChange={e => updateTrigger(index, { labelName: e.target.value })} className="fe-select">
                                     <option value="">Select variable...</option>
                                     {templateVarDefs.filter(d => d.type === 'label').map(v => (
                                         <option key={v.name} value={`{{${v.name}}}`}>{v.name}</option>
@@ -115,11 +115,3 @@ const addBtnStyle = (color: string): React.CSSProperties => ({
     color, background: `${color}20`, border: `1px solid ${color}30`,
     borderRadius: 6, cursor: 'pointer',
 });
-const inputStyle: React.CSSProperties = {
-    width: '100%', background: '#202c33', border: '1px solid #2a3942', color: '#e9edef',
-    padding: '6px 8px', borderRadius: 8, fontSize: 10, fontFamily: 'ui-monospace, monospace', outline: 'none',
-};
-const selectStyle: React.CSSProperties = {
-    background: '#202c33', border: '1px solid #2a3942', color: '#e9edef',
-    padding: '6px 8px', borderRadius: 8, fontSize: 10, fontFamily: 'ui-monospace, monospace', outline: 'none',
-};

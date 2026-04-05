@@ -39,11 +39,11 @@ export function ToolStepForm({ step, onChange }: Props) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <label>
-                <span style={labelStyle}>Tool</span>
+                <span className="fe-label">Tool</span>
                 <select
                     value={toolName}
                     onChange={e => setMeta({ toolName: e.target.value, toolArgs: {} })}
-                    style={selectStyle}
+                    className="fe-select"
                 >
                     <option value="">-- Select tool --</option>
                     <optgroup label="Built-in">
@@ -86,10 +86,10 @@ export function ToolStepForm({ step, onChange }: Props) {
                         color="#a552a1"
                     />
                     <label>
-                        <span style={labelStyle}>include_messages</span>
+                        <span className="fe-label">include_messages</span>
                         <input type="number" value={toolArgs.include_messages || ''} placeholder="5"
                             onChange={e => setArg('include_messages', parseInt(e.target.value) || undefined)}
-                            style={inputStyle} />
+                            className="fe-input" />
                     </label>
                 </>
             )}
@@ -97,12 +97,12 @@ export function ToolStepForm({ step, onChange }: Props) {
             {toolName === 'reply_to_message' && (
                 <>
                     <label>
-                        <span style={labelStyle}>message_id *</span>
-                        <input type="text" value={toolArgs.message_id || ''} onChange={e => setArg('message_id', e.target.value)} style={inputStyle} />
+                        <span className="fe-label">message_id *</span>
+                        <input type="text" value={toolArgs.message_id || ''} onChange={e => setArg('message_id', e.target.value)} className="fe-input" />
                     </label>
                     <label>
-                        <span style={labelStyle}>text *</span>
-                        <textarea value={toolArgs.text || ''} onChange={e => setArg('text', e.target.value)} rows={2} style={textareaStyle} />
+                        <span className="fe-label">text *</span>
+                        <textarea value={toolArgs.text || ''} onChange={e => setArg('text', e.target.value)} rows={2} className="fe-textarea" />
                     </label>
                 </>
             )}
@@ -110,12 +110,12 @@ export function ToolStepForm({ step, onChange }: Props) {
             {toolName === 'send_followup_message' && (
                 <>
                     <label>
-                        <span style={labelStyle}>session_id *</span>
-                        <input type="text" value={toolArgs.session_id || ''} onChange={e => setArg('session_id', e.target.value)} style={inputStyle} />
+                        <span className="fe-label">session_id *</span>
+                        <input type="text" value={toolArgs.session_id || ''} onChange={e => setArg('session_id', e.target.value)} className="fe-input" />
                     </label>
                     <label>
-                        <span style={labelStyle}>message *</span>
-                        <textarea value={toolArgs.message || ''} onChange={e => setArg('message', e.target.value)} rows={2} style={textareaStyle} />
+                        <span className="fe-label">message *</span>
+                        <textarea value={toolArgs.message || ''} onChange={e => setArg('message', e.target.value)} rows={2} className="fe-textarea" />
                     </label>
                 </>
             )}
@@ -123,12 +123,12 @@ export function ToolStepForm({ step, onChange }: Props) {
             {toolName === 'notify' && (
                 <>
                     <label>
-                        <span style={labelStyle}>message *</span>
-                        <textarea value={toolArgs.message || ''} onChange={e => setArg('message', e.target.value)} rows={2} style={textareaStyle} />
+                        <span className="fe-label">message *</span>
+                        <textarea value={toolArgs.message || ''} onChange={e => setArg('message', e.target.value)} rows={2} className="fe-textarea" />
                     </label>
                     <label>
-                        <span style={labelStyle}>priority</span>
-                        <select value={toolArgs.priority || 'normal'} onChange={e => setArg('priority', e.target.value)} style={selectStyle}>
+                        <span className="fe-label">priority</span>
+                        <select value={toolArgs.priority || 'normal'} onChange={e => setArg('priority', e.target.value)} className="fe-select">
                             <option value="normal">normal</option>
                             <option value="low">low</option>
                             <option value="high">high</option>
@@ -139,20 +139,20 @@ export function ToolStepForm({ step, onChange }: Props) {
 
             {toolName === 'get_current_time' && (
                 <label>
-                    <span style={labelStyle}>timezone</span>
+                    <span className="fe-label">timezone</span>
                     <input type="text" value={toolArgs.timezone || ''} placeholder="America/Mexico_City"
-                        onChange={e => setArg('timezone', e.target.value)} style={inputStyle} />
+                        onChange={e => setArg('timezone', e.target.value)} className="fe-input" />
                 </label>
             )}
 
             {/* Custom tools: JSON editor */}
             {isCustom && (
                 <label>
-                    <span style={labelStyle}>Arguments (JSON)</span>
+                    <span className="fe-label">Arguments (JSON)</span>
                     <textarea
                         defaultValue={JSON.stringify(toolArgs, null, 2)}
                         onBlur={e => { try { setMeta({ toolArgs: JSON.parse(e.target.value) }); } catch {} }}
-                        rows={4} style={textareaStyle}
+                        rows={4} className="fe-textarea"
                         placeholder='{ "key": "value" }'
                     />
                 </label>
@@ -172,8 +172,8 @@ function LabelPicker({ value, onSelect, labels, templateId, templateVarDefs, col
         const labelVars = templateVarDefs.filter(d => d.type === 'label');
         return (
             <label>
-                <span style={labelStyle}>Label</span>
-                <select value={value} onChange={e => onSelect(e.target.value)} style={selectStyle}>
+                <span className="fe-label">Label</span>
+                <select value={value} onChange={e => onSelect(e.target.value)} className="fe-select">
                     <option value="">Select variable...</option>
                     {labelVars.map(v => <option key={v.name} value={`{{${v.name}}}`}>{v.name}</option>)}
                 </select>
@@ -183,7 +183,7 @@ function LabelPicker({ value, onSelect, labels, templateId, templateVarDefs, col
 
     return (
         <div>
-            <span style={labelStyle}>Label</span>
+            <span className="fe-label">Label</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                 {labels.map(lbl => (
                     <button key={lbl.id} onClick={() => onSelect(value === lbl.name ? '' : lbl.name)}
@@ -205,17 +205,3 @@ function LabelPicker({ value, onSelect, labels, templateId, templateVarDefs, col
     );
 }
 
-const labelStyle: React.CSSProperties = { color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 };
-const inputStyle: React.CSSProperties = {
-    width: '100%', background: '#202c33', border: '1px solid #2a3942', color: '#e9edef',
-    padding: '6px 8px', borderRadius: 8, fontSize: 10, fontFamily: 'ui-monospace, monospace', outline: 'none',
-};
-const selectStyle: React.CSSProperties = {
-    width: '100%', background: '#202c33', border: '1px solid #2a3942', color: '#e9edef',
-    padding: '6px 8px', borderRadius: 8, fontSize: 10, fontFamily: 'ui-monospace, monospace', outline: 'none',
-};
-const textareaStyle: React.CSSProperties = {
-    width: '100%', background: '#202c33', border: '1px solid #2a3942', color: '#e9edef',
-    padding: '8px', borderRadius: 8, fontSize: 10, fontFamily: 'ui-monospace, monospace',
-    outline: 'none', resize: 'vertical',
-};

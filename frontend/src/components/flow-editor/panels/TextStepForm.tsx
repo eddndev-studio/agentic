@@ -41,24 +41,20 @@ export function TextStepForm({ step, onChange }: Props) {
     return (
         <div>
             <label>
-                <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Message content</span>
+                <span className="fe-label">Message content</span>
                 <textarea
                     ref={textareaRef}
                     value={step.content || ''}
                     onChange={e => onChange({ content: e.target.value })}
                     rows={6}
-                    style={{
-                        width: '100%', background: '#202c33', border: '1px solid #2a3942',
-                        color: '#e9edef', padding: '8px', borderRadius: 8, fontSize: 11,
-                        fontFamily: 'ui-monospace, monospace', outline: 'none', resize: 'vertical',
-                    }}
+                    className="fe-textarea"
                     placeholder="Enter message content..."
                 />
             </label>
 
             {varDefs.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
-                    <span style={{ color: '#8696a0', fontSize: 9 }}>Insertar variable:</span>
+                    <span className="fe-label" style={{ marginBottom: 0 }}>Insertar variable:</span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {varDefs.map(v => (
                             <button

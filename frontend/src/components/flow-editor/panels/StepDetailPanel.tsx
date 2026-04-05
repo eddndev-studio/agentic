@@ -74,14 +74,14 @@ export function StepDetailPanel({ stepId, onClose }: Props) {
             {/* Common controls */}
             <div style={{ display: 'flex', gap: 8 }}>
                 <label style={{ flex: 1 }}>
-                    <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Delay (ms)</span>
+                    <span className="fe-label">Delay (ms)</span>
                     <input type="number" value={step.delayMs} onChange={e => onChange({ delayMs: parseInt(e.target.value) || 1000 })}
-                        style={inputStyle} />
+                        className="fe-input" />
                 </label>
                 <label style={{ flex: 1 }}>
-                    <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 4 }}>Jitter ±%</span>
+                    <span className="fe-label">Jitter ±%</span>
                     <input type="number" value={step.jitterPct} onChange={e => onChange({ jitterPct: parseInt(e.target.value) || 10 })}
-                        style={inputStyle} />
+                        className="fe-input" />
                 </label>
             </div>
 
@@ -108,8 +108,3 @@ export function StepDetailPanel({ stepId, onClose }: Props) {
     );
 }
 
-const inputStyle: React.CSSProperties = {
-    width: '100%', background: '#202c33', border: '1px solid #2a3942',
-    color: '#e9edef', padding: '6px 8px', borderRadius: 8, fontSize: 11,
-    fontFamily: 'ui-monospace, monospace', outline: 'none',
-};

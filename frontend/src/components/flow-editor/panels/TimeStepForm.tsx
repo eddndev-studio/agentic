@@ -59,18 +59,18 @@ export function TimeStepForm({ step, onChange }: Props) {
                         </button>
                     </div>
                     <select value={branch.type || 'TEXT'} onChange={e => updateBranch(i, { type: e.target.value })}
-                        style={{ ...selectStyle, marginBottom: 6 }}>
+                        className="fe-select" style={{ marginBottom: 6 }}>
                         <option value="TEXT">TEXT</option>
                         <option value="IMAGE">IMAGE</option>
                         <option value="VIDEO">VIDEO</option>
                         <option value="AUDIO">AUDIO</option>
                     </select>
                     <textarea value={branch.content || ''} onChange={e => updateBranch(i, { content: e.target.value })}
-                        rows={2} style={textareaStyle} placeholder="Branch content..." />
+                        rows={2} className="fe-textarea" placeholder="Branch content..." />
                     {branch.type !== 'TEXT' && (
                         <div>
                             <input type="text" value={branch.mediaUrl || ''} onChange={e => updateBranch(i, { mediaUrl: e.target.value })}
-                                style={{ ...inputStyle, marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
+                                className="fe-input" style={{ marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
                             {mediaVars.length > 0 && (
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
                                     {mediaVars.map((v: any) => (
@@ -103,18 +103,18 @@ export function TimeStepForm({ step, onChange }: Props) {
             <div style={{ borderTop: '1px solid #2a3942', paddingTop: 10 }}>
                 <span style={{ color: '#8696a0', fontSize: 9, display: 'block', marginBottom: 6 }}>Fallback (no match)</span>
                 <select value={fallback.type || 'TEXT'} onChange={e => setMeta({ fallback: { ...fallback, type: e.target.value } })}
-                    style={{ ...selectStyle, marginBottom: 6 }}>
+                    className="fe-select" style={{ marginBottom: 6 }}>
                     <option value="TEXT">TEXT</option>
                     <option value="IMAGE">IMAGE</option>
                     <option value="VIDEO">VIDEO</option>
                     <option value="AUDIO">AUDIO</option>
                 </select>
                 <textarea value={fallback.content || ''} onChange={e => setMeta({ fallback: { ...fallback, content: e.target.value } })}
-                    rows={2} style={textareaStyle} placeholder="Fallback content..." />
+                    rows={2} className="fe-textarea" placeholder="Fallback content..." />
                 {fallback.type && fallback.type !== 'TEXT' && (
                     <div>
                         <input type="text" value={fallback.mediaUrl || ''} onChange={e => setMeta({ fallback: { ...fallback, mediaUrl: e.target.value } })}
-                            style={{ ...inputStyle, marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
+                            className="fe-input" style={{ marginTop: 4 }} placeholder="https://... o {{VARIABLE}}" />
                         {mediaVars.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
                                 {mediaVars.map((v: any) => (
@@ -141,17 +141,4 @@ export function TimeStepForm({ step, onChange }: Props) {
 const timeInputStyle: React.CSSProperties = {
     background: '#202c33', border: '1px solid #2a3942', color: '#e8b830',
     padding: '4px 6px', borderRadius: 6, fontSize: 10, fontFamily: 'ui-monospace, monospace', outline: 'none',
-};
-const inputStyle: React.CSSProperties = {
-    width: '100%', background: '#202c33', border: '1px solid #2a3942', color: '#e9edef',
-    padding: '6px 8px', borderRadius: 8, fontSize: 10, fontFamily: 'ui-monospace, monospace', outline: 'none',
-};
-const selectStyle: React.CSSProperties = {
-    width: '100%', background: '#202c33', border: '1px solid #2a3942', color: '#e9edef',
-    padding: '6px 8px', borderRadius: 8, fontSize: 10, fontFamily: 'ui-monospace, monospace', outline: 'none',
-};
-const textareaStyle: React.CSSProperties = {
-    width: '100%', background: '#202c33', border: '1px solid #2a3942', color: '#e9edef',
-    padding: '8px', borderRadius: 8, fontSize: 10, fontFamily: 'ui-monospace, monospace',
-    outline: 'none', resize: 'vertical',
 };
