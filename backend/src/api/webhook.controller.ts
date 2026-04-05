@@ -25,7 +25,11 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
 
         try {
             // 1. Resolve Bot (Target System)
-            const botIdentifier = body.botId || "AGENTIC_DEMO_BOT";
+            if (!body.botId) {
+                set.status = 400;
+                return "botId is required";
+            }
+            const botIdentifier = body.botId;
 
             const bot = await prisma.bot.findUnique({
                 where: { identifier: botIdentifier }
@@ -34,6 +38,12 @@ export const webhookController = new Elysia({ prefix: "/webhook" })
             if (!bot) {
                 set.status = 404;
                 return `Bot '${botIdentifier}' not found`;
+            }
+
+            // Reject if bot is paused
+            if (bot.paused) {
+                set.status = 503;
+                return "Bot is currently paused";
             }
 
             // Verify webhook secret (required — configure one in bot credentials)
