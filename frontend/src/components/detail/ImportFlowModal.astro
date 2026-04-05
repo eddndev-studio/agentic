@@ -1,79 +1,43 @@
-<!-- Import Flow Modal -->
-<div
-    x-show="showImportModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-    style="display: none;"
->
-    <div
-        class="bg-wa-bg-deep border border-wa-border p-6 sm:p-8 max-w-md w-full relative rounded-xl"
-        @click.outside="showImportModal = false"
-    >
+---
+import Modal from "../ui/Modal.astro";
+import Button from "../ui/Button.astro";
+---
 
-        <h2 class="text-xl font-bold mb-6 tracking-tight">
-            Import Flow
-        </h2>
+<Modal show="showImportModal">
+    <h2 class="text-xl font-bold mb-6 tracking-tight">Import Flow</h2>
 
-        <div class="space-y-4">
-            <!-- Step 1: Source Bot -->
-            <div>
-                <label
-                    class="block text-xs font-sans text-wa-text-secondary mb-2"
-                    >Source Bot</label
-                >
-                <select
-                    x-model="importData.sourceBotId"
-                    @change="loadSourceFlows()"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg"
-                >
-                    <option value="">Select a Bot...</option>
-                    <template x-for="b in sourceBots" :key="b.id">
-                        <option
-                            :value="b.id"
-                            x-text="b.name + ' (' + b.identifier + ')'"
-                            class="bg-wa-bg-deep"></option>
-                    </template>
-                </select>
-            </div>
+    <div class="space-y-4">
+        <!-- Source Bot -->
+        <div>
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2">Source Bot</label>
+            <select x-model="importData.sourceBotId" x-on:change="loadSourceFlows()"
+                class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                <option value="">Select a Bot...</option>
+                <template x-for="b in sourceBots" :key="b.id">
+                    <option :value="b.id" x-text="b.name + ' (' + b.identifier + ')'" class="bg-wa-bg-deep"></option>
+                </template>
+            </select>
+        </div>
 
-            <!-- Step 2: Source Flow -->
-            <div x-show="importData.sourceBotId">
-                <label
-                    class="block text-xs font-sans text-wa-text-secondary mb-2"
-                    >Flow to Import</label
-                >
-                <select
-                    x-model="importData.sourceFlowId"
-                    class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg"
-                >
-                    <option value="">Select a Flow...</option>
-                    <template x-for="f in sourceFlows" :key="f.id">
-                        <option
-                            :value="f.id"
-                            x-text="f.name"
-                            class="bg-wa-bg-deep"></option>
-                    </template>
-                </select>
-            </div>
+        <!-- Source Flow -->
+        <div x-show="importData.sourceBotId">
+            <label class="block text-xs font-sans text-wa-text-secondary mb-2">Flow to Import</label>
+            <select x-model="importData.sourceFlowId"
+                class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg">
+                <option value="">Select a Flow...</option>
+                <template x-for="f in sourceFlows" :key="f.id">
+                    <option :value="f.id" x-text="f.name" class="bg-wa-bg-deep"></option>
+                </template>
+            </select>
+        </div>
 
-            <div class="pt-4 flex justify-end gap-3">
-                <button
-                    @click="showImportModal = false"
-                    class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg"
-                >
-                    Cancel
-                </button>
-                <button
-                    @click="importFlow()"
-                    :disabled="!importData.sourceFlowId || loadingImport"
-                    class="px-6 py-2 bg-wa-green text-white text-xs hover:bg-wa-green-hover transition-colors disabled:opacity-50 flex items-center gap-2 rounded-lg"
-                >
-                    <span
-                        x-show="loadingImport"
-                        class="animate-spin text-white">⟳</span
-                    >
-                    Import
-                </button>
-            </div>
+        <div class="pt-4 flex justify-end gap-3">
+            <Button variant="secondary" x-on:click="showImportModal = false">Cancel</Button>
+            <Button variant="primary" x-on:click="importFlow()"
+                x-bind:disabled="!importData.sourceFlowId || loadingImport">
+                <span x-show="loadingImport" class="animate-spin text-white">&#x27F3;</span>
+                Import
+            </Button>
         </div>
     </div>
-</div>
+</Modal>

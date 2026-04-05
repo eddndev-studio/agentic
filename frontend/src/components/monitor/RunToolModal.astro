@@ -1,23 +1,25 @@
 ---
+import Modal from "../ui/Modal.astro";
+import Button from "../ui/Button.astro";
 ---
-<div
-    x-show="showToolModal"
-    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
-    style="display: none;"
->
-    <div class="bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 sm:max-w-md w-full rounded-t-2xl sm:rounded-xl" @click.outside="showToolModal = false">
-        <h3 class="text-sm font-bold mb-4" x-text="$t('run_tool')"></h3>
-        <select x-model="selectedToolName" class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-3 rounded-lg">
-            <option value="" x-text="$t('select_tool')"></option>
-            <template x-for="tool in tools" :key="tool.id">
-                <option :value="tool.name" x-text="tool.name"></option>
-            </template>
-        </select>
-        <label class="block text-[10px] text-wa-text-secondary mb-1" x-text="$t('tool_arguments')"></label>
-        <textarea x-model="toolArgsJson" rows="4" class="w-full bg-wa-bg-hover border border-wa-border text-white text-xs font-mono p-3 focus:border-wa-green focus:outline-none resize-y mb-4 rounded-lg" placeholder='{ "key": "value" }'></textarea>
-        <div class="flex justify-end gap-2">
-            <button @click="showToolModal = false" class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg" x-text="$t('cancel')"></button>
-            <button @click="executeTool()" :disabled="!selectedToolName" class="px-4 py-2 bg-green-600 text-white text-xs hover:bg-green-700 transition-colors disabled:opacity-50 rounded-lg" x-text="$t('execute')"></button>
-        </div>
+
+<Modal show="showToolModal" variant="sheet">
+    <h3 class="text-sm font-bold mb-4" x-text="$t('run_tool')"></h3>
+    <select x-model="selectedToolName"
+        class="w-full bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none mb-3 rounded-lg">
+        <option value="" x-text="$t('select_tool')"></option>
+        <template x-for="tool in tools" :key="tool.id">
+            <option :value="tool.name" x-text="tool.name"></option>
+        </template>
+    </select>
+    <label class="block text-[10px] text-wa-text-secondary mb-1" x-text="$t('tool_arguments')"></label>
+    <textarea x-model="toolArgsJson" rows="4" placeholder='{ "key": "value" }'
+        class="w-full bg-wa-bg-hover border border-wa-border text-white text-xs font-mono p-3 focus:border-wa-green focus:outline-none resize-y mb-4 rounded-lg"
+    ></textarea>
+    <div class="flex justify-end gap-2">
+        <Button variant="secondary" x-on:click="showToolModal = false" x-text="$t('cancel')"></Button>
+        <button x-on:click="executeTool()" x-bind:disabled="!selectedToolName"
+            class="inline-flex items-center justify-center font-sans transition-colors rounded-lg disabled:opacity-50 px-4 py-2.5 text-xs bg-green-600 text-white hover:bg-green-700"
+            x-text="$t('execute')"></button>
     </div>
-</div>
+</Modal>

@@ -6,15 +6,32 @@ interface Props {
     maxWidth?: string;
     /** Whether clicking the backdrop closes the modal (default: true) */
     dismissible?: boolean;
+    /** "center" (default) or "sheet" (bottom sheet on mobile, centered on desktop) */
+    variant?: "center" | "sheet";
 }
 
-const { show, maxWidth = "max-w-md", dismissible = true } = Astro.props;
+const {
+    show,
+    maxWidth = "max-w-md",
+    dismissible = true,
+    variant = "center",
+} = Astro.props;
+
+const isSheet = variant === "sheet";
+
+const wrapperClass = isSheet
+    ? "fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+    : "fixed inset-0 z-50 flex items-center justify-center p-4";
+
+const panelClass = isSheet
+    ? `relative bg-wa-bg-panel border-t sm:border border-wa-border p-5 sm:p-6 w-full sm:${maxWidth} rounded-t-2xl sm:rounded-xl`
+    : `relative bg-wa-bg-panel border border-wa-border p-6 sm:p-8 w-full ${maxWidth} rounded-xl`;
 ---
 
 <div
     x-show={show}
     x-cloak
-    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    class={wrapperClass}
     style="display: none;"
     x-on:keydown.escape.window={dismissible ? `${show} = false` : undefined}
 >
@@ -25,7 +42,7 @@ const { show, maxWidth = "max-w-md", dismissible = true } = Astro.props;
     ></div>
 
     <!-- Panel -->
-    <div class={`relative bg-wa-bg-panel border border-wa-border p-6 sm:p-8 w-full ${maxWidth} rounded-xl`}>
+    <div class={panelClass}>
         <slot />
     </div>
 </div>
