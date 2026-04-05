@@ -55,14 +55,18 @@ Fecha: 2026-04-04
 
 ### Componentes que faltan crear
 
-- [ ] **`Modal.astro`** — 10+ modales con estructura idéntica
-  - `EditBotModal`, `CloneBotModal`, `PublicLinkModal`, `QRModal`, `ImportFlowModal`, `ForceAIModal`, `RunFlowModal`, `RunToolModal`, `ClientModal`, `InviteMemberModal`
+- [x] **`Modal.astro`** — 10+ modales con estructura idéntica
+  - **Resuelto:** `0bf6635` — Modal wrapper + migrados EditBotModal, QRModal, InviteMemberModal.
+  - Pendiente: migrar los 7 modales restantes.
 
-- [ ] **`Button.astro`** (primary/secondary/danger) — 20+ variantes inline
+- [x] **`Button.astro`** (primary/secondary/danger/ghost) — 20+ variantes inline
+  - **Resuelto:** `0bf6635` — Button con variants y sizes.
 
-- [ ] **`FormInput.astro`** (label + input + error) — 15+ instancias en modales, settings, clients
+- [x] **`FormInput.astro`** (label + input + error) — 15+ instancias
+  - **Resuelto:** `0bf6635` — FormInput reutilizable.
 
-- [ ] **`Badge.astro`** (status pills) — 10+ instancias en `BotHeader`, `ToolsTab`, `campaigns`
+- [x] **`Badge.astro`** (status pills) — 10+ instancias
+  - **Resuelto:** `0bf6635` — Badge con color/size variants.
 
 - [ ] **`Tabs.astro`** — `TabBar.astro` tiene 9 tabs hardcodeados manualmente
 
@@ -84,20 +88,15 @@ Fecha: 2026-04-04
 
 ### Flow Editor (React) — 149 inline `style={{}}` objects
 
-- [ ] **Colores hex hardcodeados** en lugar de usar tokens del tema
-  - `#8696a0` (41x), `#00a884` (23x), `#202c33` (17x), `#2a3942` (24x)
+- [ ] **Colores hex hardcodeados** en layout/node styles (no los de inputs)
+  - Pendiente en nodes/ y FlowEditorIsland.tsx.
 
-- [ ] **Objetos de estilo duplicados** en 6+ archivos de panels/
-  - `inputStyle`, `labelStyle`, `selectStyle`, `textareaStyle` — idénticos en cada archivo.
+- [x] **Objetos de estilo duplicados** en 7 archivos de panels/
+  - **Resuelto:** `14c27ac` — fe-input, fe-textarea, fe-select, fe-label utilities.
+  - Eliminados inputStyle/selectStyle/labelStyle/textareaStyle de todos los panels.
 
-- [ ] **Crear `@utility` classes** para unificar:
-  ```css
-  @utility flow-input { @apply w-full bg-wa-bg-hover border border-wa-border px-2 py-1.5 text-white rounded-lg text-[10px] font-mono outline-none; }
-  @utility flow-label { @apply text-wa-text-secondary text-[9px] block mb-1; }
-  @utility btn-primary { @apply px-4 py-2 bg-wa-green text-white hover:bg-wa-green-hover transition-colors rounded-lg; }
-  @utility btn-secondary { @apply px-4 py-2 border border-wa-border text-wa-text-secondary hover:bg-wa-bg-hover rounded-lg; }
-  @utility btn-danger { @apply px-4 py-2 border border-red-500/30 text-red-500 hover:bg-red-500/10 rounded-lg; }
-  ```
+- [x] **`@utility` classes creadas** en global.css
+  - **Resuelto:** `14c27ac` — fe-input, fe-textarea, fe-select, fe-label.
 
 ### Astro/Alpine — Tailwind classes repetidos
 
