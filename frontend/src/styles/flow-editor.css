@@ -1,0 +1,46 @@
+/* ── Flow Editor Utilities ─────────────────────────────────────────────────── */
+/* Replaces inline style={{}} objects in React flow-editor components          */
+
+@utility fe-input {
+  width: 100%;
+  background: var(--color-wa-bg-hover);
+  border: 1px solid var(--color-wa-border);
+  color: var(--color-wa-text-primary);
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  outline: none;
+}
+
+@utility fe-textarea {
+  width: 100%;
+  background: var(--color-wa-bg-hover);
+  border: 1px solid var(--color-wa-border);
+  color: var(--color-wa-text-primary);
+  padding: 8px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  outline: none;
+  resize: vertical;
+}
+
+@utility fe-select {
+  width: 100%;
+  background: var(--color-wa-bg-hover);
+  border: 1px solid var(--color-wa-border);
+  color: var(--color-wa-text-primary);
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  outline: none;
+}
+
+@utility fe-label {
+  color: var(--color-wa-text-secondary);
+  font-size: 9px;
+  display: block;
+  margin-bottom: 4px;
+}
