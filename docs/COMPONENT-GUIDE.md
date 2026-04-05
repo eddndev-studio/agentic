@@ -123,6 +123,24 @@ import Badge from "../ui/Badge.astro";
 | `color` | `string` | `"gray"` | `green`, `red`, `yellow`, `blue`, `gray` |
 | `size` | `string` | `"sm"` | `sm`, `md` |
 
+### `<Card>`
+
+```astro
+---
+import Card from "../ui/Card.astro";
+---
+<Card variant="panel" size="lg">Top-level panel</Card>
+<Card variant="deep" size="sm">Nested inner card</Card>
+```
+
+| Prop | Tipo | Default | Opciones |
+|------|------|---------|----------|
+| `variant` | `string` | `"panel"` | `panel` (bg-panel, rounded-xl), `deep` (bg-deep, rounded-lg) |
+| `size` | `string` | `"md"` | `sm` (p-3 sm:p-4), `md` (p-4 sm:p-6), `lg` (p-6 sm:p-8) |
+
+Usa `panel` para contenedores de primer nivel (listados, modales, secciones).
+Usa `deep` para cards anidados dentro de un panel (rows, items, config toggles).
+
 ### `<Toggle>`
 
 Toggle switch simple. Usar con Alpine `x-model`.
@@ -155,11 +173,12 @@ Card colapsable con titulo y toggle Alpine.
 
 ## Inventario Completo de Componentes
 
-### UI Primitivos (`ui/`) — 8 componentes
+### UI Primitivos (`ui/`) — 9 componentes
 | Componente | Descripcion |
 |-----------|-------------|
 | Modal | Overlay con backdrop, escape, click-outside |
 | Button | Botones con variantes de color y tamano |
+| Card | Card/panel con variantes panel/deep y tamanos |
 | FormInput | Input con label integrado |
 | Badge | Pill de status con colores |
 | Toggle | Switch on/off |
@@ -272,9 +291,10 @@ Card colapsable con titulo y toggle Alpine.
 
 ## Estadisticas
 
-- **Total: 72 componentes** (56 Astro + 16 React)
-- **8 primitivos UI** compartidos
+- **Total: 73 componentes** (57 Astro + 16 React)
+- **9 primitivos UI** compartidos (Modal, Button, Card, FormInput, Badge, Toggle, EmptyState, AutoTextarea, ExpandableCard)
 - **10 modales** — todos usan `<Modal>` y `<Button>`
+- **20+ cards** — migrados a `<Card>` con variantes panel/deep
 - **4 skeletons** para loading states
 
 ---
@@ -283,8 +303,9 @@ Card colapsable con titulo y toggle Alpine.
 
 1. **Nuevos modales** usan `<Modal>` + `<Button>` — no escribir wrapper manual
 2. **Botones** usan `<Button variant="...">` — no clases inline de bg-wa-green
-3. **Inputs en Astro** pueden usar `<FormInput>` o las clases directas si necesitan mas control
-4. **Inputs en React** (flow editor) usan `className="fe-input"` / `"fe-textarea"` / `"fe-select"`
-5. **Labels** en React usan `className="fe-label"`
-6. **Status badges** usan `<Badge color="..." size="...">`
-7. **CSS nuevo** va en su propio archivo bajo `styles/`, importado desde `global.css`
+3. **Cards y paneles** usan `<Card variant="panel|deep" size="sm|md|lg">` — no clases inline de bg-wa-bg-panel
+4. **Inputs en Astro** pueden usar `<FormInput>` o las clases directas si necesitan mas control
+5. **Inputs en React** (flow editor) usan `className="fe-input"` / `"fe-textarea"` / `"fe-select"`
+6. **Labels** en React usan `className="fe-label"`
+7. **Status badges** usan `<Badge color="..." size="...">`
+8. **CSS nuevo** va en su propio archivo bajo `styles/`, importado desde `global.css`
