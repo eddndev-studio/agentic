@@ -17,6 +17,7 @@ export function setupSSE(ctx: any): BotEventSource {
             const s = ctx.sessions.find((s: any) => s.id === data.sessionId);
             if (s) {
                 s.lastMessage = data.message;
+                s.updatedAt = new Date().toISOString();
                 s.messageCount = (s.messageCount || 0) + 1;
                 const idx = ctx.sessions.indexOf(s);
                 if (idx > 0) { ctx.sessions.splice(idx, 1); ctx.sessions.unshift(s); }
@@ -26,6 +27,7 @@ export function setupSSE(ctx: any): BotEventSource {
             const s = ctx.sessions.find((s: any) => s.id === data.sessionId);
             if (s) {
                 s.lastMessage = { content: data.content, fromMe: true, type: 'TEXT', createdAt: new Date().toISOString() };
+                s.updatedAt = new Date().toISOString();
                 const idx = ctx.sessions.indexOf(s);
                 if (idx > 0) { ctx.sessions.splice(idx, 1); ctx.sessions.unshift(s); }
             }
