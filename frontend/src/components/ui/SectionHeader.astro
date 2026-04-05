@@ -1,0 +1,36 @@
+---
+interface Props {
+    /** URL for the back arrow link */
+    backHref?: string;
+    /** Back link title/tooltip */
+    backTitle?: string;
+    /** Additional classes on the header */
+    class?: string;
+}
+
+const {
+    backHref,
+    backTitle = "Back",
+    class: className = "",
+} = Astro.props;
+---
+
+<header class:list={["border-b border-wa-border pb-6 space-y-4", className]}>
+    <div>
+        <div class="flex items-center gap-3 mb-2">
+            {backHref && (
+                <a href={backHref} class="text-wa-text-secondary hover:text-wa-green transition-colors" title={backTitle}>
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+            )}
+            <slot name="badge" />
+        </div>
+        <slot name="title" />
+        <slot name="subtitle" />
+    </div>
+    <div class="flex gap-3 flex-wrap items-center">
+        <slot name="actions" />
+    </div>
+</header>

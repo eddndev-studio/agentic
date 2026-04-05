@@ -1,431 +1,99 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import SectionHeader from "../../components/ui/SectionHeader.astro";
+import Badge from "../../components/ui/Badge.astro";
+import Button from "../../components/ui/Button.astro";
+import Modal from "../../components/ui/Modal.astro";
+import Card from "../../components/ui/Card.astro";
 import EmptyState from "../../components/ui/EmptyState.astro";
+import FlowsTab from "../../components/detail/FlowsTab.astro";
+import VariablesTab from "../../components/detail/VariablesTab.astro";
+import AIConfigTab from "../../components/detail/AIConfigTab.astro";
+import ToolsTab from "../../components/detail/ToolsTab.astro";
+import AutomationsTab from "../../components/detail/AutomationsTab.astro";
 import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSkeleton.astro";
 ---
 
 <Layout title="Template Detail">
 	<div x-data="templateDetail" x-show="ready" class="space-y-8" style="display: none;">
+
 		<!-- Header -->
-		<header class="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-wa-border pb-6 gap-4">
-			<div class="flex-1 min-w-0">
-				<div class="flex items-center gap-3 mb-2">
-					<a href="/templates" class="text-wa-text-secondary hover:text-wa-green transition-colors" title="Back">
-						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-						</svg>
-					</a>
-					<span class="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md">TEMPLATE</span>
-				</div>
-				<h1 class="text-3xl font-bold tracking-tight" x-text="template.name"></h1>
-				<p class="text-xs text-wa-text-secondary mt-1" x-text="template.description || '—'"></p>
-			</div>
-			<div class="flex gap-3 flex-wrap">
-				<a
-					:href="'/editor?templateId=' + templateId"
-					class="px-6 py-2 bg-wa-green text-white text-xs hover:bg-wa-green-hover transition-colors flex items-center gap-2 rounded-lg"
-				>
+		<SectionHeader backHref="/templates" backTitle="Back to Templates">
+			<Badge slot="badge" color="blue" size="md">TEMPLATE</Badge>
+			<h1 slot="title" class="text-3xl font-bold tracking-tight" x-text="template.name"></h1>
+			<p slot="subtitle" class="text-xs text-wa-text-secondary mt-1" x-text="template.description || '—'"></p>
+			<Fragment slot="actions">
+				<a :href="'/editor?templateId=' + templateId"
+					class="inline-flex items-center justify-center font-sans transition-colors rounded-lg px-6 py-2.5 text-xs bg-wa-green text-white hover:bg-wa-green-hover gap-2">
 					<span>+</span>
-					<span x-text="$t('new_flow')">New Flow</span>
+					<span x-text="$t('new_flow')">Nuevo Flujo</span>
 				</a>
-				<button
-					@click="deleteTemplate()"
-					class="px-4 py-2 border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10 transition-colors rounded-lg"
-					x-text="$t('delete_template')"
-				>
-					Delete
-				</button>
-			</div>
-		</header>
+				<Button variant="danger" x-on:click="deleteTemplate()" x-text="$t('delete_template')">Eliminar</Button>
+			</Fragment>
+		</SectionHeader>
 
 		<!-- Tab bar -->
-		<section>
-			<div class="flex gap-1 border-b border-wa-border mb-6 overflow-x-auto">
-				<button @click="activeTab = 'flows'; updateTabUrl()"
+		<div class="flex gap-1 border-b border-wa-border mb-6 overflow-x-auto">
+			<template x-for="tab in [
+				{ key: 'flows', label: 'Flujos' },
+				{ key: 'config', label: 'Config IA' },
+				{ key: 'tools', label: 'Herramientas' },
+				{ key: 'automations', label: 'Automatizaciones' },
+				{ key: 'variables', label: 'Variables' },
+				{ key: 'bots', label: 'Bots' },
+			]" :key="tab.key">
+				<button x-on:click="activeTab = tab.key; updateTabUrl()"
 					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
-					:class="activeTab === 'flows' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-					Flujos
+					:class="activeTab === tab.key ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'"
+					x-text="tab.label">
 				</button>
-				<button @click="activeTab = 'config'; updateTabUrl()"
-					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
-					:class="activeTab === 'config' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-					Config IA
-				</button>
-				<button @click="activeTab = 'variables'; updateTabUrl()"
-					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
-					:class="activeTab === 'variables' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-					Variables
-				</button>
-				<button @click="activeTab = 'bots'; updateTabUrl()"
-					class="px-4 py-2.5 text-xs font-sans transition-colors rounded-t-lg whitespace-nowrap"
-					:class="activeTab === 'bots' ? 'text-wa-green border-b-2 border-wa-green bg-wa-green/5' : 'text-wa-text-secondary hover:text-white'">
-					Bots
-				</button>
-			</div>
-		</section>
+			</template>
+		</div>
 
-		<!-- Flujos tab -->
+		<!-- Flows tab (shared component) -->
 		<div x-show="activeTab === 'flows'" x-transition:enter>
-			<div class="flex justify-between items-center mb-6">
-				<h3 class="text-xs text-wa-green tracking-normal">Flujos</h3>
-				<div class="flex items-center gap-3">
-					<input
-						type="text"
-						x-model="flowSearch"
-						placeholder="Buscar flujo..."
-						class="px-3 py-1.5 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-wa-text outline-none focus:border-wa-green/50 w-48"
-					/>
-					<span class="text-xs text-wa-text-secondary" x-text="filteredFlows.length + ' / ' + (template.flows?.length || 0)"></span>
-					<button
-						@click="exportFlowsJson()"
-						class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg flex items-center gap-2"
-						title="Export JSON"
-					>
-						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-						</svg>
-						<span>Export</span>
-					</button>
-					<label class="px-4 py-2 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg flex items-center gap-2 cursor-pointer" title="Import JSON">
-						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-						</svg>
-						<span>Import</span>
-						<input type="file" accept=".json" class="hidden" @change="importFlowsJson($event)" />
-					</label>
-					<a :href="'/editor?templateId=' + templateId" class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover">+ Nuevo Flujo</a>
-				</div>
-			</div>
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-				<template x-for="flow in filteredFlows" :key="flow.id">
-					<a :href="'/editor?id=' + flow.id + '&templateId=' + templateId"
-					   class="flex flex-col justify-between p-4 bg-wa-bg-hover rounded-xl border border-transparent hover:border-wa-green/30 transition-all group min-h-[120px]">
-						<div>
-							<div class="flex items-start justify-between gap-2">
-								<h4 class="text-sm font-bold tracking-tight group-hover:text-wa-green transition-colors leading-tight" x-text="flow.name"></h4>
-								<button
-									@click.prevent.stop="deleteFlow(flow.id, flow.name)"
-									class="p-1 text-wa-text-secondary/40 hover:text-red-400 transition-colors flex-shrink-0 -mt-1 -mr-1"
-									:title="$t('delete_flow') || 'Delete Flow'"
-								>
-									<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-									</svg>
-								</button>
-							</div>
-							<p class="text-[10px] text-wa-text-secondary mt-1.5 line-clamp-2" x-text="flow.description || '—'"></p>
-						</div>
-						<div class="flex gap-3 mt-3 text-[10px] text-wa-text-secondary">
-							<span class="flex items-center gap-1">
-								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" /></svg>
-								<span x-text="(flow.steps?.length || 0) + ' pasos'"></span>
-							</span>
-							<span class="flex items-center gap-1">
-								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-								<span x-text="(flow.triggers?.length || 0) + ' triggers'"></span>
-							</span>
-						</div>
-					</a>
-				</template>
-			</div>
-			<div x-show="filteredFlows.length === 0 && (template.flows?.length || 0) > 0" class="text-center py-8 border border-dashed border-wa-border rounded-xl">
-				<p class="text-xs text-wa-text-secondary">Sin resultados para "<span x-text="flowSearch"></span>"</p>
-			</div>
-			<EmptyState x-show="!template.flows || template.flows.length === 0">
-				<span x-text="$t('no_flows')">No flows</span>
-			</EmptyState>
+			<FlowsTab />
+		</div>
+
+		<!-- Config IA tab (shared component) -->
+		<div x-show="activeTab === 'config'" x-transition:enter>
+			<AIConfigTab />
+		</div>
+
+		<!-- Tools tab (shared component) -->
+		<div x-show="activeTab === 'tools'" x-transition:enter>
+			<ToolsTab />
+		</div>
+
+		<!-- Automations tab (shared component) -->
+		<div x-show="activeTab === 'automations'" x-transition:enter>
+			<AutomationsTab />
 		</div>
 
 		<!-- Variables tab -->
 		<div x-show="activeTab === 'variables'" x-transition:enter>
-			<h3 class="text-xs text-wa-green tracking-normal mb-4">Variables</h3>
-			<p class="text-[10px] text-wa-text-secondary mb-4">Define las variables que cada bot debe configurar al usar esta plantilla.</p>
-
-			<!-- Variable chips -->
-			<div class="flex flex-wrap gap-2 mb-4">
-				<template x-for="(v, index) in templateVars" :key="index">
-					<button @click="editingVarIndex = index; editingVar = { name: v.name, type: v.type }; showVarModal = true"
-						class="inline-flex items-center gap-2 px-3 py-2 bg-wa-bg-hover rounded-lg border border-wa-border hover:border-wa-green/30 transition-all cursor-pointer group">
-						<span class="text-xs font-mono font-bold text-white group-hover:text-wa-green transition-colors" x-text="v.name || '...'"></span>
-						<span class="text-[9px] px-1.5 py-0.5 rounded"
-							:class="{
-								'text-purple-400 bg-purple-500/10': v.type === 'label',
-								'text-wa-green bg-wa-green/10': v.type === 'text',
-								'text-sky-400 bg-sky-500/10': v.type === 'image',
-								'text-orange-400 bg-orange-500/10': v.type === 'video',
-								'text-teal-400 bg-teal-500/10': v.type === 'audio',
-								'text-yellow-400 bg-yellow-500/10': v.type === 'document',
-							}"
-							x-text="({label:'etiqueta',text:'texto',image:'imagen',video:'video',audio:'audio',document:'documento'})[v.type] || v.type"></span>
-					</button>
-				</template>
-
-				<!-- Add button -->
-				<button @click="editingVarIndex = -1; editingVar = { name: '', type: 'text' }; showVarModal = true"
-					class="inline-flex items-center gap-1 px-3 py-2 border border-dashed border-wa-border text-wa-text-secondary text-xs rounded-lg hover:border-wa-green hover:text-wa-green transition-colors">
-					<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-					Variable
-				</button>
-			</div>
-
-			<EmptyState x-show="templateVars.length === 0" class="mb-4">
-				Sin variables definidas. Los bots no necesitan configurar nada.
-			</EmptyState>
-
-			<button @click="saveTemplateVars()" :disabled="savingVars" class="px-6 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover disabled:opacity-50 transition-colors" x-text="savingVars ? $t('saving') : $t('save_variables')">
-				Save
-			</button>
-
-			<!-- Variable edit modal -->
-			<div x-show="showVarModal" x-cloak
-				class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-				@click.self="showVarModal = false"
-				@keydown.escape.window="showVarModal = false">
-				<div class="bg-wa-bg-panel border border-wa-border rounded-xl p-5 w-full max-w-sm shadow-xl" @click.stop>
-					<h3 class="text-sm font-bold mb-4" x-text="editingVarIndex === -1 ? 'Nueva Variable' : 'Editar Variable'"></h3>
-
-					<div class="space-y-3">
-						<div>
-							<label class="text-[10px] text-wa-text-secondary block mb-1">Nombre</label>
-							<input type="text" x-model="editingVar.name" placeholder="NOMBRE_VARIABLE"
-								class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm font-mono focus:border-wa-green focus:outline-none text-white uppercase" />
-						</div>
-						<div>
-							<label class="text-[10px] text-wa-text-secondary block mb-1">Tipo</label>
-							<select x-model="editingVar.type"
-								class="w-full bg-wa-bg-deep border border-wa-border rounded-lg p-2.5 text-sm focus:border-wa-green focus:outline-none text-white">
-								<option value="text">Texto</option>
-								<option value="label">Etiqueta</option>
-								<option value="image">Imagen</option>
-								<option value="video">Video</option>
-								<option value="audio">Audio</option>
-								<option value="document">Documento</option>
-							</select>
-						</div>
-					</div>
-
-					<div class="flex items-center justify-between mt-5 pt-4 border-t border-wa-border">
-						<button x-show="editingVarIndex !== -1"
-							@click="templateVars.splice(editingVarIndex, 1); showVarModal = false"
-							class="text-xs text-red-400 hover:text-red-300 transition-colors">
-							Eliminar
-						</button>
-						<div x-show="editingVarIndex === -1"></div>
-						<div class="flex gap-2">
-							<button @click="showVarModal = false"
-								class="px-4 py-2 text-xs text-wa-text-secondary border border-wa-border rounded-lg hover:text-white transition-colors">
-								Cancelar
-							</button>
-							<button @click="
-								if (editingVar.name.trim()) {
-									if (editingVarIndex === -1) {
-										templateVars.push({ name: editingVar.name.trim().toUpperCase(), type: editingVar.type });
-									} else {
-										templateVars[editingVarIndex].name = editingVar.name.trim().toUpperCase();
-										templateVars[editingVarIndex].type = editingVar.type;
-									}
-								}
-								showVarModal = false"
-								class="px-4 py-2 text-xs bg-wa-green text-white rounded-lg hover:bg-wa-green-hover transition-colors">
-								Guardar
-							</button>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<!-- Config IA tab -->
-		<div x-show="activeTab === 'config'" x-transition:enter>
-			<h3 class="text-xs text-wa-green tracking-normal mb-6" x-text="$t('ai_config')">AI Config</h3>
-			<form @submit.prevent="saveAIConfig()" class="space-y-6">
-				<!-- AI Enabled Toggle -->
-				<div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
-					<div class="min-w-0">
-						<label class="text-sm font-medium text-white" x-text="$t('ai_enabled')">IA Habilitada</label>
-						<p class="text-xs text-wa-text-secondary mt-1" x-text="$t('ai_enabled_desc')"></p>
-					</div>
-					<button type="button" @click="aiConfig.aiEnabled = !aiConfig.aiEnabled"
-						class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0"
-						:class="aiConfig.aiEnabled ? 'bg-wa-green' : 'bg-wa-bg-hover'">
-						<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-							:class="aiConfig.aiEnabled ? 'translate-x-6' : 'translate-x-1'"></span>
-					</button>
-				</div>
-
-				<!-- Default Session AI Toggle -->
-				<div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
-					<div class="min-w-0">
-						<label class="text-sm font-medium text-white">IA encendida por defecto</label>
-						<p class="text-xs text-wa-text-secondary mt-1">Las sesiones nuevas inician con IA activa. Los flujos pueden cambiarla por sesión.</p>
-					</div>
-					<button type="button" @click="aiConfig.defaultSessionAi = !aiConfig.defaultSessionAi"
-						class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0"
-						:class="aiConfig.defaultSessionAi ? 'bg-wa-green' : 'bg-wa-bg-hover'">
-						<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-							:class="aiConfig.defaultSessionAi ? 'translate-x-6' : 'translate-x-1'"></span>
-					</button>
-				</div>
-
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('ai_provider')"></label>
-						<select x-model="aiConfig.aiProvider" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white">
-							<option value="GEMINI">Google Gemini</option>
-							<option value="OPENAI">OpenAI</option>
-						</select>
-					</div>
-					<div>
-						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('ai_model')"></label>
-						<input type="text" x-model="aiConfig.aiModel" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
-					</div>
-				</div>
-				<div>
-					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('system_prompt')"></label>
-					<textarea x-model="aiConfig.systemPrompt" rows="8" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white font-mono resize-y" :placeholder="$t('system_prompt_placeholder')"></textarea>
-					<p class="text-[10px] text-wa-text-secondary mt-1">
-						Usa <code class="text-purple-400">{"{{VARIABLE}}"}</code> para placeholders que se reemplazan con las variables de cada bot.
-					</p>
-				</div>
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('temperature')"></label>
-						<input type="number" x-model.number="aiConfig.temperature" min="0" max="2" step="0.1" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
-					</div>
-					<div>
-						<label class="block text-xs text-wa-text-secondary mb-2">Thinking Level</label>
-						<select x-model="aiConfig.thinkingLevel" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white">
-							<option value="LOW">Low</option>
-							<option value="MEDIUM">Medium</option>
-							<option value="HIGH">High</option>
-						</select>
-					</div>
-				</div>
-				<div>
-					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('message_delay')">Message Delay</label>
-					<div class="flex items-center gap-3">
-						<input type="number" x-model.number="aiConfig.messageDelay" min="0" step="1"
-							class="w-24 bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
-						<span class="text-xs text-wa-text-secondary">s</span>
-					</div>
-					<p class="text-[10px] text-wa-text-secondary mt-1"
-						x-text="aiConfig.messageDelay === 0
-							? ($t('message_delay_off') || 'Procesamiento inmediato (sin acumulación)')
-							: ($t('message_delay_desc') || 'Espera más mensajes antes de procesar')">
-					</p>
-				</div>
-				<div>
-					<label class="block text-xs text-wa-text-secondary mb-2">Contexto del chat</label>
-					<div class="flex items-center gap-3">
-						<input type="number" x-model.number="aiConfig.contextMessages" min="0" max="100" step="5"
-							class="w-24 bg-wa-bg-hover border border-wa-border text-white text-sm p-3 focus:border-wa-green focus:outline-none rounded-lg" />
-						<span class="text-xs text-wa-text-secondary">mensajes</span>
-					</div>
-					<p class="text-[10px] text-wa-text-secondary mt-1"
-						x-text="aiConfig.contextMessages === 0
-							? 'Sin contexto de chat (solo historial de IA)'
-							: 'Se envían los últimos ' + aiConfig.contextMessages + ' mensajes reales del chat a la IA'">
-					</p>
-				</div>
-				<div>
-					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_name')"></label>
-					<input type="text" x-model="aiConfig.name" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
-				</div>
-				<div>
-					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('template_description')"></label>
-					<textarea x-model="aiConfig.description" rows="2" class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white resize-none"></textarea>
-				</div>
-
-				<!-- Filters Section -->
-				<div class="border-t border-wa-border pt-6 mt-6">
-					<h4 class="text-xs text-wa-green tracking-normal mb-4">Filtros</h4>
-
-					<!-- Auto Read Receipts Toggle -->
-					<div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
-						<div class="min-w-0">
-							<label class="text-sm font-medium text-white">Lectura automática</label>
-							<p class="text-xs text-wa-text-secondary mt-1">Marcar mensajes como leídos automáticamente. Si se desactiva, la IA decide cuándo hacerlo.</p>
-						</div>
-						<button type="button" @click="aiConfig.autoReadReceipts = !aiConfig.autoReadReceipts"
-							class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
-							:class="aiConfig.autoReadReceipts ? 'bg-wa-green' : 'bg-gray-700'">
-							<span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
-								:class="aiConfig.autoReadReceipts ? 'left-6' : 'left-0.5'"></span>
-						</button>
-					</div>
-
-					<!-- Exclude Groups Toggle -->
-					<div class="flex items-center justify-between gap-4 p-4 bg-wa-bg-deep border border-wa-border rounded-lg mb-4">
-						<div class="min-w-0">
-							<label class="text-sm font-medium text-white" x-text="$t('exclude_groups')">Excluir grupos</label>
-							<p class="text-xs text-wa-text-secondary mt-1" x-text="$t('exclude_groups_desc')"></p>
-						</div>
-						<button type="button" @click="aiConfig.excludeGroups = !aiConfig.excludeGroups"
-							class="relative w-12 h-6 rounded-full transition-colors flex-shrink-0"
-							:class="aiConfig.excludeGroups ? 'bg-wa-green' : 'bg-gray-700'">
-							<span class="absolute w-5 h-5 bg-white rounded-full top-0.5 transition-all"
-								:class="aiConfig.excludeGroups ? 'left-6' : 'left-0.5'"></span>
-						</button>
-					</div>
-
-					<!-- Ignored Labels (variable picker) -->
-					<div class="p-4 bg-wa-bg-deep border border-wa-border rounded-lg">
-						<label class="block text-sm font-medium text-white mb-1" x-text="$t('ignored_labels')">Etiquetas ignoradas</label>
-						<p class="text-xs text-wa-text-secondary mb-3">
-							Selecciona variables de tipo etiqueta. Los bots que usen esta plantilla ignorarán sesiones con esas etiquetas.
-						</p>
-
-						<div class="flex flex-wrap gap-2">
-							<template x-for="v in labelVarDefs" :key="v.name">
-								<button type="button"
-									@click="toggleIgnoredLabelVar(v.name)"
-									class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border cursor-pointer select-none"
-									:class="aiConfig.ignoredLabels.includes(v.name)
-										? 'bg-red-500/15 border-red-500/40 text-red-400'
-										: 'bg-wa-bg-hover border-wa-border text-wa-text-secondary hover:border-wa-text-secondary'"
-								>
-									<span class="text-purple-400 font-mono text-[10px]" x-text="'{{' + v.name + '}}'"></span>
-									<span x-show="aiConfig.ignoredLabels.includes(v.name)" class="text-red-400/70 text-[10px] ml-0.5">&#10005;</span>
-								</button>
-							</template>
-							<span x-show="labelVarDefs.length === 0" class="text-wa-text-secondary text-xs py-1">
-								No hay variables de tipo etiqueta definidas. Agregalas en la seccion Variables.
-							</span>
-						</div>
-
-						<div x-show="aiConfig.ignoredLabels.length > 0" class="mt-3 pt-2 border-t border-wa-border/50">
-							<p class="text-[10px] text-red-400/70">
-								<span x-text="aiConfig.ignoredLabels.length"></span> variable(s) ignorada(s) — la IA no responderá a sesiones con esas etiquetas
-							</p>
-						</div>
-					</div>
-				</div>
-
-				<button type="submit" :disabled="savingAI" class="px-6 py-2 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="savingAI ? $t('saving') : $t('save_changes')">Save</button>
-			</form>
+			<VariablesTab />
 		</div>
 
 		<!-- Bots tab -->
 		<div x-show="activeTab === 'bots'" x-transition:enter>
 			<div class="flex justify-between items-center mb-6">
 				<h3 class="text-xs text-wa-green tracking-normal" x-text="$t('template_bots_count')">Bots using this template</h3>
-				<button
-					@click="showCreateBotModal = true"
-					class="px-4 py-2 bg-wa-green text-white text-xs rounded-lg hover:bg-wa-green-hover flex items-center gap-2"
-				>
+				<Button variant="primary" x-on:click="showCreateBotModal = true" class="flex items-center gap-2">
 					<span>+</span>
 					<span x-text="$t('create_bot')">Create Bot</span>
-				</button>
+				</Button>
 			</div>
 			<div class="space-y-3">
 				<template x-for="bot in template.bots || []" :key="bot.id">
-					<a :href="'/bots/detail?id=' + bot.id" class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
+					<a :href="'/bots/detail?id=' + bot.id"
+						class="flex items-center justify-between p-4 bg-wa-bg-hover rounded-lg hover:border-wa-green/30 border border-transparent transition-all group">
 						<div>
 							<h4 class="text-sm font-medium group-hover:text-wa-green transition-colors" x-text="bot.name"></h4>
 							<p class="text-[10px] text-wa-text-secondary mt-1" x-text="bot.identifier"></p>
 						</div>
 						<svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 						</svg>
 					</a>
 				</template>
@@ -434,37 +102,32 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 				</EmptyState>
 			</div>
 		</div>
-
 	</div>
 
 	<!-- Create Bot from Template Modal -->
-	<div
-		x-show="showCreateBotModal"
-		x-cloak
-		class="fixed inset-0 z-50 flex items-center justify-center p-4"
-		style="display: none;"
-	>
-		<div class="absolute inset-0 bg-black/70" @click="showCreateBotModal = false"></div>
-		<div class="relative bg-wa-bg-panel border border-wa-border rounded-xl p-4 sm:p-8 w-full max-w-md">
+	<div x-data="templateDetail">
+		<Modal show="showCreateBotModal">
 			<h2 class="text-xl font-bold tracking-tight mb-2" x-text="$t('create_bot')">Create Bot</h2>
 			<p class="text-xs text-wa-text-secondary mb-6">
-				Se creará con la plantilla <span class="text-purple-400" x-text="template.name"></span>
+				Se creara con la plantilla <span class="text-purple-400" x-text="template.name"></span>
 			</p>
 			<form @submit.prevent="createBotFromTemplate()" class="space-y-4">
 				<div>
 					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('bot_name')"></label>
-					<input type="text" x-model="newBotForm.name" required class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="Mi Bot" />
+					<input type="text" x-model="newBotForm.name" required placeholder="Mi Bot"
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
 				</div>
 				<div>
 					<label class="block text-xs text-wa-text-secondary mb-2" x-text="$t('bot_identifier')"></label>
-					<input type="text" x-model="newBotForm.identifier" required class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" placeholder="+1234567890" />
+					<input type="text" x-model="newBotForm.identifier" required placeholder="+1234567890"
+						class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white" />
 				</div>
 				<div class="flex gap-4 pt-4">
-					<button type="button" @click="showCreateBotModal = false" class="flex-1 px-4 py-3 border border-wa-border text-wa-text-secondary text-sm rounded-lg hover:bg-wa-bg-hover" x-text="$t('cancel')">Cancel</button>
-					<button type="submit" :disabled="creatingBot" class="flex-1 px-4 py-3 bg-wa-green text-white text-sm rounded-lg hover:bg-wa-green-hover disabled:opacity-50" x-text="creatingBot ? $t('loading') : $t('create_bot')">Create</button>
+					<Button variant="secondary" size="lg" type="button" class="flex-1" x-on:click="showCreateBotModal = false" x-text="$t('cancel')">Cancel</Button>
+					<Button variant="primary" size="lg" type="submit" class="flex-1" x-bind:disabled="creatingBot" x-text="creatingBot ? $t('loading') : $t('create_bot')">Create</Button>
 				</div>
 			</form>
-		</div>
+		</Modal>
 	</div>
 
 	<!-- Loading Skeleton -->
@@ -484,20 +147,29 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 		Alpine.data("templateDetail", () => ({
 			activeTab: "flows" as string,
 			templateId: null as string | null,
+			botId: null as string | null, // Alias — shared components read botId or templateId
 			template: {} as any,
+			bot: {} as any, // Alias for shared components that read `bot`
+
+			// Shared tab state (used by FlowsTab, ToolsTab, AIConfigTab, AutomationsTab, VariablesTab)
+			flows: [] as any[],
+			tools: [] as any[],
+			automations: [] as any[],
+			builtinTools: [] as any[],
+			botLabels: [] as any[],
 			flowSearch: "",
 			get filteredFlows(): any[] {
 				const q = this.flowSearch.toLowerCase().trim();
-				const flows = this.template.flows || [];
 				const list = q
-					? flows.filter((f: any) =>
+					? this.flows.filter((f: any) =>
 						f.name.toLowerCase().includes(q) ||
 						(f.description || "").toLowerCase().includes(q) ||
 						f.triggers?.some((t: any) => t.keyword?.toLowerCase().includes(q))
 					)
-					: [...flows];
+					: [...this.flows];
 				return list.sort((a: any, b: any) => a.name.localeCompare(b.name));
 			},
+
 			ready: false,
 			error: null as string | null,
 			savingAI: false,
@@ -510,29 +182,17 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 			creatingBot: false,
 			newBotForm: { name: "", identifier: "" },
 
-			aiConfig: {
-				name: "",
-				description: "",
-				aiEnabled: true,
-				defaultSessionAi: false,
-				aiProvider: "GEMINI",
-				aiModel: "gemini-2.5-flash",
-				systemPrompt: "",
-				temperature: 0.7,
-				thinkingLevel: "LOW",
-				messageDelay: 0,
-				contextMessages: 20,
-				autoReadReceipts: true,
-				excludeGroups: false,
-				ignoredLabels: [] as string[],
-			},
+			// Variables tab
+			variables: [] as any[],
+			showVariableModal: false,
+			editingVariable: null as any,
 
 			async init() {
 				const params = new URLSearchParams(window.location.search);
 				this.templateId = params.get("id");
 
 				const tabParam = params.get('tab');
-				if (tabParam && ['flows', 'config', 'variables', 'bots'].includes(tabParam)) {
+				if (tabParam && ['flows', 'config', 'tools', 'automations', 'variables', 'bots'].includes(tabParam)) {
 					this.activeTab = tabParam;
 				}
 
@@ -543,23 +203,12 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 
 				try {
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
-					this.aiConfig = {
-						name: this.template.name || "",
-						description: this.template.description || "",
-						aiEnabled: this.template.aiEnabled ?? true,
-						defaultSessionAi: this.template.defaultSessionAi ?? false,
-						aiProvider: this.template.aiProvider || "GEMINI",
-						aiModel: this.template.aiModel || "gemini-2.5-flash",
-						systemPrompt: this.template.systemPrompt || "",
-						temperature: this.template.temperature ?? 0.7,
-						thinkingLevel: this.template.thinkingLevel || "LOW",
-						messageDelay: this.template.messageDelay ?? 0,
-						contextMessages: this.template.contextMessages ?? 20,
-						autoReadReceipts: this.template.autoReadReceipts ?? true,
-						excludeGroups: this.template.excludeGroups ?? false,
-						ignoredLabels: this.template.ignoredLabels || [],
-					};
+					this.bot = this.template; // Alias for shared components
+					this.flows = this.template.flows || [];
+					this.tools = this.template.tools || [];
+					this.automations = this.template.automations || [];
 					this.templateVars = Array.isArray(this.template.variables) ? [...this.template.variables] : [];
+					this.variables = this.templateVars;
 					this.ready = true;
 				} catch (e: any) {
 					this.error = e.message || "Template not found";
@@ -569,8 +218,13 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 			async saveAIConfig() {
 				this.savingAI = true;
 				try {
-					await ApiClient.put(`/templates/${this.templateId}`, this.aiConfig);
+					const config: any = {};
+					const el = this.$el?.closest?.('[x-data]');
+					// Read from AI config form elements in the AIConfigTab
+					// The shared component writes to the parent scope
+					await ApiClient.put(`/templates/${this.templateId}`, this.bot);
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+					this.bot = this.template;
 					window.__toast.success("Config IA guardada");
 				} catch (e: any) {
 					window.__toast.error("Error: " + (e.message || "Unknown"));
@@ -588,6 +242,7 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 					await ApiClient.put(`/templates/${this.templateId}`, { variables: cleaned });
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
 					this.templateVars = [...(this.template.variables || [])];
+					this.variables = this.templateVars;
 					window.__toast.success("Variables guardadas");
 				} catch (e: any) {
 					window.__toast.error("Error: " + (e.message || "Unknown"));
@@ -651,6 +306,7 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 						flows,
 					});
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+					this.flows = this.template.flows || [];
 					window.__toast.success(`${result.imported} flujo(s) importado(s)`);
 				} catch (e: any) {
 					window.__toast.error("Import failed: " + (e.message || "Unknown error"));
@@ -665,6 +321,7 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 				try {
 					await ApiClient.delete(`/flows/${flowId}`);
 					this.template = await ApiClient.get(`/templates/${this.templateId}`);
+					this.flows = this.template.flows || [];
 					window.__toast.success("Flujo eliminado");
 				} catch (e: any) {
 					window.__toast.error("Failed to delete flow: " + (e.message || "Unknown error"));
@@ -686,12 +343,14 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 			},
 
 			toggleIgnoredLabelVar(varName: string) {
-				const idx = this.aiConfig.ignoredLabels.indexOf(varName);
+				const labels = this.bot.ignoredLabels || [];
+				const idx = labels.indexOf(varName);
 				if (idx >= 0) {
-					this.aiConfig.ignoredLabels.splice(idx, 1);
+					labels.splice(idx, 1);
 				} else {
-					this.aiConfig.ignoredLabels.push(varName);
+					labels.push(varName);
 				}
+				this.bot.ignoredLabels = [...labels];
 			},
 
 			updateTabUrl() {
