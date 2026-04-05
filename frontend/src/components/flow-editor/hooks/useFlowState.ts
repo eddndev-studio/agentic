@@ -208,14 +208,25 @@ export function useFlowState(): FlowState {
         if (!flow.name) { toast.error('Name required'); return; }
         setSaving(true);
         try {
+            const steps = flow.steps.map((s, i) => ({
+                type: s.type,
+                content: s.content,
+                mediaUrl: s.mediaUrl || undefined,
+                delayMs: parseInt(String(s.delayMs), 10) || 1000,
+                jitterPct: parseInt(String(s.jitterPct), 10) || 10,
+                order: i,
+                aiOnly: s.aiOnly ?? false,
+                metadata: s.metadata ?? undefined,
+            }));
+
             const payload = {
-                ...flow,
-                steps: flow.steps.map((s, i) => ({
-                    ...s,
-                    order: i,
-                    delayMs: parseInt(String(s.delayMs), 10) || 1000,
-                    jitterPct: parseInt(String(s.jitterPct), 10) || 10,
-                })),
+                name: flow.name,
+                description: flow.description,
+                usageLimit: String(flow.usageLimit || 0),
+                cooldownMs: String(flow.cooldownMs || 0),
+                excludesFlows: flow.excludesFlows,
+                steps,
+                triggers: flow.triggers,
             };
 
             if (!flowId || flowId === 'new') {
