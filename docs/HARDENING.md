@@ -55,9 +55,9 @@ Fecha: 2026-04-04
 
 ### Componentes que faltan crear
 
-- [x] **`Modal.astro`** — 10+ modales con estructura idéntica
-  - **Resuelto:** `0bf6635` — Modal wrapper + migrados EditBotModal, QRModal, InviteMemberModal.
-  - Pendiente: migrar los 7 modales restantes.
+- [x] **`Modal.astro`** — 10 modales migrados
+  - **Resuelto:** `0bf6635` + `806ec53` — Modal wrapper (center + sheet variants), Button component.
+  - Migrados: EditBot, QR, InviteMember, CloneBot, PublicLink, ImportFlow, ForceAI, RunFlow, RunTool, Client.
 
 - [x] **`Button.astro`** (primary/secondary/danger/ghost) — 20+ variantes inline
   - **Resuelto:** `0bf6635` — Button con variants y sizes.
