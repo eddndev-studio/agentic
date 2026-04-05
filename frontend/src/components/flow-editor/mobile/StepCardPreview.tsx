@@ -46,8 +46,8 @@ export function StepCardPreview({ step }: Props) {
     return (
         <div className="flex items-center gap-2.5 min-w-0">
             <span
-                className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded flex-shrink-0"
-                style={{ color: config.color, background: config.bg }}
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded border flex-shrink-0"
+                style={{ color: config.color, background: config.bg, borderColor: `${config.color}30` }}
             >
                 {config.label}
             </span>

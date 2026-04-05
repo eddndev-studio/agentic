@@ -105,7 +105,7 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
 
             {/* Foreground card — slides left to reveal background layer */}
             <div
-                className={`relative bg-wa-bg-panel border border-wa-border rounded-lg flex items-center min-h-[56px] z-10 ${swiping ? '' : 'transition-transform duration-200 ease-out'}`}
+                className={`relative bg-wa-bg-deep border border-wa-border rounded-lg flex items-center min-h-[56px] z-10 ${swiping ? '' : 'transition-transform duration-200 ease-out'}`}
                 style={{ transform: `translateX(${swipeX}px)` }}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
