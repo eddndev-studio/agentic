@@ -124,7 +124,7 @@ const { title, fullWidth = false } = Astro.props;
 		<!-- Main Content (animated on navigation) -->
 		<main class:list={[
 			fullWidth
-				? "md:px-2 md:pt-2 min-h-dvh"
+				? "h-dvh md:h-screen md:p-2 overflow-hidden"
 				: "px-4 pt-4 md:px-8 md:pt-8 pb-20 max-w-7xl mx-auto"
 		]} transition:animate="fade">
 			<slot />
