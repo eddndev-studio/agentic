@@ -12,13 +12,14 @@ interface Props {
     sortableId: string;
 }
 
-const SWIPE_THRESHOLD = 70;
+const SWIPE_THRESHOLD = 60;
+const SWIPE_OPEN = 130;
 
 export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }: Props) {
     const [swipeX, setSwipeX] = useState(0);
     const [swiping, setSwiping] = useState(false);
-    const touchStart = useRef<{ x: number; y: number; time: number } | null>(null);
-    const locked = useRef(false); // locks to horizontal once determined
+    const touchStart = useRef<{ x: number; y: number } | null>(null);
+    const locked = useRef(false);
 
     const {
         attributes,
@@ -41,7 +42,7 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
 
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
         const touch = e.touches[0];
-        touchStart.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+        touchStart.current = { x: touch.clientX, y: touch.clientY };
         locked.current = false;
     }, []);
 
@@ -51,11 +52,9 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
         const dx = touch.clientX - touchStart.current.x;
         const dy = touch.clientY - touchStart.current.y;
 
-        // Determine direction lock on first significant move
         if (!locked.current && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
             locked.current = true;
             if (Math.abs(dy) > Math.abs(dx)) {
-                // Vertical — let scroll happen, reset swipe
                 touchStart.current = null;
                 return;
             }
@@ -63,17 +62,16 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
         }
 
         if (swiping || (locked.current && Math.abs(dx) > Math.abs(dy))) {
-            // Only allow swipe left (negative)
-            const clampedX = Math.min(0, Math.max(-140, dx));
+            const clampedX = Math.min(0, Math.max(-SWIPE_OPEN, dx));
             setSwipeX(clampedX);
         }
     }, [swiping]);
 
     const handleTouchEnd = useCallback(() => {
         if (swipeX < -SWIPE_THRESHOLD) {
-            setSwipeX(-140); // snap open
+            setSwipeX(-SWIPE_OPEN);
         } else {
-            setSwipeX(0); // snap closed
+            setSwipeX(0);
         }
         setSwiping(false);
         touchStart.current = null;
@@ -81,32 +79,33 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
     }, [swipeX]);
 
     const closeSwipe = () => setSwipeX(0);
+    const isOpen = swipeX < -10;
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} className="relative overflow-hidden rounded-lg">
-            {/* Background actions (revealed on swipe) */}
-            <div className="absolute inset-y-0 right-0 flex">
+        <div ref={setNodeRef} style={style} {...attributes} className="relative">
+            {/* Background layer — rounded, looks like it's behind the card */}
+            <div className="absolute inset-0 flex items-stretch justify-end rounded-lg overflow-hidden">
                 <button
                     onClick={() => { closeSwipe(); onEdit(); }}
-                    className="w-[70px] flex items-center justify-center bg-blue-600 text-white"
+                    className="w-[65px] flex items-center justify-center bg-blue-500 text-white transition-colors active:bg-blue-600"
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                 </button>
                 <button
                     onClick={() => { closeSwipe(); onDelete(); }}
-                    className="w-[70px] flex items-center justify-center bg-red-600 text-white"
+                    className="w-[65px] flex items-center justify-center bg-red-500 text-white rounded-r-lg transition-colors active:bg-red-600"
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                 </button>
             </div>
 
-            {/* Foreground card (slides left on swipe) */}
+            {/* Foreground card — slides left to reveal background */}
             <div
-                className={`relative bg-wa-bg-panel border border-wa-border rounded-lg flex items-center min-h-[56px] ${swiping ? '' : 'transition-transform duration-200'}`}
+                className={`relative bg-wa-bg-panel border border-wa-border rounded-lg flex items-center min-h-[56px] shadow-lg ${swiping ? '' : 'transition-transform duration-200 ease-out'}`}
                 style={{ transform: `translateX(${swipeX}px)` }}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -126,7 +125,7 @@ export function MobileStepCard({ step, stepIndex, onEdit, onDelete, sortableId }
 
                 {/* Card content — tap to edit */}
                 <button
-                    onClick={() => { if (swipeX < -10) { closeSwipe(); return; } onEdit(); }}
+                    onClick={() => { if (isOpen) { closeSwipe(); return; } onEdit(); }}
                     className="flex-1 flex items-center gap-3 py-3 pr-3 text-left bg-transparent border-none cursor-pointer min-w-0"
                 >
                     <StepCardPreview step={step} />

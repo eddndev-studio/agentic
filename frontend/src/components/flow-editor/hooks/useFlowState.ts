@@ -184,18 +184,16 @@ export function useFlowState(): FlowState {
 
     const moveStep = useCallback((fromIndex: number, toIndex: number) => {
         setFlow(f => {
-            if (toIndex < 0 || toIndex >= f.steps.length) return f;
+            if (toIndex < 0 || toIndex >= f.steps.length || fromIndex === toIndex) return f;
             const steps = f.steps.map(s => ({ ...s }));
-            // Save slot positions before swap
-            const posFrom = steps[fromIndex].metadata?.position;
-            const posTo = steps[toIndex].metadata?.position;
-            // Swap steps
-            [steps[fromIndex], steps[toIndex]] = [steps[toIndex], steps[fromIndex]];
-            // Each slot keeps its original visual position
-            steps[fromIndex].metadata = { ...steps[fromIndex].metadata, position: posFrom };
-            steps[toIndex].metadata = { ...steps[toIndex].metadata, position: posTo };
-            // Recalculate order
-            steps.forEach((s, i) => { s.order = i; });
+            // Splice: remove from old position and insert at new position
+            const [moved] = steps.splice(fromIndex, 1);
+            steps.splice(toIndex, 0, moved);
+            // Recalculate order and reassign canvas positions to match new order
+            steps.forEach((s, i) => {
+                s.order = i;
+                s.metadata = { ...s.metadata, position: undefined };
+            });
             return { ...f, steps };
         });
     }, []);
