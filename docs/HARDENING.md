@@ -29,10 +29,11 @@ Fecha: 2026-04-04
 
 ### MEDIO
 
-- [ ] **Sin validación de bounds en limit/offset** — `execution.controller.ts:54-55`
-  - Acepta `take=999999`. Fix: `Math.min(Math.max(...), 200)`.
+- [x] **Sin validación de bounds en limit/offset** — `execution.controller.ts:54-55`
+  - **Resuelto:** `68f8351` — Clamp take a [1, 200], skip a [0, ∞).
 
-- [ ] **Webhook acepta botId sin validar pertenencia a org** — `webhook.controller.ts:28-50`
+- [x] **Webhook acepta botId sin validar** — `webhook.controller.ts:28-50`
+  - **Resuelto:** `66d83eb` — botId requerido, rechazo de bots pausados, eliminado fallback DEMO_BOT.
 
 - [ ] **Org isolation duplicado 40+ veces** — `where: { bot: { orgId: user.orgId } }`
   - **Fix:** Extraer a utility `withOrgScope(user)`.
@@ -40,13 +41,13 @@ Fecha: 2026-04-04
 - [ ] **Error maps duplicados 15+ veces** — `Record<string, [number, string]>`
   - **Fix:** Centralizar en middleware de errores o utility.
 
-- [ ] **Operador `||` en lugar de `??` para nullable fields** — `bot.controller.ts:202-223`
-  - Trata empty string, 0, false como null.
+- [x] **Operador `||` en lugar de `??` para nullable fields** — `bot.controller.ts`, `tool.controller.ts`, `finance.controller.ts`
+  - **Resuelto:** `5f74d54` — `||` → `??` en templateId, flowId, membershipId.
 
 - [ ] **console.log/error sin estructura** — PII en logs, sin correlation IDs.
 
-- [ ] **Path traversal frágil en uploads** — `upload.controller.ts:111-130`
-  - Depende de string matching con `sep` (platform-dependent).
+- [x] **Path traversal frágil en uploads** — `upload.controller.ts:111-130`
+  - **Resuelto:** `5a2e233` — Filename whitelist + resolve check defense-in-depth.
 
 ---
 
