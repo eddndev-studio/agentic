@@ -220,6 +220,7 @@ export class MessageIngestService {
         msgType: string,
         textContent: string,
         mediaUrl?: string,
+        extraMetadata?: Record<string, unknown>,
     ): Promise<void> {
         try {
             const isEmulator = normalizedTo.startsWith('emu://');
@@ -228,6 +229,11 @@ export class MessageIngestService {
                 : await upsertSessionFromChat(botId, normalizedTo);
 
             if (session) {
+                // Merge mediaUrl + extra metadata
+                const metadata: Record<string, unknown> = {};
+                if (mediaUrl) metadata.mediaUrl = mediaUrl;
+                if (extraMetadata) Object.assign(metadata, extraMetadata);
+
                 const message = await prisma.message.create({
                     data: {
                         externalId: sentKeyId,
@@ -237,7 +243,7 @@ export class MessageIngestService {
                         content: textContent,
                         type: msgType,
                         isProcessed: true,
-                        ...(mediaUrl ? { metadata: { mediaUrl } } : {}),
+                        ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
                     },
                 }).catch((e: unknown) => {
                     if (e instanceof Error && 'code' in e && (e as Record<string, unknown>).code !== 'P2002') log.warn('Failed to persist outgoing message:', e instanceof Error ? e.message : e);

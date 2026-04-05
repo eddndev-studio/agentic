@@ -61,12 +61,22 @@ export const wabaProvider: IMessagingProvider = {
         const phone = to.replace(/@s\.whatsapp\.net$/, '');
         const messageId = await sendWABAMessage(creds, phone, payload);
 
-        if (messageId) {
-            // Persist outgoing message
+        if (messageId && payload.type !== 'REACTION') {
+            // Persist outgoing message (skip reactions — they're not chat messages)
             const textContent = 'text' in payload ? payload.text : ('caption' in payload ? (payload as any).caption : '') || '';
             const msgType = payload.type === 'REPLY' ? 'TEXT' : payload.type;
+            const metadata: Record<string, unknown> = {};
+            if (payload.type === 'REPLY') {
+                metadata.quotedMessage = {
+                    id: payload.quotedId,
+                    sender: payload.quotedSender,
+                    fromMe: false,
+                    content: payload.quotedText || '',
+                };
+            }
             await MessageIngestService.persistOutgoingMessage(
-                botId, to, messageId, msgType, textContent,
+                botId, to, messageId, msgType, textContent, undefined,
+                Object.keys(metadata).length > 0 ? metadata : undefined,
             );
         }
 

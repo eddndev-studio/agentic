@@ -743,10 +743,12 @@ export class BaileysService {
         // Intercept emulator sessions — don't send via WhatsApp
         if (to.startsWith('emu://')) {
             const externalId = `emu_sent_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            const { msgType, textContent, mediaUrl } = this.extractOutgoingMeta(content);
-            await MessageIngestService.persistOutgoingMessage(botId, to, externalId, msgType, textContent, mediaUrl).catch(e => {
-                log.warn('Emulator outgoing persistence error:', (e as Error).message);
-            });
+            const { msgType, textContent, mediaUrl, metadata } = this.extractOutgoingMeta(content);
+            if (msgType !== 'REACTION') {
+                await MessageIngestService.persistOutgoingMessage(botId, to, externalId, msgType, textContent, mediaUrl, metadata).catch(e => {
+                    log.warn('Emulator outgoing persistence error:', (e as Error).message);
+                });
+            }
             return true;
         }
 
@@ -773,12 +775,15 @@ export class BaileysService {
             const sent = await sock.sendMessage(to, content);
 
             // Persist outgoing message to DB so it shows in the monitor
+            // Skip REACTION — reactions are not chat messages
             if (sent?.key?.id) {
                 const normalizedTo = jidNormalizedUser(to);
-                const { msgType, textContent, mediaUrl } = this.extractOutgoingMeta(content);
-                MessageIngestService.persistOutgoingMessage(botId, normalizedTo, sent.key.id, msgType, textContent, mediaUrl).catch(e => {
-                    log.warn('Outgoing message persistence error:', (e as Error).message);
-                });
+                const { msgType, textContent, mediaUrl, metadata } = this.extractOutgoingMeta(content);
+                if (msgType !== 'REACTION') {
+                    MessageIngestService.persistOutgoingMessage(botId, normalizedTo, sent.key.id, msgType, textContent, mediaUrl, metadata).catch(e => {
+                        log.warn('Outgoing message persistence error:', (e as Error).message);
+                    });
+                }
             }
 
             return true;
@@ -798,7 +803,12 @@ export class BaileysService {
      * Extract normalized outgoing message metadata from Baileys content structure.
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private static extractOutgoingMeta(content: any): { msgType: string; textContent: string; mediaUrl?: string } {
+    private static extractOutgoingMeta(content: any): { msgType: string; textContent: string; mediaUrl?: string; metadata?: Record<string, unknown> } {
+        // Reactions — not persisted as messages
+        if (content.react) {
+            return { msgType: 'REACTION', textContent: content.react.text || '', metadata: { reactedTo: { id: content.react.key?.id, fromMe: content.react.key?.fromMe } } };
+        }
+
         const msgType =
             content.image ? 'IMAGE' :
             content.video ? 'VIDEO' :
@@ -810,7 +820,21 @@ export class BaileysService {
             content.image?.url || content.video?.url ||
             content.audio?.url || content.document?.url ||
             content.sticker?.url || undefined;
-        return { msgType, textContent, mediaUrl };
+
+        // Extract quoted message context for replies
+        const metadata: Record<string, unknown> = {};
+        if (mediaUrl) metadata.mediaUrl = mediaUrl;
+        if (content.contextInfo?.stanzaId) {
+            metadata.quotedMessage = {
+                id: content.contextInfo.stanzaId,
+                sender: content.contextInfo.participant || undefined,
+                fromMe: !content.contextInfo.participant,
+                content: content.contextInfo.quotedMessage?.conversation ||
+                    content.contextInfo.quotedMessage?.extendedTextMessage?.text || '',
+            };
+        }
+
+        return { msgType, textContent, mediaUrl, metadata: Object.keys(metadata).length > 0 ? metadata : undefined };
     }
 
     /**
