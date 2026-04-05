@@ -1,6 +1,7 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { authMiddleware } from "../middleware/auth.middleware";
+import type { AutomationEvent } from "@prisma/client";
 
 export const automationController = new Elysia({ prefix: "/bots" })
     .use(authMiddleware)
@@ -16,14 +17,6 @@ export const automationController = new Elysia({ prefix: "/bots" })
 
     // Create automation
     .post("/:id/automations", async ({ params: { id }, body, set, user }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
-        const { name, description, enabled, event, labelName, timeoutMs, prompt } = body as any;
-
-        if (!name || !event || !timeoutMs || !prompt) {
-            set.status = 400;
-            return { error: "name, event, timeoutMs, and prompt are required" };
-        }
-
         // Verify bot belongs to org
         const bot = await prisma.bot.findFirst({ where: { id, orgId: user!.orgId } });
         if (!bot) {
@@ -34,22 +27,29 @@ export const automationController = new Elysia({ prefix: "/bots" })
         return prisma.automation.create({
             data: {
                 botId: id,
-                name,
-                description: description || null,
-                enabled: enabled ?? true,
-                event,
-                labelName,
-                timeoutMs,
-                prompt,
+                name: body.name,
+                description: body.description ?? null,
+                enabled: body.enabled ?? true,
+                event: body.event as AutomationEvent,
+                labelName: body.labelName,
+                timeoutMs: body.timeoutMs,
+                prompt: body.prompt,
             },
         });
+    }, {
+        body: t.Object({
+            name: t.String(),
+            event: t.String(),
+            timeoutMs: t.Number(),
+            prompt: t.String(),
+            description: t.Optional(t.String()),
+            enabled: t.Optional(t.Boolean()),
+            labelName: t.Optional(t.String()),
+        }),
     })
 
     // Update automation
     .put("/:id/automations/:automationId", async ({ params: { automationId }, body, set, user }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
-        const { name, description, enabled, event, labelName, timeoutMs, prompt } = body as any;
-
         // Verify automation belongs to org via bot
         const existing = await prisma.automation.findFirst({
             where: { id: automationId, bot: { orgId: user!.orgId } },
@@ -59,15 +59,14 @@ export const automationController = new Elysia({ prefix: "/bots" })
             return { error: "Automation not found" };
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
-        const data: any = {};
-        if (name !== undefined) data.name = name;
-        if (description !== undefined) data.description = description;
-        if (enabled !== undefined) data.enabled = enabled;
-        if (event !== undefined) data.event = event;
-        if (labelName !== undefined) data.labelName = labelName;
-        if (timeoutMs !== undefined) data.timeoutMs = timeoutMs;
-        if (prompt !== undefined) data.prompt = prompt;
+        const data: Record<string, unknown> = {};
+        if (body.name !== undefined) data.name = body.name;
+        if (body.description !== undefined) data.description = body.description;
+        if (body.enabled !== undefined) data.enabled = body.enabled;
+        if (body.event !== undefined) data.event = body.event;
+        if (body.labelName !== undefined) data.labelName = body.labelName;
+        if (body.timeoutMs !== undefined) data.timeoutMs = body.timeoutMs;
+        if (body.prompt !== undefined) data.prompt = body.prompt;
 
         try {
             return await prisma.automation.update({ where: { id: automationId }, data });
@@ -75,6 +74,16 @@ export const automationController = new Elysia({ prefix: "/bots" })
             set.status = 404;
             return { error: "Automation not found" };
         }
+    }, {
+        body: t.Object({
+            name: t.Optional(t.String()),
+            description: t.Optional(t.String()),
+            enabled: t.Optional(t.Boolean()),
+            event: t.Optional(t.String()),
+            labelName: t.Optional(t.String()),
+            timeoutMs: t.Optional(t.Number()),
+            prompt: t.Optional(t.String()),
+        }),
     })
 
     // Delete automation

@@ -71,37 +71,51 @@ export const templateController = new Elysia({ prefix: "/templates" })
 
     // Update template
     .put("/:id", async ({ params: { id }, body, set, user }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
-        const { name, description, aiEnabled, defaultSessionAi, aiModel, aiProvider, systemPrompt, temperature, thinkingLevel, messageDelay, contextMessages, autoReadReceipts, excludeGroups, ignoredLabels, variables } = body as any;
-
         try {
             // Verify template belongs to this org
             const existingTemplate = await prisma.template.findFirst({ where: { id, orgId: user!.orgId } });
             if (!existingTemplate) { set.status = 404; return { error: "Template not found" }; }
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
-            const data: any = {};
-            if (name !== undefined) data.name = name;
-            if (description !== undefined) data.description = description;
-            if (aiEnabled !== undefined) data.aiEnabled = aiEnabled;
-            if (defaultSessionAi !== undefined) data.defaultSessionAi = defaultSessionAi;
-            if (aiModel !== undefined) data.aiModel = aiModel;
-            if (aiProvider !== undefined) data.aiProvider = aiProvider as AIProvider;
-            if (systemPrompt !== undefined) data.systemPrompt = systemPrompt;
-            if (temperature !== undefined) data.temperature = temperature;
-            if (thinkingLevel !== undefined) data.thinkingLevel = thinkingLevel;
-            if (messageDelay !== undefined) data.messageDelay = messageDelay;
-            if (contextMessages !== undefined) data.contextMessages = contextMessages;
-            if (autoReadReceipts !== undefined) data.autoReadReceipts = autoReadReceipts;
-            if (excludeGroups !== undefined) data.excludeGroups = excludeGroups;
-            if (ignoredLabels !== undefined) data.ignoredLabels = ignoredLabels;
-            if (variables !== undefined) data.variables = variables;
+            const data: Record<string, unknown> = {};
+            if (body.name !== undefined) data.name = body.name;
+            if (body.description !== undefined) data.description = body.description;
+            if (body.aiEnabled !== undefined) data.aiEnabled = body.aiEnabled;
+            if (body.defaultSessionAi !== undefined) data.defaultSessionAi = body.defaultSessionAi;
+            if (body.aiModel !== undefined) data.aiModel = body.aiModel;
+            if (body.aiProvider !== undefined) data.aiProvider = body.aiProvider as AIProvider;
+            if (body.systemPrompt !== undefined) data.systemPrompt = body.systemPrompt;
+            if (body.temperature !== undefined) data.temperature = body.temperature;
+            if (body.thinkingLevel !== undefined) data.thinkingLevel = body.thinkingLevel;
+            if (body.messageDelay !== undefined) data.messageDelay = body.messageDelay;
+            if (body.contextMessages !== undefined) data.contextMessages = body.contextMessages;
+            if (body.autoReadReceipts !== undefined) data.autoReadReceipts = body.autoReadReceipts;
+            if (body.excludeGroups !== undefined) data.excludeGroups = body.excludeGroups;
+            if (body.ignoredLabels !== undefined) data.ignoredLabels = body.ignoredLabels;
+            if (body.variables !== undefined) data.variables = body.variables;
 
             return await prisma.template.update({ where: { id }, data });
         } catch (_e: unknown) {
             set.status = 500;
             return { error: "Failed to update template" };
         }
+    }, {
+        body: t.Object({
+            name: t.Optional(t.String()),
+            description: t.Optional(t.String()),
+            aiEnabled: t.Optional(t.Boolean()),
+            defaultSessionAi: t.Optional(t.Boolean()),
+            aiModel: t.Optional(t.String()),
+            aiProvider: t.Optional(t.String()),
+            systemPrompt: t.Optional(t.String()),
+            temperature: t.Optional(t.Number()),
+            thinkingLevel: t.Optional(t.String()),
+            messageDelay: t.Optional(t.Number()),
+            contextMessages: t.Optional(t.Number()),
+            autoReadReceipts: t.Optional(t.Boolean()),
+            excludeGroups: t.Optional(t.Array(t.String())),
+            ignoredLabels: t.Optional(t.Array(t.String())),
+            variables: t.Optional(t.Any()),
+        }),
     })
 
     // Delete template (bots keep working, templateId becomes null via SetNull)

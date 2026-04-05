@@ -179,9 +179,6 @@ export const botController = new Elysia({ prefix: "/bots" })
         return bot;
     })
     .put("/:id", async ({ params: { id }, body, set, user }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body (many optional fields)
-        const b = body as any;
-
         try {
             // Verify bot belongs to this org and user has access
             const existingBot = await findBotWithAccess(id, user!);
@@ -189,43 +186,40 @@ export const botController = new Elysia({ prefix: "/bots" })
 
             // Check if system prompt or provider/model changed — if so, clear conversations
             let shouldClearConversations = false;
-            if (b.systemPrompt !== undefined || b.aiProvider !== undefined || b.aiModel !== undefined) {
-                if (existingBot) {
-                    shouldClearConversations =
-                        (b.systemPrompt !== undefined && b.systemPrompt !== existingBot.systemPrompt) ||
-                        (b.aiProvider !== undefined && b.aiProvider !== existingBot.aiProvider) ||
-                        (b.aiModel !== undefined && b.aiModel !== existingBot.aiModel);
-                }
+            if (body.systemPrompt !== undefined || body.aiProvider !== undefined || body.aiModel !== undefined) {
+                shouldClearConversations =
+                    (body.systemPrompt !== undefined && body.systemPrompt !== existingBot.systemPrompt) ||
+                    (body.aiProvider !== undefined && body.aiProvider !== existingBot.aiProvider) ||
+                    (body.aiModel !== undefined && body.aiModel !== existingBot.aiModel);
             }
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma partial update
-            const data: any = {};
-            if (b.name !== undefined) data.name = b.name;
-            if (b.identifier !== undefined) data.identifier = b.identifier;
-            if (b.platform !== undefined) data.platform = b.platform as Platform;
-            if (b.credentials !== undefined) data.credentials = b.credentials;
-            if (b.ipv6Address !== undefined) data.ipv6Address = b.ipv6Address;
-            if (b.aiEnabled !== undefined) data.aiEnabled = b.aiEnabled;
-            if (b.defaultSessionAi !== undefined) data.defaultSessionAi = b.defaultSessionAi;
-            if (b.aiProvider !== undefined) data.aiProvider = b.aiProvider as AIProvider;
-            if (b.aiModel !== undefined) data.aiModel = b.aiModel;
-            if (b.systemPrompt !== undefined) data.systemPrompt = b.systemPrompt;
-            if (b.temperature !== undefined) data.temperature = b.temperature;
-            if (b.messageDelay !== undefined) data.messageDelay = b.messageDelay;
-            if (b.contextMessages !== undefined) data.contextMessages = b.contextMessages;
-            if (b.autoReadReceipts !== undefined) data.autoReadReceipts = b.autoReadReceipts;
-            if (b.excludeGroups !== undefined) data.excludeGroups = b.excludeGroups;
-            if (b.ignoredLabels !== undefined) data.ignoredLabels = b.ignoredLabels;
-            if (b.paused !== undefined) data.paused = b.paused;
-            if (b.thinkingLevel !== undefined) data.thinkingLevel = b.thinkingLevel;
-            if (b.notificationChannels !== undefined) data.notificationChannels = b.notificationChannels;
-            if (b.templateId !== undefined) data.templateId = b.templateId || null;
-            if (b.botVariables !== undefined) data.botVariables = b.botVariables;
+            const data: Record<string, unknown> = {};
+            if (body.name !== undefined) data.name = body.name;
+            if (body.identifier !== undefined) data.identifier = body.identifier;
+            if (body.platform !== undefined) data.platform = body.platform as Platform;
+            if (body.credentials !== undefined) data.credentials = body.credentials;
+            if (body.ipv6Address !== undefined) data.ipv6Address = body.ipv6Address;
+            if (body.aiEnabled !== undefined) data.aiEnabled = body.aiEnabled;
+            if (body.defaultSessionAi !== undefined) data.defaultSessionAi = body.defaultSessionAi;
+            if (body.aiProvider !== undefined) data.aiProvider = body.aiProvider as AIProvider;
+            if (body.aiModel !== undefined) data.aiModel = body.aiModel;
+            if (body.systemPrompt !== undefined) data.systemPrompt = body.systemPrompt;
+            if (body.temperature !== undefined) data.temperature = body.temperature;
+            if (body.messageDelay !== undefined) data.messageDelay = body.messageDelay;
+            if (body.contextMessages !== undefined) data.contextMessages = body.contextMessages;
+            if (body.autoReadReceipts !== undefined) data.autoReadReceipts = body.autoReadReceipts;
+            if (body.excludeGroups !== undefined) data.excludeGroups = body.excludeGroups;
+            if (body.ignoredLabels !== undefined) data.ignoredLabels = body.ignoredLabels;
+            if (body.paused !== undefined) data.paused = body.paused;
+            if (body.thinkingLevel !== undefined) data.thinkingLevel = body.thinkingLevel;
+            if (body.notificationChannels !== undefined) data.notificationChannels = body.notificationChannels;
+            if (body.templateId !== undefined) data.templateId = body.templateId || null;
+            if (body.botVariables !== undefined) data.botVariables = body.botVariables;
 
             const bot = await prisma.bot.update({ where: { id }, data });
 
             // Invalidate notification cache on config change
-            if (b.notificationChannels !== undefined) {
+            if (body.notificationChannels !== undefined) {
                 const { notificationService } = await import("../services/notification.service");
                 notificationService.invalidateCache(id);
             }
@@ -247,6 +241,30 @@ export const botController = new Elysia({ prefix: "/bots" })
             set.status = 500;
             return "Failed to update bot";
         }
+    }, {
+        body: t.Object({
+            name: t.Optional(t.String()),
+            identifier: t.Optional(t.String()),
+            platform: t.Optional(t.String()),
+            credentials: t.Optional(t.Any()),
+            ipv6Address: t.Optional(t.String()),
+            aiEnabled: t.Optional(t.Boolean()),
+            defaultSessionAi: t.Optional(t.Boolean()),
+            aiProvider: t.Optional(t.String()),
+            aiModel: t.Optional(t.String()),
+            systemPrompt: t.Optional(t.String()),
+            temperature: t.Optional(t.Number()),
+            messageDelay: t.Optional(t.Number()),
+            contextMessages: t.Optional(t.Number()),
+            autoReadReceipts: t.Optional(t.Boolean()),
+            excludeGroups: t.Optional(t.Array(t.String())),
+            ignoredLabels: t.Optional(t.Array(t.String())),
+            paused: t.Optional(t.Boolean()),
+            thinkingLevel: t.Optional(t.String()),
+            notificationChannels: t.Optional(t.Any()),
+            templateId: t.Optional(t.String()),
+            botVariables: t.Optional(t.Any()),
+        }),
     })
     // Clear all conversation histories for a bot
     .post("/:id/clear-conversations", async ({ params: { id }, set, user }) => {

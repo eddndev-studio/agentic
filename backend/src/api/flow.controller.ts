@@ -1,8 +1,24 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
-import { StepType } from "@prisma/client";
+import { Prisma, StepType } from "@prisma/client";
 import { syncFlowTool } from "../services/flow-tool-sync";
 import { authMiddleware } from "../middleware/auth.middleware";
+
+function mapTriggers(
+    triggers: Record<string, unknown>[],
+    owner: { botId?: string; templateId?: string },
+) {
+    return triggers.map((tr) => ({
+        keyword: (tr.keyword as string) || (tr.labelName as string) || '',
+        matchType: (tr.matchType as string) || 'CONTAINS',
+        scope: (tr.scope as string) || 'INCOMING',
+        triggerType: (tr.triggerType as string) || 'TEXT',
+        labelName: (tr.labelName as string) || null,
+        labelAction: (tr.labelAction as string) || null,
+        ...(owner.botId ? { botId: owner.botId } : {}),
+        ...(owner.templateId ? { templateId: owner.templateId } : {}),
+    })) as Prisma.TriggerUncheckedCreateWithoutFlowInput[];
+}
 
 export const flowController = new Elysia({ prefix: "/flows" })
     .use(authMiddleware)
@@ -57,57 +73,39 @@ export const flowController = new Elysia({ prefix: "/flows" })
         return flow;
     })
     .post("/", async ({ body, set, user }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body with nested arrays
-        const b = body as any;
-        const { botId, templateId, name, description, steps, triggers } = b;
-
         try {
             // Verify parent belongs to org
-            if (templateId) {
-                const tmpl = await prisma.template.findFirst({ where: { id: templateId, orgId: user!.orgId } });
+            if (body.templateId) {
+                const tmpl = await prisma.template.findFirst({ where: { id: body.templateId, orgId: user!.orgId } });
                 if (!tmpl) { set.status = 403; return { error: "Template not found or not in your organization" }; }
-            } else if (botId) {
-                const bot = await prisma.bot.findFirst({ where: { id: botId, orgId: user!.orgId } });
+            } else if (body.botId) {
+                const bot = await prisma.bot.findFirst({ where: { id: body.botId, orgId: user!.orgId } });
                 if (!bot) { set.status = 403; return { error: "Bot not found or not in your organization" }; }
             }
 
-            const owner = templateId
-                ? { templateId }
-                : { botId };
-            const triggerOwner = templateId
-                ? { templateId }
-                : { botId };
-
             const flow = await prisma.flow.create({
                 data: {
-                    ...owner,
-                    name,
-                    description,
-                    usageLimit: parseInt(b.usageLimit || 0),
-                    cooldownMs: parseInt(b.cooldownMs || 0),
-                    excludesFlows: b.excludesFlows || [],
+                    botId: body.botId || undefined,
+                    templateId: body.templateId || undefined,
+                    name: body.name,
+                    description: body.description,
+                    usageLimit: parseInt(body.usageLimit || "0"),
+                    cooldownMs: parseInt(body.cooldownMs || "0"),
+                    excludesFlows: body.excludesFlows || [],
                     steps: {
-                        create: (steps || []).map((s: any, index: number) => ({
-                            type: (s.type as StepType),
-                            content: s.content,
-                            mediaUrl: s.mediaUrl,
-                            delayMs: s.delayMs || 1000,
-                            jitterPct: s.jitterPct ?? 10,
+                        create: (body.steps || []).map((s: Record<string, unknown>, index: number) => ({
+                            type: s.type as StepType,
+                            content: s.content as string,
+                            mediaUrl: (s.mediaUrl as string) || null,
+                            delayMs: (s.delayMs as number) || 1000,
+                            jitterPct: (s.jitterPct as number) ?? 10,
                             order: index,
-                            aiOnly: s.aiOnly ?? false,
+                            aiOnly: (s.aiOnly as boolean) ?? false,
                             metadata: s.metadata ?? undefined
                         }))
                     },
                     triggers: {
-                        create: (triggers || []).map((t: any) => ({
-                            keyword: t.keyword || t.labelName || '',
-                            matchType: t.matchType || 'CONTAINS',
-                            scope: t.scope || 'INCOMING',
-                            triggerType: t.triggerType || 'TEXT',
-                            labelName: t.labelName || null,
-                            labelAction: t.labelAction || null,
-                            ...triggerOwner
-                        }))
+                        create: mapTriggers(body.triggers || [], { botId: body.botId, templateId: body.templateId })
                     }
                 },
                 include: { steps: true, triggers: true }
@@ -118,12 +116,20 @@ export const flowController = new Elysia({ prefix: "/flows" })
             set.status = 500;
             return { error: `Failed to create flow: ${e instanceof Error ? e.message : e}` };
         }
+    }, {
+        body: t.Object({
+            botId: t.Optional(t.String()),
+            templateId: t.Optional(t.String()),
+            name: t.String(),
+            description: t.Optional(t.String()),
+            usageLimit: t.Optional(t.String()),
+            cooldownMs: t.Optional(t.String()),
+            excludesFlows: t.Optional(t.Array(t.String())),
+            steps: t.Optional(t.Array(t.Any())),
+            triggers: t.Optional(t.Array(t.Any())),
+        }),
     })
     .put("/:id", async ({ params: { id }, body, set, user }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body with nested arrays
-        const b = body as any;
-        const { botId, templateId, name, description, steps, triggers } = b;
-
         try {
             // Verify flow belongs to org
             const existing = await prisma.flow.findFirst({
@@ -140,10 +146,6 @@ export const flowController = new Elysia({ prefix: "/flows" })
                 return { error: "Flow not found" };
             }
 
-            const triggerOwner = templateId
-                ? { templateId }
-                : botId ? { botId } : {};
-
             // Atomic update: Delete old steps/triggers and create new ones
             const flow = await prisma.$transaction(async (tx) => {
                 await tx.step.deleteMany({ where: { flowId: id } });
@@ -152,33 +154,25 @@ export const flowController = new Elysia({ prefix: "/flows" })
                 return tx.flow.update({
                     where: { id },
                     data: {
-                        name,
-                        description,
-                        usageLimit: parseInt(b.usageLimit || 0),
-                        cooldownMs: parseInt(b.cooldownMs || 0),
-                        excludesFlows: b.excludesFlows || [],
+                        name: body.name,
+                        description: body.description,
+                        usageLimit: parseInt(body.usageLimit || "0"),
+                        cooldownMs: parseInt(body.cooldownMs || "0"),
+                        excludesFlows: body.excludesFlows || [],
                         steps: {
-                            create: (steps || []).map((s: any, index: number) => ({
-                                type: (s.type as StepType),
-                                content: s.content,
-                                mediaUrl: s.mediaUrl,
-                                delayMs: s.delayMs || 1000,
-                                jitterPct: s.jitterPct ?? 10,
+                            create: (body.steps || []).map((s: Record<string, unknown>, index: number) => ({
+                                type: s.type as StepType,
+                                content: s.content as string,
+                                mediaUrl: (s.mediaUrl as string) || null,
+                                delayMs: (s.delayMs as number) || 1000,
+                                jitterPct: (s.jitterPct as number) ?? 10,
                                 order: index,
-                                aiOnly: s.aiOnly ?? false,
+                                aiOnly: (s.aiOnly as boolean) ?? false,
                                 metadata: s.metadata ?? undefined
                             }))
                         },
                         triggers: {
-                            create: (triggers || []).map((t: any) => ({
-                                keyword: t.keyword || t.labelName || '',
-                                matchType: t.matchType || 'CONTAINS',
-                                scope: t.scope || 'INCOMING',
-                                triggerType: t.triggerType || 'TEXT',
-                                labelName: t.labelName || null,
-                                labelAction: t.labelAction || null,
-                                ...triggerOwner
-                            }))
+                            create: mapTriggers(body.triggers || [], { botId: body.botId, templateId: body.templateId })
                         }
                     },
                     include: { steps: true, triggers: true }
@@ -190,6 +184,18 @@ export const flowController = new Elysia({ prefix: "/flows" })
             set.status = 500;
             return { error: `Failed to update flow: ${e instanceof Error ? e.message : e}` };
         }
+    }, {
+        body: t.Object({
+            botId: t.Optional(t.String()),
+            templateId: t.Optional(t.String()),
+            name: t.String(),
+            description: t.Optional(t.String()),
+            usageLimit: t.Optional(t.String()),
+            cooldownMs: t.Optional(t.String()),
+            excludesFlows: t.Optional(t.Array(t.String())),
+            steps: t.Optional(t.Array(t.Any())),
+            triggers: t.Optional(t.Array(t.Any())),
+        }),
     })
     .delete("/:id", async ({ params: { id }, set, user }) => {
         try {
@@ -291,8 +297,7 @@ export const flowController = new Elysia({ prefix: "/flows" })
         };
     })
     .post("/import-json", async ({ body, set, user }) => {
-        const b = body as any;
-        const { botId, templateId, flows } = b;
+        const { botId, templateId, flows } = body;
 
         if (!Array.isArray(flows) || flows.length === 0) {
             set.status = 400;
@@ -330,25 +335,25 @@ export const flowController = new Elysia({ prefix: "/flows" })
                         cooldownMs: parseInt(f.cooldownMs || 0),
                         excludesFlows: [], // resolved in second pass
                         steps: {
-                            create: (f.steps || []).map((s: any, index: number) => ({
+                            create: (f.steps || []).map((s: Record<string, unknown>, index: number) => ({
                                 type: s.type as StepType,
                                 content: s.content,
-                                mediaUrl: s.mediaUrl || null,
-                                delayMs: s.delayMs || 1000,
-                                jitterPct: s.jitterPct ?? 10,
-                                order: s.order ?? index,
-                                aiOnly: s.aiOnly ?? false,
+                                mediaUrl: (s.mediaUrl as string) || null,
+                                delayMs: (s.delayMs as number) || 1000,
+                                jitterPct: (s.jitterPct as number) ?? 10,
+                                order: (s.order as number) ?? index,
+                                aiOnly: (s.aiOnly as boolean) ?? false,
                                 metadata: s.metadata ?? undefined,
                             })),
                         },
                         triggers: {
-                            create: (f.triggers || []).map((tr: any) => ({
-                                keyword: tr.keyword || tr.labelName || "",
-                                matchType: tr.matchType || "CONTAINS",
-                                scope: tr.scope || "INCOMING",
-                                triggerType: tr.triggerType || "TEXT",
-                                labelName: tr.labelName || null,
-                                labelAction: tr.labelAction || null,
+                            create: (f.triggers || []).map((tr: Record<string, unknown>) => ({
+                                keyword: (tr.keyword as string) || (tr.labelName as string) || "",
+                                matchType: (tr.matchType as string) || "CONTAINS",
+                                scope: (tr.scope as string) || "INCOMING",
+                                triggerType: (tr.triggerType as string) || "TEXT",
+                                labelName: (tr.labelName as string) || null,
+                                labelAction: (tr.labelAction as string) || null,
                                 ...triggerOwner,
                             })),
                         },
@@ -386,6 +391,12 @@ export const flowController = new Elysia({ prefix: "/flows" })
             set.status = 500;
             return { error: `Import failed: ${e instanceof Error ? e.message : e}` };
         }
+    }, {
+        body: t.Object({
+            botId: t.Optional(t.String()),
+            templateId: t.Optional(t.String()),
+            flows: t.Array(t.Any()),
+        }),
     })
     .post("/import", async ({ body, set, user }) => {
         const { sourceFlowId, targetBotId } = body as { sourceFlowId: string, targetBotId: string };

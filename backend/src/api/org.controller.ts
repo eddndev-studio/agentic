@@ -19,7 +19,7 @@ export const orgController = new Elysia({ prefix: "/org" })
 
     .put("/members/:id/role", async ({ user, params, body, set }) => {
         try {
-            return await OrgService.updateMemberRole(user!.orgId, params.id, body.role as any);
+            return await OrgService.updateMemberRole(user!.orgId, params.id, body.role);
         } catch (e: any) {
             const map: Record<string, [number, string]> = {
                 MEMBER_NOT_FOUND: [404, "Member not found"],
@@ -62,7 +62,7 @@ export const orgController = new Elysia({ prefix: "/org" })
 
     .post("/invitations", async ({ user, body, set }) => {
         try {
-            return await OrgService.createInvitation(user!.orgId, body.email, body.role as any);
+            return await OrgService.createInvitation(user!.orgId, body.email, body.role);
         } catch (e: any) {
             const map: Record<string, [number, string]> = {
                 CANNOT_INVITE_AS_OWNER: [400, "Cannot invite as OWNER"],

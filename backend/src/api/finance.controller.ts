@@ -72,19 +72,18 @@ export const financeController = new Elysia({ prefix: "/finance" })
     .put("/workers/:id", async ({ params: { id }, body, set, user }) => {
         const existing = await prisma.worker.findFirst({ where: { id, orgId: user!.orgId } });
         if (!existing) { set.status = 404; return { error: "Not found" }; }
-        const { name, baseSalary, bonusPercent, bonusMinLicenses, isActive, membershipId } = body as any;
-        const data: any = {};
-        if (name !== undefined) data.name = name;
-        if (baseSalary !== undefined) data.baseSalary = Number(baseSalary);
-        if (bonusPercent !== undefined) data.bonusPercent = Number(bonusPercent);
-        if (bonusMinLicenses !== undefined) data.bonusMinLicenses = Number(bonusMinLicenses);
-        if (isActive !== undefined) data.isActive = isActive;
-        if (membershipId !== undefined) {
-            if (membershipId) {
-                const membership = await prisma.membership.findFirst({ where: { id: membershipId, orgId: user!.orgId } });
+        const data: Record<string, unknown> = {};
+        if (body.name !== undefined) data.name = body.name;
+        if (body.baseSalary !== undefined) data.baseSalary = Number(body.baseSalary);
+        if (body.bonusPercent !== undefined) data.bonusPercent = Number(body.bonusPercent);
+        if (body.bonusMinLicenses !== undefined) data.bonusMinLicenses = Number(body.bonusMinLicenses);
+        if (body.isActive !== undefined) data.isActive = body.isActive;
+        if (body.membershipId !== undefined) {
+            if (body.membershipId) {
+                const membership = await prisma.membership.findFirst({ where: { id: body.membershipId, orgId: user!.orgId } });
                 if (!membership) { set.status = 400; return { error: "Membership not found" }; }
             }
-            data.membershipId = membershipId || null;
+            data.membershipId = body.membershipId || null;
         }
         try {
             return await prisma.worker.update({ where: { id }, data });
@@ -92,6 +91,15 @@ export const financeController = new Elysia({ prefix: "/finance" })
             set.status = 404;
             return { error: "Not found" };
         }
+    }, {
+        body: t.Object({
+            name: t.Optional(t.String()),
+            baseSalary: t.Optional(t.Number()),
+            bonusPercent: t.Optional(t.Number()),
+            bonusMinLicenses: t.Optional(t.Number()),
+            isActive: t.Optional(t.Boolean()),
+            membershipId: t.Optional(t.String()),
+        }),
     })
 
     .delete("/workers/:id", async ({ params: { id }, set, user }) => {
@@ -132,18 +140,24 @@ export const financeController = new Elysia({ prefix: "/finance" })
     .put("/bank-accounts/:id", async ({ params: { id }, body, set, user }) => {
         const existing = await prisma.bankAccount.findFirst({ where: { id, orgId: user!.orgId } });
         if (!existing) { set.status = 404; return { error: "Not found" }; }
-        const { name, bankName, identifier, isActive } = body as any;
-        const data: any = {};
-        if (name !== undefined) data.name = name;
-        if (bankName !== undefined) data.bankName = bankName;
-        if (identifier !== undefined) data.identifier = identifier;
-        if (isActive !== undefined) data.isActive = isActive;
+        const data: Record<string, unknown> = {};
+        if (body.name !== undefined) data.name = body.name;
+        if (body.bankName !== undefined) data.bankName = body.bankName;
+        if (body.identifier !== undefined) data.identifier = body.identifier;
+        if (body.isActive !== undefined) data.isActive = body.isActive;
         try {
             return await prisma.bankAccount.update({ where: { id }, data });
         } catch {
             set.status = 404;
             return { error: "Not found" };
         }
+    }, {
+        body: t.Object({
+            name: t.Optional(t.String()),
+            bankName: t.Optional(t.String()),
+            identifier: t.Optional(t.String()),
+            isActive: t.Optional(t.Boolean()),
+        }),
     })
 
     .delete("/bank-accounts/:id", async ({ params: { id }, set, user }) => {
@@ -330,19 +344,26 @@ export const financeController = new Elysia({ prefix: "/finance" })
     .put("/incomes/:id", async ({ params: { id }, body, set, user }) => {
         const existing = await prisma.income.findFirst({ where: { id, period: { orgId: user!.orgId } } });
         if (!existing) { set.status = 404; return { error: "Not found" }; }
-        const { amount, bankAccountId, workerId, date, notes } = body as any;
-        const data: any = {};
-        if (amount !== undefined) data.amount = Number(amount);
-        if (bankAccountId !== undefined) data.bankAccountId = bankAccountId;
-        if (workerId !== undefined) data.workerId = workerId;
-        if (date !== undefined) data.date = new Date(date);
-        if (notes !== undefined) data.notes = notes;
+        const data: Record<string, unknown> = {};
+        if (body.amount !== undefined) data.amount = Number(body.amount);
+        if (body.bankAccountId !== undefined) data.bankAccountId = body.bankAccountId;
+        if (body.workerId !== undefined) data.workerId = body.workerId;
+        if (body.date !== undefined) data.date = new Date(body.date);
+        if (body.notes !== undefined) data.notes = body.notes;
         try {
             return await prisma.income.update({ where: { id }, data, include: { worker: true, bankAccount: true } });
         } catch {
             set.status = 404;
             return { error: "Not found" };
         }
+    }, {
+        body: t.Object({
+            amount: t.Optional(t.Number()),
+            bankAccountId: t.Optional(t.String()),
+            workerId: t.Optional(t.String()),
+            date: t.Optional(t.String()),
+            notes: t.Optional(t.String()),
+        }),
     })
 
     .delete("/incomes/:id", async ({ params: { id }, set, user }) => {
@@ -391,17 +412,22 @@ export const financeController = new Elysia({ prefix: "/finance" })
     .put("/expenses/:id", async ({ params: { id }, body, set, user }) => {
         const existing = await prisma.expense.findFirst({ where: { id, period: { orgId: user!.orgId } } });
         if (!existing) { set.status = 404; return { error: "Not found" }; }
-        const { description, amount, date } = body as any;
-        const data: any = {};
-        if (description !== undefined) data.description = description;
-        if (amount !== undefined) data.amount = Number(amount);
-        if (date !== undefined) data.date = new Date(date);
+        const data: Record<string, unknown> = {};
+        if (body.description !== undefined) data.description = body.description;
+        if (body.amount !== undefined) data.amount = Number(body.amount);
+        if (body.date !== undefined) data.date = new Date(body.date);
         try {
             return await prisma.expense.update({ where: { id }, data });
         } catch {
             set.status = 404;
             return { error: "Not found" };
         }
+    }, {
+        body: t.Object({
+            description: t.Optional(t.String()),
+            amount: t.Optional(t.Number()),
+            date: t.Optional(t.String()),
+        }),
     })
 
     .delete("/expenses/:id", async ({ params: { id }, set, user }) => {
@@ -433,16 +459,20 @@ export const financeController = new Elysia({ prefix: "/finance" })
     .put("/worker-periods/:id", async ({ params: { id }, body, set, user }) => {
         const existing = await prisma.workerPeriod.findFirst({ where: { id, period: { orgId: user!.orgId } } });
         if (!existing) { set.status = 404; return { error: "Not found" }; }
-        const { licenseSales, debtCarryOver } = body as any;
-        const data: any = {};
-        if (licenseSales !== undefined) data.licenseSales = Number(licenseSales);
-        if (debtCarryOver !== undefined) data.debtCarryOver = Number(debtCarryOver);
+        const data: Record<string, unknown> = {};
+        if (body.licenseSales !== undefined) data.licenseSales = Number(body.licenseSales);
+        if (body.debtCarryOver !== undefined) data.debtCarryOver = Number(body.debtCarryOver);
         try {
             return await prisma.workerPeriod.update({ where: { id }, data, include: { worker: true } });
         } catch {
             set.status = 404;
             return { error: "Not found" };
         }
+    }, {
+        body: t.Object({
+            licenseSales: t.Optional(t.Number()),
+            debtCarryOver: t.Optional(t.Number()),
+        }),
     })
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -628,22 +658,21 @@ export const financeController = new Elysia({ prefix: "/finance" })
     })
 
     .post("/facebook/connect", async ({ body, set }) => {
-        const { shortLivedToken, fbUserId, fbUserName } = body as any;
-        if (!shortLivedToken || !fbUserId || !fbUserName) {
-            set.status = 400;
-            return { error: "shortLivedToken, fbUserId, and fbUserName are required" };
-        }
-
-        // Dynamic import to avoid circular deps
         const { FacebookService } = await import("../services/facebook.service");
 
         try {
-            const result = await FacebookService.connect(shortLivedToken, fbUserId, fbUserName);
+            const result = await FacebookService.connect(body.shortLivedToken, body.fbUserId, body.fbUserName);
             return result;
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message || "Failed to connect Facebook" };
+            return { error: e instanceof Error ? e.message : "Failed to connect Facebook" };
         }
+    }, {
+        body: t.Object({
+            shortLivedToken: t.String(),
+            fbUserId: t.String(),
+            fbUserName: t.String(),
+        }),
     })
 
     .post("/facebook/disconnect", async ({ user }) => {
@@ -660,20 +689,21 @@ export const financeController = new Elysia({ prefix: "/finance" })
     })
 
     .put("/facebook/ad-accounts/:id/assign", async ({ params: { id }, body, set, user }) => {
-        const { workerId } = body as any;
-        if (!workerId) { set.status = 400; return { error: "workerId is required" }; }
         const adAccount = await prisma.adAccount.findFirst({ where: { id, connection: { orgId: user!.orgId } } });
         if (!adAccount) { set.status = 404; return { error: "Not found" }; }
         try {
             return await prisma.adAccount.update({
                 where: { id },
-                data: { workerId },
+                data: { workerId: body.workerId },
                 include: { worker: { select: { id: true, name: true } } },
             });
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 400;
-            return { error: e.message?.includes("Unique") ? "Worker already assigned to another ad account" : "Failed to assign" };
+            const msg = e instanceof Error ? e.message : "";
+            return { error: msg.includes("Unique") ? "Worker already assigned to another ad account" : "Failed to assign" };
         }
+    }, {
+        body: t.Object({ workerId: t.String() }),
     })
 
     .put("/facebook/ad-accounts/:id/unassign", async ({ params: { id }, set, user }) => {
@@ -788,111 +818,119 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // ═══════════════════════════════════════════════════════════════════════
 
     .post("/facebook/campaigns/:id/status", async ({ params: { id }, body, set }) => {
-        const { status } = body as any;
-        if (!status || !["ACTIVE", "PAUSED"].includes(status)) {
+        if (!["ACTIVE", "PAUSED"].includes(body.status)) {
             set.status = 400;
             return { error: "status must be ACTIVE or PAUSED" };
         }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.updateCampaignStatus(id, status);
-        } catch (e: any) {
+            return await FacebookService.updateCampaignStatus(id, body.status as "ACTIVE" | "PAUSED");
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
-    })
+    }, { body: t.Object({ status: t.String() }) })
 
     .post("/facebook/adsets/:id/status", async ({ params: { id }, body, set }) => {
-        const { status } = body as any;
-        if (!status || !["ACTIVE", "PAUSED"].includes(status)) {
+        if (!["ACTIVE", "PAUSED"].includes(body.status)) {
             set.status = 400;
             return { error: "status must be ACTIVE or PAUSED" };
         }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.updateAdSetStatus(id, status);
-        } catch (e: any) {
+            return await FacebookService.updateAdSetStatus(id, body.status as "ACTIVE" | "PAUSED");
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
-    })
+    }, { body: t.Object({ status: t.String() }) })
 
     .post("/facebook/ads/:id/status", async ({ params: { id }, body, set }) => {
-        const { status } = body as any;
-        if (!status || !["ACTIVE", "PAUSED"].includes(status)) {
+        if (!["ACTIVE", "PAUSED"].includes(body.status)) {
             set.status = 400;
             return { error: "status must be ACTIVE or PAUSED" };
         }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.updateAdStatus(id, status);
-        } catch (e: any) {
+            return await FacebookService.updateAdStatus(id, body.status as "ACTIVE" | "PAUSED");
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
-    })
+    }, { body: t.Object({ status: t.String() }) })
 
     .put("/facebook/campaigns/:id/name", async ({ params: { id }, body, set }) => {
-        const { name } = body as any;
-        if (!name?.trim()) {
+        if (!body.name?.trim()) {
             set.status = 400;
             return { error: "Provide a campaign name" };
         }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.updateCampaignName(id, name.trim());
-        } catch (e: any) {
+            return await FacebookService.updateCampaignName(id, body.name.trim());
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
-    })
+    }, { body: t.Object({ name: t.String() }) })
 
     .put("/facebook/campaigns/:id/budget", async ({ params: { id }, body, set }) => {
-        const { dailyBudget, lifetimeBudget } = body as any;
-        if (dailyBudget == null && lifetimeBudget == null) {
+        if (body.dailyBudget == null && body.lifetimeBudget == null) {
             set.status = 400;
             return { error: "Provide dailyBudget or lifetimeBudget" };
         }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.updateCampaignBudget(id, { dailyBudget, lifetimeBudget });
-        } catch (e: any) {
+            return await FacebookService.updateCampaignBudget(id, { dailyBudget: body.dailyBudget, lifetimeBudget: body.lifetimeBudget });
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
+    }, {
+        body: t.Object({ dailyBudget: t.Optional(t.Number()), lifetimeBudget: t.Optional(t.Number()) }),
     })
 
     .put("/facebook/adsets/:id/budget", async ({ params: { id }, body, set }) => {
-        const { dailyBudget, lifetimeBudget } = body as any;
-        if (dailyBudget == null && lifetimeBudget == null) {
+        if (body.dailyBudget == null && body.lifetimeBudget == null) {
             set.status = 400;
             return { error: "Provide dailyBudget or lifetimeBudget" };
         }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.updateAdSetBudget(id, { dailyBudget, lifetimeBudget });
-        } catch (e: any) {
+            return await FacebookService.updateAdSetBudget(id, { dailyBudget: body.dailyBudget, lifetimeBudget: body.lifetimeBudget });
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
+    }, {
+        body: t.Object({ dailyBudget: t.Optional(t.Number()), lifetimeBudget: t.Optional(t.Number()) }),
     })
 
     .post("/facebook/campaigns/create", async ({ body, set }) => {
-        const { adAccountId, name, objective, status, specialAdCategories, buyingType, dailyBudget, lifetimeBudget, startTime, endTime } = body as any;
-        if (!adAccountId || !name || !objective) {
-            set.status = 400;
-            return { error: "adAccountId, name, and objective are required" };
-        }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.createCampaign(adAccountId, {
-                name, objective, status, specialAdCategories, buyingType,
-                dailyBudget, lifetimeBudget, startTime, endTime,
+            return await FacebookService.createCampaign(body.adAccountId, {
+                name: body.name, objective: body.objective, status: body.status,
+                specialAdCategories: body.specialAdCategories, buyingType: body.buyingType,
+                dailyBudget: body.dailyBudget, lifetimeBudget: body.lifetimeBudget,
+                startTime: body.startTime, endTime: body.endTime,
             });
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
+    }, {
+        body: t.Object({
+            adAccountId: t.String(),
+            name: t.String(),
+            objective: t.String(),
+            status: t.Optional(t.String()),
+            specialAdCategories: t.Optional(t.Array(t.String())),
+            buyingType: t.Optional(t.String()),
+            dailyBudget: t.Optional(t.Number()),
+            lifetimeBudget: t.Optional(t.Number()),
+            startTime: t.Optional(t.String()),
+            endTime: t.Optional(t.String()),
+        }),
     })
 
     .delete("/facebook/campaigns/:id", async ({ params: { id }, set }) => {
@@ -911,21 +949,32 @@ export const financeController = new Elysia({ prefix: "/finance" })
     // ═══════════════════════════════════════════════════════════════════════
 
     .post("/facebook/adsets/create", async ({ body, set }) => {
-        const { campaignId, name, targeting, dailyBudget, lifetimeBudget, billingEvent, optimizationGoal, bidAmount, startTime, endTime, status } = body as any;
-        if (!campaignId || !name || !targeting) {
-            set.status = 400;
-            return { error: "campaignId, name, and targeting are required" };
-        }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.createAdSet(campaignId, {
-                name, status, targeting, dailyBudget, lifetimeBudget,
-                billingEvent, optimizationGoal, bidAmount, startTime, endTime,
+            return await FacebookService.createAdSet(body.campaignId, {
+                name: body.name, status: body.status, targeting: body.targeting,
+                dailyBudget: body.dailyBudget, lifetimeBudget: body.lifetimeBudget,
+                billingEvent: body.billingEvent, optimizationGoal: body.optimizationGoal,
+                bidAmount: body.bidAmount, startTime: body.startTime, endTime: body.endTime,
             });
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
+    }, {
+        body: t.Object({
+            campaignId: t.String(),
+            name: t.String(),
+            targeting: t.Any(),
+            status: t.Optional(t.String()),
+            dailyBudget: t.Optional(t.Number()),
+            lifetimeBudget: t.Optional(t.Number()),
+            billingEvent: t.Optional(t.String()),
+            optimizationGoal: t.Optional(t.String()),
+            bidAmount: t.Optional(t.Number()),
+            startTime: t.Optional(t.String()),
+            endTime: t.Optional(t.String()),
+        }),
     })
 
     .delete("/facebook/adsets/:id", async ({ params: { id }, set }) => {
@@ -940,18 +989,20 @@ export const financeController = new Elysia({ prefix: "/finance" })
     })
 
     .post("/facebook/ads/create", async ({ body, set }) => {
-        const { adSetId, name, status, creative } = body as any;
-        if (!adSetId || !name || !creative) {
-            set.status = 400;
-            return { error: "adSetId, name, and creative are required" };
-        }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.createAd(adSetId, { name, status, creative });
-        } catch (e: any) {
+            return await FacebookService.createAd(body.adSetId, { name: body.name, status: body.status, creative: body.creative });
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
+    }, {
+        body: t.Object({
+            adSetId: t.String(),
+            name: t.String(),
+            status: t.Optional(t.String()),
+            creative: t.Any(),
+        }),
     })
 
     .delete("/facebook/ads/:id", async ({ params: { id }, set }) => {
@@ -1016,16 +1067,23 @@ export const financeController = new Elysia({ prefix: "/finance" })
     })
 
     .post("/facebook/boost", async ({ body, set }) => {
-        const { adAccountId, postId, pageId, dailyBudget, duration, targeting } = body as any;
-        if (!adAccountId || !postId || !pageId || !dailyBudget || !duration) {
-            set.status = 400;
-            return { error: "adAccountId, postId, pageId, dailyBudget, and duration are required" };
-        }
         try {
             const { FacebookService } = await import("../services/facebook.service");
-            return await FacebookService.boostPost(adAccountId, { postId, pageId, dailyBudget, duration, targeting });
-        } catch (e: any) {
+            return await FacebookService.boostPost(body.adAccountId, {
+                postId: body.postId, pageId: body.pageId,
+                dailyBudget: body.dailyBudget, duration: body.duration, targeting: body.targeting,
+            });
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Failed" };
         }
+    }, {
+        body: t.Object({
+            adAccountId: t.String(),
+            postId: t.String(),
+            pageId: t.String(),
+            dailyBudget: t.Number(),
+            duration: t.Number(),
+            targeting: t.Optional(t.Any()),
+        }),
     });

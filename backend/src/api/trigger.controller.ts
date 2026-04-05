@@ -83,9 +83,6 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
         })
     })
     .put("/:id", async ({ params: { id }, body, set, user }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia untyped body
-        const { keyword, matchType, isActive, flowId, scope } = body as any;
-
         // Verify trigger belongs to org via bot
         const existing = await prisma.trigger.findFirst({
             where: { id, bot: { orgId: user!.orgId } },
@@ -99,11 +96,11 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
             const trigger = await prisma.trigger.update({
                 where: { id },
                 data: {
-                    keyword,
-                    matchType: matchType as MatchType,
-                    scope: scope as TriggerScope,
-                    isActive,
-                    flowId: flowId ?? undefined,
+                    keyword: body.keyword,
+                    matchType: body.matchType as MatchType,
+                    scope: body.scope as TriggerScope,
+                    isActive: body.isActive,
+                    flowId: body.flowId ?? undefined,
                 }
             });
             return trigger;
@@ -111,6 +108,14 @@ export const triggerController = new Elysia({ prefix: "/triggers" })
             set.status = 500;
             return "Failed to update trigger";
         }
+    }, {
+        body: t.Object({
+            keyword: t.Optional(t.String()),
+            matchType: t.Optional(t.String()),
+            isActive: t.Optional(t.Boolean()),
+            flowId: t.Optional(t.String()),
+            scope: t.Optional(t.String()),
+        }),
     })
     .delete("/:id", async ({ params: { id }, set, user }) => {
         // Verify trigger belongs to org via bot
