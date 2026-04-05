@@ -64,7 +64,9 @@ import Button from "../ui/Button.astro";
                     </div>
                     <div class="flex gap-1.5 mt-2 flex-wrap">
                         <template x-for="trigger in flow.triggers.slice(0, 3)" :key="trigger.id">
-                            <Badge color="gray" size="sm" x-text="trigger.keyword"></Badge>
+                            <Badge color="gray" size="sm"
+                                x-show="trigger.keyword || trigger.labelName"
+                                x-text="trigger.keyword || trigger.labelName"></Badge>
                         </template>
                         <span x-show="flow.triggers.length > 3" class="text-[10px] font-sans text-wa-text-secondary" x-text="'+' + (flow.triggers.length - 3)"></span>
                         <span x-show="flow.triggers.length === 0" class="text-[10px] text-wa-text-secondary/50">No triggers</span>
