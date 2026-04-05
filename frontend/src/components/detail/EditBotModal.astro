@@ -1,75 +1,62 @@
-<!-- Edit Bot Modal -->
-<div
-    x-show="showEditModal"
-    x-cloak
-    class="fixed inset-0 z-50 flex items-center justify-center p-4"
-    style="display: none;"
->
-    <!-- Backdrop -->
-    <div
-        class="absolute inset-0 bg-black/70"
-        @click="showEditModal = false"
-    >
-    </div>
+---
+import Modal from "../ui/Modal.astro";
+import FormInput from "../ui/FormInput.astro";
+import Button from "../ui/Button.astro";
+---
 
-    <!-- Modal -->
-    <div
-        class="relative bg-wa-bg-panel border border-wa-border p-6 sm:p-8 w-full max-w-md rounded-xl"
+<Modal show="showEditModal">
+    <h2
+        class="text-xl font-bold tracking-tight mb-6"
+        x-text="$t('edit_bot') || 'Edit Bot'"
     >
+        Edit Bot
+    </h2>
 
-        <h2
-            class="text-xl font-bold tracking-tight mb-6"
-            x-text="$t('edit_bot') || 'Edit Bot'"
+    <form @submit.prevent="submitEditBot()" class="space-y-4">
+        <FormInput
+            label=""
+            type="text"
+            x-model="editForm.name"
+            required
+            placeholder="My WhatsApp Bot"
         >
-            Edit Bot
-        </h2>
+            <label slot="label" class="block text-xs text-wa-text-secondary font-sans mb-2"
+                x-text="$t('bot_name') || 'Name'"></label>
+        </FormInput>
 
-        <form @submit.prevent="submitEditBot()" class="space-y-4">
-            <div>
-                <label
-                    class="block text-xs text-wa-text-secondary font-sans mb-2"
-                    x-text="$t('bot_name') || 'Name'"></label>
-                <input
-                    type="text"
-                    x-model="editForm.name"
-                    required
-                    class="w-full bg-wa-bg-hover border border-wa-border p-3 text-sm focus:border-wa-green focus:outline-none text-white rounded-lg"
-                    placeholder="My WhatsApp Bot"
-                />
-            </div>
+        <div>
+            <label
+                class="block text-xs text-wa-text-secondary font-sans mb-2"
+                x-text="$t('bot_identifier') || 'Identifier'"
+            ></label>
+            <input
+                type="text"
+                x-model="editForm.identifier"
+                required
+                class="w-full bg-wa-bg-hover border border-wa-border p-3 text-sm focus:border-wa-green focus:outline-none text-white rounded-lg"
+                placeholder="+1234567890"
+            />
+        </div>
 
-            <div>
-                <label
-                    class="block text-xs text-wa-text-secondary font-sans mb-2"
-                    x-text="$t('bot_identifier') || 'Identifier'"
-                ></label>
-                <input
-                    type="text"
-                    x-model="editForm.identifier"
-                    required
-                    class="w-full bg-wa-bg-hover border border-wa-border p-3 text-sm focus:border-wa-green focus:outline-none text-white rounded-lg"
-                    placeholder="+1234567890"
-                />
-            </div>
-
-            <div class="flex gap-4 pt-4">
-                <button
-                    type="button"
-                    @click="showEditModal = false"
-                    class="flex-1 px-4 py-3 border border-wa-border text-wa-text-secondary font-sans text-xs hover:bg-wa-bg-hover rounded-lg"
-                    x-text="$t('cancel') || 'Cancel'"
-                >
-                    Cancel
-                </button>
-                <button
-                    type="submit"
-                    :disabled="savingEdit"
-                    class="flex-1 px-4 py-3 bg-wa-green text-white font-sans text-xs hover:bg-wa-green-hover disabled:opacity-50 rounded-lg"
-                    x-text="savingEdit ? ($t('loading') || 'Saving...') : ($t('save') || 'Save')"
-                >
-                    Save
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+        <div class="flex gap-4 pt-4">
+            <Button
+                variant="secondary"
+                type="button"
+                class="flex-1"
+                x-on:click="showEditModal = false"
+                x-text="$t('cancel') || 'Cancel'"
+            >
+                Cancel
+            </Button>
+            <Button
+                variant="primary"
+                type="submit"
+                class="flex-1"
+                x-bind:disabled="savingEdit"
+                x-text="savingEdit ? ($t('loading') || 'Saving...') : ($t('save') || 'Save')"
+            >
+                Save
+            </Button>
+        </div>
+    </form>
+</Modal>

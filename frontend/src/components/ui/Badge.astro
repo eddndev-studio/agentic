@@ -1,0 +1,33 @@
+---
+interface Props {
+    /** Color scheme */
+    color?: "green" | "red" | "yellow" | "blue" | "gray";
+    /** Size */
+    size?: "sm" | "md";
+    /** Additional classes */
+    class?: string;
+}
+
+const {
+    color = "gray",
+    size = "sm",
+    class: className = "",
+} = Astro.props;
+
+const colors: Record<string, string> = {
+    green: "bg-wa-green/10 text-wa-green",
+    red: "bg-red-500/10 text-red-400",
+    yellow: "bg-yellow-500/10 text-yellow-400",
+    blue: "bg-blue-500/10 text-blue-400",
+    gray: "bg-wa-bg-hover text-wa-text-secondary",
+};
+
+const sizes: Record<string, string> = {
+    sm: "px-1.5 py-0.5 text-[9px]",
+    md: "px-2 py-1 text-xs",
+};
+---
+
+<span class:list={["inline-flex items-center font-medium rounded", colors[color], sizes[size], className]}>
+    <slot />
+</span>

@@ -1,0 +1,45 @@
+---
+interface Props {
+    /** Visual variant */
+    variant?: "primary" | "secondary" | "danger" | "ghost";
+    /** Size */
+    size?: "sm" | "md" | "lg";
+    /** HTML button type */
+    type?: "button" | "submit" | "reset";
+    /** Additional classes */
+    class?: string;
+    /** Any other HTML attributes are spread onto the button */
+    [key: string]: unknown;
+}
+
+const {
+    variant = "primary",
+    size = "md",
+    type = "button",
+    class: className = "",
+    ...rest
+} = Astro.props;
+
+const base = "inline-flex items-center justify-center font-sans transition-colors rounded-lg disabled:opacity-50";
+
+const variants: Record<string, string> = {
+    primary: "bg-wa-green text-white hover:bg-wa-green-hover",
+    secondary: "border border-wa-border text-wa-text-secondary hover:bg-wa-bg-hover",
+    danger: "border border-red-500/30 text-red-500 hover:bg-red-500/10",
+    ghost: "text-wa-text-secondary hover:bg-wa-bg-hover",
+};
+
+const sizes: Record<string, string> = {
+    sm: "px-3 py-1.5 text-xs",
+    md: "px-4 py-2.5 text-xs",
+    lg: "px-6 py-3 text-sm",
+};
+---
+
+<button
+    type={type}
+    class:list={[base, variants[variant], sizes[size], className]}
+    {...rest}
+>
+    <slot />
+</button>

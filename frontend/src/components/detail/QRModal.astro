@@ -1,24 +1,21 @@
-<!-- QR Code Modal -->
-<div
-    x-show="showQrModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-    style="display: none;"
-    @keydown.escape.window="showQrModal = false"
->
-    <div
-        class="bg-wa-bg-deep border border-wa-border p-6 sm:p-8 max-w-sm w-full relative rounded-xl text-center"
-        @click.outside="showQrModal = false"
-    >
+---
+import Modal from "../ui/Modal.astro";
+import Button from "../ui/Button.astro";
+---
+
+<Modal show="showQrModal" maxWidth="max-w-sm">
+    <div class="text-center">
         <h2 class="text-lg font-bold mb-2 tracking-tight">Escanear QR</h2>
-        <p class="text-xs text-wa-text-secondary mb-6">Escanea este código con WhatsApp para conectar el bot.</p>
+        <p class="text-xs text-wa-text-secondary mb-6">Escanea este codigo con WhatsApp para conectar el bot.</p>
 
         <div x-show="botId" x-html="qrModalHtml"></div>
 
-        <button
-            @click="showQrModal = false"
-            class="mt-6 px-6 py-2 border border-wa-border text-wa-text-secondary font-sans text-xs hover:bg-wa-bg-hover rounded-lg transition-colors"
+        <Button
+            variant="secondary"
+            class="mt-6"
+            x-on:click="showQrModal = false"
         >
             Cerrar
-        </button>
+        </Button>
     </div>
-</div>
+</Modal>

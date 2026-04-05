@@ -1,0 +1,40 @@
+---
+interface Props {
+    /** Label text (or Alpine expression via x-text on the label) */
+    label?: string;
+    /** Input type */
+    type?: string;
+    /** Placeholder text */
+    placeholder?: string;
+    /** Whether the field is required */
+    required?: boolean;
+    /** Additional classes on the wrapper */
+    class?: string;
+    /** Any other HTML attributes are spread onto the input */
+    [key: string]: unknown;
+}
+
+const {
+    label,
+    type = "text",
+    placeholder,
+    required = false,
+    class: className = "",
+    ...rest
+} = Astro.props;
+---
+
+<div class={className}>
+    {label && (
+        <label class="block text-xs text-wa-text-secondary font-sans mb-2">
+            {label}
+        </label>
+    )}
+    <input
+        type={type}
+        placeholder={placeholder}
+        required={required}
+        class="w-full bg-wa-bg-hover border border-wa-border p-3 text-sm text-white rounded-lg focus:border-wa-green focus:outline-none"
+        {...rest}
+    />
+</div>
