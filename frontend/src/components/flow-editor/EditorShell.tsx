@@ -38,11 +38,11 @@ export function EditorShell() {
 
     if (isMobile) {
         return (
-            <div className="flex flex-col h-dvh bg-wa-bg-deep overflow-hidden">
+            <div className="flex flex-col h-full bg-wa-bg-deep overflow-hidden">
                 <MobileEditorHeader />
                 <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-                <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}>
+                <div className="flex-1 overflow-y-auto min-h-0">
                     {activeTab === 'steps' && <MobileStepsList />}
                     {activeTab === 'triggers' && (
                         <div className="p-4">
@@ -63,7 +63,7 @@ export function EditorShell() {
 
     // Desktop layout
     return (
-        <div className="flex flex-col" style={{ height: 'calc(100vh - 20px)' }}>
+        <div className="flex flex-col h-full">
             <DesktopEditorHeader />
 
             <div className="flex flex-1 overflow-hidden min-h-0">

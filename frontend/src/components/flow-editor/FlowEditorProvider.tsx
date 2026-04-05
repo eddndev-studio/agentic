@@ -16,7 +16,7 @@ export function FlowEditorProvider({ children }: { children: React.ReactNode }) 
 
     if (!state.ready) {
         return (
-            <div className="flex items-center justify-center h-dvh text-wa-green text-xs font-mono">
+            <div className="flex items-center justify-center h-full text-wa-green text-xs font-mono">
                 Loading...
             </div>
         );

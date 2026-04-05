@@ -15,7 +15,7 @@ export function MobileAddStepBar() {
 
     return (
         <div
-            className="fixed bottom-0 left-0 right-0 bg-wa-bg-panel/95 backdrop-blur-sm border-t border-wa-border px-3 py-2 flex gap-2 overflow-x-auto z-20"
+            className="bg-wa-bg-panel border-t border-wa-border px-3 py-2 flex gap-2 overflow-x-auto flex-shrink-0"
             style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
         >
             {stepTypes.map(({ type, label, color, bg }) => (
