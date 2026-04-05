@@ -3,11 +3,10 @@ import { useFlowEditor } from './FlowEditorProvider';
 import { useIsMobile } from './hooks/useIsMobile';
 import { FlowCanvas } from './FlowCanvas';
 import { Toolbar } from './Toolbar';
-import { StepDetailPanel } from './panels/StepDetailPanel';
 import { TriggerPanel } from './panels/TriggerPanel';
 import { FlowSettingsPanel } from './panels/FlowSettingsPanel';
 
-// Mobile components (Phase 3)
+// Mobile components
 import { MobileEditorHeader } from './mobile/MobileEditorHeader';
 import { MobileTabBar } from './mobile/MobileTabBar';
 import { MobileStepsList } from './mobile/MobileStepsList';
@@ -24,7 +23,6 @@ export function EditorShell() {
     const { flow, saving, save } = useFlowEditor();
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<EditorTab>('steps');
-    const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
 
     const handleNodeSelect = (nodeId: string | null) => {
         if (nodeId === 'triggers') {
@@ -40,17 +38,12 @@ export function EditorShell() {
 
     if (isMobile) {
         return (
-            <div className="flex flex-col h-dvh bg-wa-bg-deep">
+            <div className="flex flex-col h-dvh bg-wa-bg-deep overflow-hidden">
                 <MobileEditorHeader />
                 <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-                <div className="flex-1 overflow-y-auto pb-20">
-                    {activeTab === 'steps' && (
-                        <MobileStepsList
-                            expandedStepId={expandedStepId}
-                            onToggleExpand={(id) => setExpandedStepId(expandedStepId === id ? null : id)}
-                        />
-                    )}
+                <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}>
+                    {activeTab === 'steps' && <MobileStepsList />}
                     {activeTab === 'triggers' && (
                         <div className="p-4">
                             <TriggerPanel />
