@@ -109,9 +109,16 @@ export const uploadController = new Elysia({ prefix: "/upload" })
     })
     // Serve local files (backward compatibility for existing uploads)
     .get("/files/:name", async ({ params: { name }, set }) => {
-        // Prevent path traversal: ensure resolved path stays inside UPLOAD_DIR
+        // Reject path traversal attempts: only allow simple filenames (no slashes, no ..)
+        if (/[/\\]/.test(name) || name.includes("..") || name !== encodeURIComponent(decodeURIComponent(name))) {
+            set.status = 400;
+            return "Invalid file path";
+        }
+
+        // Double-check resolved path stays inside UPLOAD_DIR
+        const uploadRoot = resolve(UPLOAD_DIR);
         const resolved = resolve(UPLOAD_DIR, name);
-        if (!resolved.startsWith(resolve(UPLOAD_DIR) + sep)) {
+        if (!resolved.startsWith(uploadRoot + sep)) {
             set.status = 400;
             return "Invalid file path";
         }
