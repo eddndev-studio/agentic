@@ -16,10 +16,7 @@ export function FlowEditorProvider({ children }: { children: React.ReactNode }) 
 
     if (!state.ready) {
         return (
-            <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                height: '100vh', color: '#00a884', fontSize: '12px', fontFamily: 'monospace',
-            }}>
+            <div className="flex items-center justify-center h-dvh text-wa-green text-xs font-mono">
                 Loading...
             </div>
         );

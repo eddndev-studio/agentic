@@ -40,12 +40,14 @@ import Button from "../ui/Button.astro";
     <template x-if="filteredFlows.length > 0">
         <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
             <template x-for="flow in filteredFlows" :key="flow.id">
-                <Card
+                <div
+                    class="cursor-pointer"
+                    x-on:click={`window.location.href = '/editor?id=' + flow.id + (templateId ? '&templateId=' + templateId : '')`}
+                ><Card
                     variant="deep"
                     size="sm"
                     icon="account_tree"
-                    class="flex flex-col justify-between hover:border-wa-green/30 transition-all group min-h-[100px] cursor-pointer"
-                    x-on:click={`window.location.href = '/editor?id=' + flow.id + (templateId ? '&templateId=' + templateId : '')`}
+                    class="flex flex-col justify-between hover:border-wa-green/30 transition-all group min-h-[100px]"
                 >
                     <div>
                         <div class="flex items-start justify-between gap-2">
@@ -74,7 +76,7 @@ import Button from "../ui/Button.astro";
                         <span x-show="flow.triggers.length > 2" class="text-[10px] font-sans text-wa-text-secondary" x-text="'+' + (flow.triggers.length - 2)"></span>
                         <span x-show="flow.triggers.length === 0" class="text-[10px] text-wa-text-secondary/50">No triggers</span>
                     </div>
-                </Card>
+                </Card></div>
             </template>
         </div>
     </template>
