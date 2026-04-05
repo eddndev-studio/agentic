@@ -69,7 +69,7 @@ import DebugPanel from "../../components/monitor/DebugPanel.astro";
     import { loadSessions, loadMoreSessions, onSessionsScroll, selectSession } from "../../lib/monitor/session-methods";
     import {
         loadMessages, loadMoreMessages, onChatScroll, scrollToBottom,
-        sendMessage, handleFileSelect, clearAttachment, removeAttachment, clearAttachments, playNotifSound,
+        sendMessage, handleFileSelect, handlePaste, clearAttachment, removeAttachment, clearAttachments, playNotifSound,
         reactToMessage, poll, buildReactionsMap,
     } from "../../lib/monitor/message-methods";
     import {
@@ -188,6 +188,7 @@ import DebugPanel from "../../components/monitor/DebugPanel.astro";
             scrollToBottom() { scrollToBottom(this); },
             async sendMessage() { await sendMessage(this); },
             async handleFileSelect(e: Event) { await handleFileSelect(this, e); },
+            async handlePaste(e: ClipboardEvent) { await handlePaste(this, e); },
             clearAttachment() { clearAttachment(this); },
             removeAttachment(i: number) { removeAttachment(this, i); },
             clearAttachments() { clearAttachments(this); },

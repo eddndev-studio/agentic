@@ -140,6 +140,7 @@
             type="text"
             x-model="messageInput"
             x-ref="messageInputEl"
+            @paste="handlePaste($event)"
             class="flex-1 min-w-0 bg-wa-bg-hover text-wa-text-primary text-sm py-2 sm:py-2.5 px-3 sm:px-4 rounded-full focus:outline-none placeholder-wa-text-secondary"
             :placeholder="attachments.length > 0 ? 'Caption...' : $t('type_message')"
         />

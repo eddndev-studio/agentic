@@ -124,6 +124,26 @@ export function clearAttachments(ctx: any) {
     ctx.attachments = [];
 }
 
+export async function handlePaste(ctx: any, e: ClipboardEvent) {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length === 0) return;
+    e.preventDefault();
+
+    ctx.uploadingFile = true;
+    try {
+        for (const file of files) {
+            const res = await ApiClient.uploadFile(file);
+            const mediaType = detectMediaType(file);
+            const preview = ['IMAGE', 'VIDEO'].includes(mediaType) ? URL.createObjectURL(file) : null;
+            ctx.attachments.push({ file, url: res.url, mediaType, preview });
+        }
+    } catch (err: any) {
+        (window as any).__toast?.error("Paste upload failed: " + (err.message || "Unknown"));
+    } finally {
+        ctx.uploadingFile = false;
+    }
+}
+
 // Legacy compat
 export function clearAttachment(ctx: any) { clearAttachments(ctx); }
 
