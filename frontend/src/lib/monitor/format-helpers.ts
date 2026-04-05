@@ -89,3 +89,42 @@ export function getMediaUrl(msg: any): string | null {
 
 // Re-export for convenience
 export { getLabelColor as labelColor } from '../label-colors';
+
+export function playNotifSound() {
+    try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 800; osc.type = 'sine';
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
+    } catch {}
+}
+
+/**
+ * Build a map of externalId → emoji[] from REACTION messages.
+ * Handles both Baileys (metadata.reactedTo.id) and WABA (metadata.reactionTargetId).
+ * Keeps only the latest reaction per sender. Empty content = removal.
+ */
+export function buildReactionsMap(messages: any[]): Record<string, string[]> {
+    const senderMap: Record<string, Record<string, string | null>> = {};
+
+    for (const msg of messages) {
+        if (msg.type !== 'REACTION') continue;
+        const targetId = msg.metadata?.reactedTo?.id || msg.metadata?.reactionTargetId;
+        if (!targetId) continue;
+
+        const sender = msg.sender || (msg.fromMe ? '__me__' : '__unknown__');
+        if (!senderMap[targetId]) senderMap[targetId] = {};
+        senderMap[targetId][sender] = msg.content || null;
+    }
+
+    const result: Record<string, string[]> = {};
+    for (const [targetId, senders] of Object.entries(senderMap)) {
+        const emojis = Object.values(senders).filter((e): e is string => !!e);
+        if (emojis.length > 0) result[targetId] = emojis;
+    }
+    return result;
+}
