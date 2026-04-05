@@ -1,5 +1,16 @@
 ---
 ---
+<!-- Reply preview bar -->
+<div x-show="replyingTo" class="bg-wa-bg-header px-2 sm:px-4 pt-2 flex items-center gap-2 flex-shrink-0 border-t border-wa-border" style="display:none;">
+    <div class="flex-1 rounded-lg px-3 py-2 border-l-4 border-wa-green bg-wa-green/5 min-w-0">
+        <span class="text-[10px] font-semibold text-wa-green block" x-text="replyingTo?.fromMe ? 'Tu' : (replyingTo?.sender?.split('@')[0] || 'Mensaje')"></span>
+        <span class="text-xs text-wa-text-secondary truncate block" x-text="replyingTo?.content || '[media]'"></span>
+    </div>
+    <button @click="replyingTo = null" class="text-wa-text-secondary hover:text-red-400 transition-colors p-1 flex-shrink-0">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+</div>
+
 <!-- Attachment preview -->
 <div x-show="attachedFile" class="bg-wa-bg-header px-2 sm:px-4 pt-2 flex items-center gap-2 flex-shrink-0 border-t border-wa-border" style="display:none;">
     <div class="flex-1 flex items-center gap-2 bg-wa-bg-hover rounded-lg px-3 py-2">

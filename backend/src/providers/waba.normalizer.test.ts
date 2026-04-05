@@ -122,7 +122,7 @@ describe('normalizeWABAWebhook', () => {
         const [msg] = await normalizeWABAWebhook(payload, BOT_ID, CREDS);
         expect(msg.type).toBe('REACTION');
         expect(msg.content).toBe('👍');
-        expect(msg.metadata.reactionTargetId).toBe('target-1');
+        expect((msg.metadata.reactedTo as any).id).toBe('target-1');
     });
 
     it('normalizes a LOCATION message', async () => {
@@ -210,6 +210,6 @@ describe('normalizeWABAWebhook', () => {
         }]);
 
         const [msg] = await normalizeWABAWebhook(payload, BOT_ID, CREDS);
-        expect(msg.metadata.quotedMessageId).toBe('original-msg-id');
+        expect((msg.metadata.quotedMessage as any).id).toBe('original-msg-id');
     });
 });

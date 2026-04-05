@@ -64,10 +64,15 @@ async function normalizeMessage(
     // Extract metadata
     const metadata: Record<string, unknown> = {};
     if (msg.context?.id) {
-        metadata.quotedMessageId = msg.context.id;
+        metadata.quotedMessage = {
+            id: msg.context.id,
+            sender: msg.context.from || undefined,
+            fromMe: false,
+            content: '',
+        };
     }
     if (type === 'REACTION' && msg.reaction) {
-        metadata.reactionTargetId = msg.reaction.message_id;
+        metadata.reactedTo = { id: msg.reaction.message_id };
     }
     if (type === 'LOCATION' && msg.location) {
         metadata.latitude = msg.location.latitude;

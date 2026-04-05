@@ -21,25 +21,32 @@
     </template>
 
     <template x-for="(msg, idx) in messages" :key="msg.id">
-        <div>
+        <div x-show="msg.type !== 'REACTION'">
             <!-- Date separator -->
             <div x-show="showDateSep(messages, idx)" class="flex justify-center my-3">
                 <span class="wa-date-pill" x-text="dateLabel(msg.createdAt)"></span>
             </div>
 
             <!-- Message bubble -->
-            <div class="flex mb-[2px] group/msg"
+            <div class="flex mb-[2px] group/msg transition-all duration-300" :id="'msg-' + msg.id"
                  :class="[
                      msg.fromMe ? 'justify-end' : 'justify-start',
                      isLastInGroup(messages, idx) ? 'mb-2' : ''
                  ]"
             >
-                <!-- Reaction button (visible on hover/tap) -->
-                <div class="flex items-end" :class="msg.fromMe ? 'order-first' : 'order-last'">
+                <!-- Action buttons (react + reply) -->
+                <div class="flex items-end gap-0" :class="msg.fromMe ? 'order-first' : 'order-last'">
+                    <!-- Reply button -->
+                    <button @click="replyingTo = msg; $refs.messageInputEl?.focus()"
+                        class="w-7 h-7 rounded-full flex items-center justify-center text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover transition-all sm:opacity-0 sm:group-hover/msg:opacity-100"
+                        title="Responder">
+                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    </button>
+                    <!-- React button -->
                     <div class="relative" x-data="{ showReactPicker: false }">
                         <button
                             @click="showReactPicker = !showReactPicker"
-                            class="w-7 h-7 rounded-full flex items-center justify-center text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover transition-all mx-0.5 sm:mx-1 sm:opacity-0 sm:group-hover/msg:opacity-100"
+                            class="w-7 h-7 rounded-full flex items-center justify-center text-wa-text-secondary hover:text-white hover:bg-wa-bg-hover transition-all sm:opacity-0 sm:group-hover/msg:opacity-100"
                         >
                             <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         </button>
@@ -64,6 +71,16 @@
                         getMediaUrl(msg) && ['IMAGE', 'VIDEO', 'STICKER'].includes(msg.type) ? '' : 'px-2.5 py-1.5'
                     ]"
                 >
+                    <!-- Quoted message preview (reply context) -->
+                    <template x-if="msg.metadata?.quotedMessage?.id">
+                        <div class="mx-1 mt-1 mb-1 px-2.5 py-1.5 rounded-lg border-l-4 cursor-pointer"
+                             :class="msg.metadata.quotedMessage.fromMe ? 'bg-wa-green/10 border-wa-green' : 'bg-white/5 border-blue-400'"
+                             @click="(() => { const target = messages.find(m => m.externalId === msg.metadata.quotedMessage.id); if (target) { const el = document.getElementById('msg-' + target.id); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.classList.add('ring-1', 'ring-wa-green/50'); setTimeout(() => el?.classList.remove('ring-1', 'ring-wa-green/50'), 2000); } })()">
+                            <span class="text-[10px] font-semibold block mb-0.5" :class="msg.metadata.quotedMessage.fromMe ? 'text-wa-green' : 'text-blue-400'" x-text="msg.metadata.quotedMessage.fromMe ? 'Tu' : (msg.metadata.quotedMessage.sender?.split('@')[0] || '')"></span>
+                            <span class="text-xs text-wa-text-secondary line-clamp-2" x-text="msg.metadata.quotedMessage.content || '[media]'"></span>
+                        </div>
+                    </template>
+
                     <!-- IMAGE -->
                     <template x-if="msg.type === 'IMAGE' && getMediaUrl(msg)">
                         <a :href="getMediaUrl(msg)" target="_blank" rel="noopener" class="block">

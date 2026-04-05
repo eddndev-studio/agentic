@@ -403,7 +403,22 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
         let content: import('../providers/types').OutgoingPayload;
         let msgType = 'TEXT';
 
-        if (body.mediaUrl && body.mediaType) {
+        // Reply to a message
+        if (body.quotedMessageId) {
+            const quoted = await prisma.message.findUnique({ where: { id: body.quotedMessageId } });
+            if (quoted) {
+                content = {
+                    type: 'REPLY',
+                    text: body.text || '',
+                    quotedId: quoted.externalId!,
+                    quotedSender: quoted.sender,
+                    quotedText: quoted.content || '',
+                };
+                msgType = 'TEXT';
+            } else {
+                content = { type: 'TEXT', text: body.text || '' };
+            }
+        } else if (body.mediaUrl && body.mediaType) {
             const url = body.mediaUrl;
             const caption = body.text || undefined;
             switch (body.mediaType) {
@@ -457,6 +472,7 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
             mediaUrl: t.Optional(t.String()),
             mediaType: t.Optional(t.String()),
             fileName: t.Optional(t.String()),
+            quotedMessageId: t.Optional(t.String()),
         }),
     })
 

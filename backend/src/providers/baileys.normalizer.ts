@@ -114,6 +114,30 @@ export async function normalizeWAMessage(botId: string, msg: WAMessage): Promise
             break;
     }
 
+    // ── Quoted message (reply context) ────────────────────────────────
+    const contextSource = m.extendedTextMessage || m.imageMessage || m.videoMessage ||
+        m.audioMessage || m.documentMessage || m.stickerMessage || m.contactMessage ||
+        m.locationMessage || m.liveLocationMessage || m.pollCreationMessage;
+    const contextInfo = contextSource?.contextInfo;
+    if (contextInfo?.stanzaId) {
+        const quotedMsg = contextInfo.quotedMessage;
+        metadata.quotedMessage = {
+            id: contextInfo.stanzaId,
+            sender: contextInfo.participant || undefined,
+            fromMe: contextInfo.participant ? false : true,
+            content: quotedMsg?.conversation ||
+                quotedMsg?.extendedTextMessage?.text ||
+                quotedMsg?.imageMessage?.caption ||
+                quotedMsg?.videoMessage?.caption ||
+                quotedMsg?.documentMessage?.caption ||
+                (quotedMsg?.stickerMessage ? '[Sticker]' : '') ||
+                (quotedMsg?.audioMessage ? '[Audio]' : '') ||
+                (quotedMsg?.contactMessage?.displayName ? `[Contacto: ${quotedMsg.contactMessage.displayName}]` : '') ||
+                (quotedMsg?.locationMessage ? '[Ubicación]' : '') ||
+                '',
+        };
+    }
+
     // ── Media download ──────────────────────────────────────────────────
     const hasMedia = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'STICKER', 'PTT'].includes(type);
     let mediaBuffer: Buffer | undefined;
