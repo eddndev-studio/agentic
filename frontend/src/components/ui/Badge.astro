@@ -6,12 +6,15 @@ interface Props {
     size?: "sm" | "md";
     /** Additional classes */
     class?: string;
+    /** Any other HTML/Alpine attributes are spread onto the element */
+    [key: string]: unknown;
 }
 
 const {
     color = "gray",
     size = "sm",
     class: className = "",
+    ...rest
 } = Astro.props;
 
 const colors: Record<string, string> = {
@@ -28,6 +31,6 @@ const sizes: Record<string, string> = {
 };
 ---
 
-<span class:list={["inline-flex items-center font-medium rounded", colors[color], sizes[size], className]}>
+<span class:list={["inline-flex items-center font-medium rounded", colors[color], sizes[size], className]} {...rest}>
     <slot />
 </span>
