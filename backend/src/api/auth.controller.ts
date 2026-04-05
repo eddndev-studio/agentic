@@ -24,8 +24,8 @@ export const authController = new Elysia({ prefix: "/auth" })
             });
 
             return { token, user: authUser };
-        } catch (error: any) {
-            if (error.message === "EMAIL_EXISTS") {
+        } catch (error: unknown) {
+            if (error instanceof Error && error.message === "EMAIL_EXISTS") {
                 set.status = 409;
                 return { error: "Email already registered" };
             }
@@ -87,8 +87,8 @@ export const authController = new Elysia({ prefix: "/auth" })
             });
 
             return { token, user: authUser };
-        } catch (error: any) {
-            if (error.message === "INVALID_GOOGLE_TOKEN" || error.message === "GOOGLE_NO_EMAIL") {
+        } catch (error: unknown) {
+            if (error instanceof Error && (error.message === "INVALID_GOOGLE_TOKEN" || error.message === "GOOGLE_NO_EMAIL")) {
                 set.status = 401;
                 return { error: "Invalid Google token" };
             }
@@ -171,15 +171,16 @@ export const authController = new Elysia({ prefix: "/auth" })
             }
 
             return { success: true, membership };
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 INVITATION_NOT_FOUND: [404, "Invitation not found"],
                 INVITATION_ALREADY_ACCEPTED: [409, "Invitation already accepted"],
                 INVITATION_EXPIRED: [410, "Invitation has expired"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         body: t.Object({
@@ -219,8 +220,8 @@ export const authController = new Elysia({ prefix: "/auth" })
         try {
             await AuthService.resendVerification(user!.id, jwt.sign);
             return { success: true };
-        } catch (e: any) {
-            if (e.message === "ALREADY_VERIFIED") {
+        } catch (e: unknown) {
+            if (e instanceof Error && e.message === "ALREADY_VERIFIED") {
                 set.status = 400;
                 return { error: "Email ya verificado" };
             }
@@ -233,14 +234,15 @@ export const authController = new Elysia({ prefix: "/auth" })
         try {
             await AuthService.changePassword(user!.id, body.currentPassword, body.newPassword);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 WRONG_PASSWORD: [403, "Password actual incorrecta"],
                 USER_NOT_FOUND: [404, "Usuario no encontrado"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         isSignIn: true,
@@ -254,15 +256,16 @@ export const authController = new Elysia({ prefix: "/auth" })
         try {
             await AuthService.changeEmail(user!.id, body.newEmail, body.password, jwt.sign);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 WRONG_PASSWORD: [403, "Password incorrecta"],
                 EMAIL_EXISTS: [409, "Email ya registrado"],
                 NO_PASSWORD_SET: [400, "Establece una password primero"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         isSignIn: true,
@@ -276,14 +279,15 @@ export const authController = new Elysia({ prefix: "/auth" })
         try {
             await AuthService.linkGoogle(user!.id, body.idToken);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 INVALID_GOOGLE_TOKEN: [401, "Token de Google invalido"],
                 GOOGLE_EMAIL_TAKEN: [409, "El email de Google ya esta asociado a otra cuenta"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         isSignIn: true,
@@ -294,8 +298,8 @@ export const authController = new Elysia({ prefix: "/auth" })
         try {
             await AuthService.unlinkGoogle(user!.id);
             return { success: true };
-        } catch (e: any) {
-            if (e.message === "SET_PASSWORD_FIRST") {
+        } catch (e: unknown) {
+            if (e instanceof Error && e.message === "SET_PASSWORD_FIRST") {
                 set.status = 400;
                 return { error: "Debes establecer una password antes de desvincular Google" };
             }

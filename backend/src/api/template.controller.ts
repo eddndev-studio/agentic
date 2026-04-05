@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { AIProvider } from "@prisma/client";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { handlePrismaError } from "../utils/prisma-errors";
 
 export const templateController = new Elysia({ prefix: "/templates" })
     .use(authMiddleware)
@@ -53,9 +54,10 @@ export const templateController = new Elysia({ prefix: "/templates" })
                     orgId: user!.orgId,
                 },
             });
-        } catch (_e: unknown) {
-            set.status = 500;
-            return { error: "Failed to create template" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Template");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -94,9 +96,10 @@ export const templateController = new Elysia({ prefix: "/templates" })
             if (body.variables !== undefined) data.variables = body.variables;
 
             return await prisma.template.update({ where: { id }, data });
-        } catch (_e: unknown) {
-            set.status = 500;
-            return { error: "Failed to update template" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Template");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -126,8 +129,9 @@ export const templateController = new Elysia({ prefix: "/templates" })
 
             await prisma.template.delete({ where: { id } });
             return { success: true };
-        } catch (_e: unknown) {
-            set.status = 500;
-            return { error: "Failed to delete template" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Template");
+            set.status = status;
+            return body;
         }
     });

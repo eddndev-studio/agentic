@@ -6,6 +6,7 @@ import { Platform, AIProvider } from "@prisma/client";
 import { providerRegistry } from "../providers/registry";
 import { ConversationService } from "../services/conversation.service";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { handlePrismaError } from "../utils/prisma-errors";
 
 // Configuration
 const IPV6_SUBNET_PREFIX = "2605:a140:2302:3245";
@@ -237,9 +238,10 @@ export const botController = new Elysia({ prefix: "/bots" })
             }
 
             return bot;
-        } catch (_e: unknown) {
-            set.status = 500;
-            return "Failed to update bot";
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Bot");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -282,9 +284,10 @@ export const botController = new Elysia({ prefix: "/bots" })
             }
 
             return { success: true, cleared: sessions.length };
-        } catch (_e: unknown) {
-            set.status = 500;
-            return { error: "Failed to clear conversations" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Bot");
+            set.status = status;
+            return body;
         }
     })
     // Clone bot with all flows, tools, and automations

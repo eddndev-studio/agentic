@@ -20,15 +20,16 @@ export const orgController = new Elysia({ prefix: "/org" })
     .put("/members/:id/role", async ({ user, params, body, set }) => {
         try {
             return await OrgService.updateMemberRole(user!.orgId, params.id, body.role);
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 MEMBER_NOT_FOUND: [404, "Member not found"],
                 CANNOT_CHANGE_OWNER_ROLE: [403, "Cannot change the owner's role"],
                 USE_TRANSFER_OWNERSHIP: [400, "Use transfer-ownership to assign OWNER role"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         isAdmin: true,
@@ -40,14 +41,15 @@ export const orgController = new Elysia({ prefix: "/org" })
         try {
             await OrgService.removeMember(user!.orgId, params.id);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 MEMBER_NOT_FOUND: [404, "Member not found"],
                 CANNOT_REMOVE_OWNER: [403, "Cannot remove the owner"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         isAdmin: true,
@@ -63,15 +65,16 @@ export const orgController = new Elysia({ prefix: "/org" })
     .post("/invitations", async ({ user, body, set }) => {
         try {
             return await OrgService.createInvitation(user!.orgId, body.email, body.role);
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 CANNOT_INVITE_AS_OWNER: [400, "Cannot invite as OWNER"],
                 ALREADY_MEMBER: [409, "User is already a member"],
                 INVITATION_PENDING: [409, "An invitation is already pending for this email"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         isAdmin: true,
@@ -85,8 +88,8 @@ export const orgController = new Elysia({ prefix: "/org" })
         try {
             await OrgService.cancelInvitation(user!.orgId, params.id);
             return { success: true };
-        } catch (e: any) {
-            if (e.message === "INVITATION_NOT_FOUND") {
+        } catch (e: unknown) {
+            if (e instanceof Error && e.message === "INVITATION_NOT_FOUND") {
                 set.status = 404;
                 return { error: "Invitation not found" };
             }
@@ -104,14 +107,15 @@ export const orgController = new Elysia({ prefix: "/org" })
         try {
             await OrgService.transferOwnership(user!.orgId, user!.id, body.userId);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 NOT_OWNER: [403, "Only the owner can transfer ownership"],
                 TARGET_NOT_MEMBER: [404, "Target user is not a member of this organization"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         isOwner: true,
@@ -123,8 +127,8 @@ export const orgController = new Elysia({ prefix: "/org" })
     .get("/members/:id/bots", async ({ user, params, set }) => {
         try {
             return await OrgService.getWorkerBots(user!.orgId, params.id);
-        } catch (e: any) {
-            if (e.message === "MEMBER_NOT_FOUND") {
+        } catch (e: unknown) {
+            if (e instanceof Error && e.message === "MEMBER_NOT_FOUND") {
                 set.status = 404;
                 return { error: "Member not found" };
             }
@@ -139,14 +143,15 @@ export const orgController = new Elysia({ prefix: "/org" })
     .put("/members/:id/bots", async ({ user, params, body, set }) => {
         try {
             return await OrgService.setWorkerBots(user!.orgId, params.id, body.botIds);
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "";
             const map: Record<string, [number, string]> = {
                 MEMBER_NOT_FOUND: [404, "Member not found"],
                 INVALID_BOT_IDS: [400, "One or more bot IDs are invalid or don't belong to this organization"],
             };
-            const [status, msg] = map[e.message] ?? [500, "Internal Server Error"];
+            const [status, errMsg] = map[msg] ?? [500, "Internal Server Error"];
             set.status = status;
-            return { error: msg };
+            return { error: errMsg };
         }
     }, {
         isAdmin: true,

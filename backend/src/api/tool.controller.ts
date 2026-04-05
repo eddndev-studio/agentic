@@ -3,6 +3,7 @@ import { prisma } from "../services/postgres.service";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { sanitizeToolName } from "../utils/sanitize";
 import { isBuiltinTool } from "../core/ai/builtin-tools";
+import { handlePrismaError } from "../utils/prisma-errors";
 
 export const toolController = new Elysia({ prefix: "/tools" })
     .use(authMiddleware)
@@ -135,9 +136,10 @@ export const toolController = new Elysia({ prefix: "/tools" })
 
             const tool = await prisma.tool.update({ where: { id }, data });
             return tool;
-        } catch (_e: unknown) {
-            set.status = 500;
-            return { error: "Failed to update tool" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Tool");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -171,9 +173,10 @@ export const toolController = new Elysia({ prefix: "/tools" })
         try {
             await prisma.tool.delete({ where: { id } });
             return { success: true };
-        } catch (_e: unknown) {
-            set.status = 500;
-            return { error: "Failed to delete tool" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Tool");
+            set.status = status;
+            return body;
         }
     })
 

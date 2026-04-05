@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { handlePrismaError } from "../utils/prisma-errors";
 
 export const financeController = new Elysia({ prefix: "/finance" })
     .use(authMiddleware)
@@ -87,9 +88,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         }
         try {
             return await prisma.worker.update({ where: { id }, data });
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -108,9 +110,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             await prisma.worker.update({ where: { id }, data: { isActive: false } });
             return { success: true };
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     })
 
@@ -147,9 +150,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         if (body.isActive !== undefined) data.isActive = body.isActive;
         try {
             return await prisma.bankAccount.update({ where: { id }, data });
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -166,9 +170,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             await prisma.bankAccount.update({ where: { id }, data: { isActive: false } });
             return { success: true };
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     })
 
@@ -352,9 +357,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         if (body.notes !== undefined) data.notes = body.notes;
         try {
             return await prisma.income.update({ where: { id }, data, include: { worker: true, bankAccount: true } });
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -372,9 +378,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             await prisma.income.delete({ where: { id } });
             return { success: true };
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     })
 
@@ -418,9 +425,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         if (body.date !== undefined) data.date = new Date(body.date);
         try {
             return await prisma.expense.update({ where: { id }, data });
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -436,9 +444,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             await prisma.expense.delete({ where: { id } });
             return { success: true };
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     })
 
@@ -464,9 +473,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         if (body.debtCarryOver !== undefined) data.debtCarryOver = Number(body.debtCarryOver);
         try {
             return await prisma.workerPeriod.update({ where: { id }, data, include: { worker: true } });
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -711,9 +721,10 @@ export const financeController = new Elysia({ prefix: "/finance" })
         if (!adAccount) { set.status = 404; return { error: "Not found" }; }
         try {
             return await prisma.adAccount.update({ where: { id }, data: { workerId: null } });
-        } catch {
-            set.status = 404;
-            return { error: "Not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Finance");
+            set.status = status;
+            return body;
         }
     })
 
@@ -722,9 +733,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             await FacebookService.syncAll();
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message || "Sync failed" };
+            return { error: e instanceof Error ? e.message : "Sync failed" };
         }
     })
 
@@ -938,9 +949,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
             const { FacebookService } = await import("../services/facebook.service");
             await FacebookService.deleteCampaign(id);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Operation failed" };
         }
     })
 
@@ -982,9 +993,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
             const { FacebookService } = await import("../services/facebook.service");
             await FacebookService.deleteAdSet(id);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Operation failed" };
         }
     })
 
@@ -1010,9 +1021,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
             const { FacebookService } = await import("../services/facebook.service");
             await FacebookService.deleteAd(id);
             return { success: true };
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Operation failed" };
         }
     })
 
@@ -1025,9 +1036,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             const { FacebookService } = await import("../services/facebook.service");
             return await FacebookService.searchInterests(q);
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Operation failed" };
         }
     })
 
@@ -1040,9 +1051,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             const { FacebookService } = await import("../services/facebook.service");
             return await FacebookService.searchLocations(q);
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Operation failed" };
         }
     })
 
@@ -1050,9 +1061,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             const { FacebookService } = await import("../services/facebook.service");
             return await FacebookService.getPages();
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Operation failed" };
         }
     })
 
@@ -1060,9 +1071,9 @@ export const financeController = new Elysia({ prefix: "/finance" })
         try {
             const { FacebookService } = await import("../services/facebook.service");
             return await FacebookService.getPagePosts(pageId);
-        } catch (e: any) {
+        } catch (e: unknown) {
             set.status = 500;
-            return { error: e.message };
+            return { error: e instanceof Error ? e.message : "Operation failed" };
         }
     })
 

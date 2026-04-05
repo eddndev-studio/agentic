@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { prisma } from "../services/postgres.service";
 import { authMiddleware } from "../middleware/auth.middleware";
 import type { AutomationEvent } from "@prisma/client";
+import { handlePrismaError } from "../utils/prisma-errors";
 
 export const automationController = new Elysia({ prefix: "/bots" })
     .use(authMiddleware)
@@ -70,9 +71,10 @@ export const automationController = new Elysia({ prefix: "/bots" })
 
         try {
             return await prisma.automation.update({ where: { id: automationId }, data });
-        } catch (_e: unknown) {
-            set.status = 404;
-            return { error: "Automation not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Automation");
+            set.status = status;
+            return body;
         }
     }, {
         body: t.Object({
@@ -100,8 +102,9 @@ export const automationController = new Elysia({ prefix: "/bots" })
         try {
             await prisma.automation.delete({ where: { id: automationId } });
             return { success: true };
-        } catch (_e: unknown) {
-            set.status = 404;
-            return { error: "Automation not found" };
+        } catch (e: unknown) {
+            const [status, body] = handlePrismaError(e, "Automation");
+            set.status = status;
+            return body;
         }
     });
