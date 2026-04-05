@@ -7,7 +7,7 @@ import Modal from "../../components/ui/Modal.astro";
 import Card from "../../components/ui/Card.astro";
 import EmptyState from "../../components/ui/EmptyState.astro";
 import FlowsTab from "../../components/detail/FlowsTab.astro";
-import VariablesTab from "../../components/detail/VariablesTab.astro";
+import TemplateVariablesTab from "../../components/detail/TemplateVariablesTab.astro";
 import AIConfigTab from "../../components/detail/AIConfigTab.astro";
 import ToolsTab from "../../components/detail/ToolsTab.astro";
 import AutomationsTab from "../../components/detail/AutomationsTab.astro";
@@ -72,7 +72,7 @@ import TemplateDetailSkeleton from "../../components/skeletons/TemplateDetailSke
 
 		<!-- Variables tab -->
 		<div x-show="activeTab === 'variables'" x-transition:enter>
-			<VariablesTab />
+			<TemplateVariablesTab />
 		</div>
 
 		<!-- Bots tab -->

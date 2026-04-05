@@ -1,0 +1,167 @@
+---
+import Button from "../ui/Button.astro";
+---
+
+<div>
+    <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+        <h3 class="text-xs text-wa-green tracking-normal">Variables de plantilla</h3>
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-sans text-wa-text-secondary" x-text="templateVars.length + ' variable(s)'"></span>
+        </div>
+    </div>
+
+    <p class="text-xs text-wa-text-secondary mb-6">
+        Define las variables que los bots que usen esta plantilla podrán configurar con sus propios valores.
+    </p>
+
+    <!-- Variable list -->
+    <div class="space-y-3 mb-6">
+        <template x-for="(v, index) in templateVars" :key="index">
+            <div class="bg-wa-bg-deep border border-wa-border rounded-lg p-4 flex items-center gap-3">
+                <!-- Color indicator -->
+                <span class="w-2 h-8 rounded-full flex-shrink-0"
+                    :class="{
+                        'bg-blue-400': v.type === 'text',
+                        'bg-purple-400': v.type === 'label',
+                        'bg-sky-400': v.type === 'image',
+                        'bg-orange-400': v.type === 'video',
+                        'bg-teal-400': v.type === 'audio',
+                        'bg-yellow-400': v.type === 'document',
+                    }"></span>
+
+                <!-- Name + type -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-mono text-wa-text-primary font-semibold truncate" x-text="v.name"></span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded border flex-shrink-0"
+                            :class="{
+                                'bg-blue-500/10 text-blue-400 border-blue-500/20': v.type === 'text',
+                                'bg-purple-500/10 text-purple-400 border-purple-500/20': v.type === 'label',
+                                'bg-sky-500/10 text-sky-400 border-sky-500/20': v.type === 'image',
+                                'bg-orange-500/10 text-orange-400 border-orange-500/20': v.type === 'video',
+                                'bg-teal-500/10 text-teal-400 border-teal-500/20': v.type === 'audio',
+                                'bg-yellow-500/10 text-yellow-400 border-yellow-500/20': v.type === 'document',
+                            }"
+                            x-text="({label:'Etiqueta',text:'Texto',image:'Imagen',video:'Video',audio:'Audio',document:'Documento'})[v.type] || v.type"></span>
+                    </div>
+                    <span class="text-[10px] text-wa-text-secondary font-mono mt-0.5 block" x-text="'{{' + v.name + '}}'"></span>
+                </div>
+
+                <!-- Edit button -->
+                <button
+                    @click="editingVarIndex = index; editingVar = { name: v.name, type: v.type }; showVarModal = true"
+                    class="w-9 h-9 flex items-center justify-center text-wa-text-secondary hover:text-wa-green transition-colors rounded-lg hover:bg-wa-bg-hover flex-shrink-0"
+                    title="Editar"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </button>
+
+                <!-- Delete button -->
+                <button
+                    @click="templateVars.splice(index, 1)"
+                    class="w-9 h-9 flex items-center justify-center text-wa-text-secondary hover:text-red-400 transition-colors rounded-lg hover:bg-wa-bg-hover flex-shrink-0"
+                    title="Eliminar"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
+        </template>
+
+        <!-- Empty state -->
+        <div x-show="templateVars.length === 0" class="text-center py-12 border border-dashed border-wa-border rounded-xl">
+            <svg class="w-10 h-10 mx-auto mb-4 text-wa-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            <p class="text-xs font-sans text-wa-text-secondary mb-4">No hay variables definidas</p>
+            <p class="text-[10px] text-wa-text-secondary/70 max-w-xs mx-auto">Las variables permiten que cada bot configure valores únicos como textos, etiquetas o medios.</p>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-3 flex-wrap">
+        <button
+            @click="editingVarIndex = -1; editingVar = { name: '', type: 'text' }; showVarModal = true"
+            class="inline-flex items-center justify-center font-sans transition-colors rounded-lg px-4 py-2.5 text-xs border border-dashed border-wa-border text-wa-text-secondary hover:border-wa-green hover:text-wa-green gap-1.5"
+        >
+            <span>+</span>
+            <span>Agregar Variable</span>
+        </button>
+        <Button variant="primary" x-on:click="saveTemplateVars()" x-bind:disabled="savingVars">
+            <span x-text="savingVars ? 'Guardando...' : 'Guardar Variables'"></span>
+        </Button>
+        <span x-show="variablesSaved" x-transition.opacity class="text-xs text-green-400 flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Guardado
+        </span>
+    </div>
+</div>
+
+<!-- Add/Edit Variable Modal -->
+<div
+    x-show="showVarModal"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
+    style="display: none;"
+    @keydown.escape.window="showVarModal = false"
+>
+    <div class="bg-wa-bg-panel border border-wa-border w-full sm:max-w-md sm:rounded-xl p-5 sm:p-6"
+         @click.outside="showVarModal = false">
+        <h3 class="text-sm font-bold mb-4" x-text="editingVarIndex >= 0 ? 'Editar Variable' : 'Nueva Variable'"></h3>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-[10px] text-wa-text-secondary mb-1.5">Nombre</label>
+                <input
+                    type="text"
+                    x-model="editingVar.name"
+                    placeholder="NOMBRE_VARIABLE"
+                    class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white font-mono uppercase"
+                />
+                <p class="text-[9px] text-wa-text-secondary/70 mt-1">Se usará como <span class="font-mono" x-text="'{{' + (editingVar.name || 'NOMBRE') + '}}'"></span> en los flujos</p>
+            </div>
+
+            <div>
+                <label class="block text-[10px] text-wa-text-secondary mb-1.5">Tipo</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <template x-for="t in [
+                        { value: 'text', label: 'Texto', color: 'blue' },
+                        { value: 'label', label: 'Etiqueta', color: 'purple' },
+                        { value: 'image', label: 'Imagen', color: 'sky' },
+                        { value: 'video', label: 'Video', color: 'orange' },
+                        { value: 'audio', label: 'Audio', color: 'teal' },
+                        { value: 'document', label: 'Documento', color: 'yellow' },
+                    ]" :key="t.value">
+                        <button
+                            type="button"
+                            @click="editingVar.type = t.value"
+                            class="px-3 py-2.5 rounded-lg text-xs font-sans text-center transition-colors border cursor-pointer"
+                            :class="editingVar.type === t.value
+                                ? 'border-wa-green bg-wa-green/10 text-wa-green'
+                                : 'border-wa-border bg-wa-bg-hover text-wa-text-secondary hover:border-wa-text-secondary'"
+                            x-text="t.label"
+                        ></button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+            <Button variant="secondary" x-on:click="showVarModal = false">Cancelar</Button>
+            <Button variant="primary" x-on:click="
+                if (!editingVar.name.trim()) { window.__toast.error('El nombre es requerido'); return; }
+                const cleaned = { name: editingVar.name.trim().toUpperCase(), type: editingVar.type };
+                if (editingVarIndex >= 0) {
+                    templateVars[editingVarIndex] = cleaned;
+                } else {
+                    templateVars.push(cleaned);
+                }
+                showVarModal = false;
+            ">
+                <span x-text="editingVarIndex >= 0 ? 'Actualizar' : 'Agregar'"></span>
+            </Button>
+        </div>
+    </div>
+</div>
