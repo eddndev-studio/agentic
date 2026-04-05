@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { AuthService } from "../services/auth.service";
 import { OrgService } from "../services/org.service";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { rateLimit } from "../middleware/rate-limit.middleware";
 
 export const authController = new Elysia({ prefix: "/auth" })
     .use(authMiddleware)
@@ -33,6 +34,7 @@ export const authController = new Elysia({ prefix: "/auth" })
             return { error: "Internal Server Error" };
         }
     }, {
+        beforeHandle: rateLimit("auth:register", 5, 60),
         body: t.Object({
             email: t.String({ format: "email" }),
             password: t.String({ minLength: 8 }),
@@ -65,6 +67,7 @@ export const authController = new Elysia({ prefix: "/auth" })
             return { error: "Internal Server Error" };
         }
     }, {
+        beforeHandle: rateLimit("auth:login", 10, 60),
         body: t.Object({
             email: t.String({ format: "email" }),
             password: t.String()
@@ -122,6 +125,7 @@ export const authController = new Elysia({ prefix: "/auth" })
         // Always return success (don't reveal if email exists)
         return { success: true };
     }, {
+        beforeHandle: rateLimit("auth:forgot", 3, 60),
         body: t.Object({ email: t.String({ format: "email" }) })
     })
 
