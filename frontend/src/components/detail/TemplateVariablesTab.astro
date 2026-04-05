@@ -1,5 +1,6 @@
 ---
 import Button from "../ui/Button.astro";
+import Modal from "../ui/Modal.astro";
 ---
 
 <div>
@@ -101,67 +102,59 @@ import Button from "../ui/Button.astro";
 </div>
 
 <!-- Add/Edit Variable Modal -->
-<div
-    x-show="showVarModal"
-    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
-    style="display: none;"
-    @keydown.escape.window="showVarModal = false"
->
-    <div class="bg-wa-bg-panel border border-wa-border w-full sm:max-w-md sm:rounded-xl p-5 sm:p-6"
-         @click.outside="showVarModal = false">
-        <h3 class="text-sm font-bold mb-4" x-text="editingVarIndex >= 0 ? 'Editar Variable' : 'Nueva Variable'"></h3>
+<Modal show="showVarModal" variant="sheet">
+    <h3 class="text-sm font-bold mb-4" x-text="editingVarIndex >= 0 ? 'Editar Variable' : 'Nueva Variable'"></h3>
 
-        <div class="space-y-4">
-            <div>
-                <label class="block text-[10px] text-wa-text-secondary mb-1.5">Nombre</label>
-                <input
-                    type="text"
-                    x-model="editingVar.name"
-                    placeholder="NOMBRE_VARIABLE"
-                    class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white font-mono uppercase"
-                />
-                <p class="text-[9px] text-wa-text-secondary/70 mt-1">Se usará como <span class="font-mono" x-text="'{{' + (editingVar.name || 'NOMBRE') + '}}'"></span> en los flujos</p>
-            </div>
-
-            <div>
-                <label class="block text-[10px] text-wa-text-secondary mb-1.5">Tipo</label>
-                <div class="grid grid-cols-3 gap-2">
-                    <template x-for="t in [
-                        { value: 'text', label: 'Texto', color: 'blue' },
-                        { value: 'label', label: 'Etiqueta', color: 'purple' },
-                        { value: 'image', label: 'Imagen', color: 'sky' },
-                        { value: 'video', label: 'Video', color: 'orange' },
-                        { value: 'audio', label: 'Audio', color: 'teal' },
-                        { value: 'document', label: 'Documento', color: 'yellow' },
-                    ]" :key="t.value">
-                        <button
-                            type="button"
-                            @click="editingVar.type = t.value"
-                            class="px-3 py-2.5 rounded-lg text-xs font-sans text-center transition-colors border cursor-pointer"
-                            :class="editingVar.type === t.value
-                                ? 'border-wa-green bg-wa-green/10 text-wa-green'
-                                : 'border-wa-border bg-wa-bg-hover text-wa-text-secondary hover:border-wa-text-secondary'"
-                            x-text="t.label"
-                        ></button>
-                    </template>
-                </div>
-            </div>
+    <div class="space-y-4">
+        <div>
+            <label class="block text-[10px] text-wa-text-secondary mb-1.5">Nombre</label>
+            <input
+                type="text"
+                x-model="editingVar.name"
+                placeholder="NOMBRE_VARIABLE"
+                class="w-full bg-wa-bg-hover border border-wa-border rounded-lg p-3 text-sm focus:border-wa-green focus:outline-none text-white font-mono uppercase"
+            />
+            <p class="text-[9px] text-wa-text-secondary/70 mt-1">Se usará como <span class="font-mono" x-text="'{{' + (editingVar.name || 'NOMBRE') + '}}'"></span> en los flujos</p>
         </div>
 
-        <div class="flex justify-end gap-2 mt-6">
-            <Button variant="secondary" x-on:click="showVarModal = false">Cancelar</Button>
-            <Button variant="primary" x-on:click="
-                if (!editingVar.name.trim()) { window.__toast.error('El nombre es requerido'); return; }
-                const cleaned = { name: editingVar.name.trim().toUpperCase(), type: editingVar.type };
-                if (editingVarIndex >= 0) {
-                    templateVars[editingVarIndex] = cleaned;
-                } else {
-                    templateVars.push(cleaned);
-                }
-                showVarModal = false;
-            ">
-                <span x-text="editingVarIndex >= 0 ? 'Actualizar' : 'Agregar'"></span>
-            </Button>
+        <div>
+            <label class="block text-[10px] text-wa-text-secondary mb-1.5">Tipo</label>
+            <div class="grid grid-cols-3 gap-2">
+                <template x-for="t in [
+                    { value: 'text', label: 'Texto' },
+                    { value: 'label', label: 'Etiqueta' },
+                    { value: 'image', label: 'Imagen' },
+                    { value: 'video', label: 'Video' },
+                    { value: 'audio', label: 'Audio' },
+                    { value: 'document', label: 'Documento' },
+                ]" :key="t.value">
+                    <button
+                        type="button"
+                        @click="editingVar.type = t.value"
+                        class="px-3 py-2.5 rounded-lg text-xs font-sans text-center transition-colors border cursor-pointer"
+                        :class="editingVar.type === t.value
+                            ? 'border-wa-green bg-wa-green/10 text-wa-green'
+                            : 'border-wa-border bg-wa-bg-hover text-wa-text-secondary hover:border-wa-text-secondary'"
+                        x-text="t.label"
+                    ></button>
+                </template>
+            </div>
         </div>
     </div>
-</div>
+
+    <div class="flex justify-end gap-2 mt-6">
+        <Button variant="secondary" x-on:click="showVarModal = false">Cancelar</Button>
+        <Button variant="primary" x-on:click="
+            if (!editingVar.name.trim()) { window.__toast.error('El nombre es requerido'); return; }
+            const cleaned = { name: editingVar.name.trim().toUpperCase(), type: editingVar.type };
+            if (editingVarIndex >= 0) {
+                templateVars[editingVarIndex] = cleaned;
+            } else {
+                templateVars.push(cleaned);
+            }
+            showVarModal = false;
+        ">
+            <span x-text="editingVarIndex >= 0 ? 'Actualizar' : 'Agregar'"></span>
+        </Button>
+    </div>
+</Modal>
