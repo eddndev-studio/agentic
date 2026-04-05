@@ -14,10 +14,7 @@ export function MobileAddStepBar() {
     const { addStep } = useFlowEditor();
 
     return (
-        <div
-            className="bg-wa-bg-panel border-t border-wa-border px-3 py-2 flex gap-2 overflow-x-auto flex-shrink-0"
-            style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
-        >
+        <div className="bg-wa-bg-panel border-t border-wa-border px-3 py-2 flex gap-2 overflow-x-auto flex-shrink-0">
             {stepTypes.map(({ type, label, color, bg }) => (
                 <button
                     key={type}
