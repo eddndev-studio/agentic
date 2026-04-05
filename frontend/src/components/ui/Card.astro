@@ -4,6 +4,8 @@ interface Props {
     variant?: "panel" | "deep";
     /** Padding size */
     size?: "sm" | "md" | "lg";
+    /** Google Material Symbol name for decorative background icon (e.g. "smart_toy") */
+    icon?: string;
     /** Additional classes (hover states, animations, etc.) */
     class?: string;
     /** Any other HTML attributes are spread onto the wrapper */
@@ -13,6 +15,7 @@ interface Props {
 const {
     variant = "panel",
     size = "md",
+    icon,
     class: className = "",
     ...rest
 } = Astro.props;
@@ -29,6 +32,12 @@ const sizes: Record<string, string> = {
 };
 ---
 
-<div class:list={[variants[variant], sizes[size], className]} {...rest}>
+<div class:list={[variants[variant], sizes[size], icon && "relative overflow-hidden", className]} {...rest}>
+    {icon && (
+        <span
+            class="material-symbols-outlined pointer-events-none absolute -right-3 -bottom-3 text-[96px] text-white/[0.03] select-none"
+            aria-hidden="true"
+        >{icon}</span>
+    )}
     <slot />
 </div>

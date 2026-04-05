@@ -22,7 +22,7 @@ import Modal from "../../components/ui/Modal.astro";
 		</header>
 
 		<!-- Loading -->
-		<div x-show="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+		<div x-show="loading" class="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
 			<template x-for="i in 3">
 				<Card size="lg" class="animate-pulse h-40">
 					<div class="w-16 h-4 bg-wa-bg-hover mb-4 rounded"></div>
@@ -33,21 +33,24 @@ import Modal from "../../components/ui/Modal.astro";
 		</div>
 
 		<!-- Template Grid -->
-		<div x-show="!loading" x-cloak class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style="display: none;">
+		<div x-show="!loading" x-cloak class="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" style="display: none;">
 			<template x-for="tpl in templates" :key="tpl.id">
 				<a
 					:href="`/templates/detail?id=${tpl.id}`"
-					class="block bg-wa-bg-panel border border-wa-border rounded-xl p-6 relative group hover:border-wa-green/30 transition-all duration-300"
+					class="block bg-wa-bg-panel border border-wa-border rounded-xl p-4 sm:p-6 relative group overflow-hidden hover:border-wa-green/30 transition-all duration-300"
 				>
-					<div class="flex justify-between items-start mb-4">
+					<!-- Background Icon -->
+					<span class="material-symbols-outlined pointer-events-none absolute -right-3 -bottom-3 text-[96px] text-white/[0.03] select-none" aria-hidden="true">dashboard_customize</span>
+
+					<div class="flex justify-between items-start mb-3 sm:mb-4">
 						<span class="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md">TEMPLATE</span>
-						<svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<svg class="w-4 h-4 text-wa-text-secondary group-hover:text-wa-green transition-colors hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
 						</svg>
 					</div>
 
-					<h3 class="text-lg font-bold tracking-tight mb-1 group-hover:text-wa-green transition-colors" x-text="tpl.name"></h3>
-					<p class="text-xs text-wa-text-secondary truncate mb-4" x-text="tpl.description || '—'"></p>
+					<h3 class="text-sm sm:text-lg font-bold tracking-tight mb-1 group-hover:text-wa-green transition-colors" x-text="tpl.name"></h3>
+					<p class="text-[10px] sm:text-xs text-wa-text-secondary truncate mb-4" x-text="tpl.description || '—'"></p>
 
 					<!-- Stats -->
 					<div class="pt-4 border-t border-wa-border flex items-center gap-4 text-[10px] text-wa-text-secondary">
