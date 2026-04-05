@@ -1,11 +1,12 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { eventBus } from '../services/event-bus';
+import { config } from '../config';
 
 export const eventsController = new Elysia({ prefix: '/events' })
     .use(jwt({
         name: 'jwt',
-        secret: process.env.JWT_SECRET || 'DEV_SECRET_DO_NOT_USE_IN_PROOD'
+        secret: config.jwt.secret
     }))
     .get('/stream', async ({ query, jwt: jwtPlugin, set, request }) => {
         const { token, botId } = query;

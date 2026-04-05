@@ -6,12 +6,23 @@ function env(key: string, fallback: string): string {
     return process.env[key] || fallback;
 }
 
+function envRequired(key: string): string {
+    const v = process.env[key];
+    if (!v) throw new Error(`[Config] Missing required environment variable: ${key}`);
+    return v;
+}
+
 function envInt(key: string, fallback: number): number {
     const v = parseInt(process.env[key] || '', 10);
     return Number.isNaN(v) ? fallback : v;
 }
 
 export const config = {
+    // ── Auth / JWT ──────────────────────────────────────────────────────────
+    jwt: {
+        secret: envRequired('JWT_SECRET'),
+    },
+
     // ── Server / HTTP ────────────────────────────────────────────────────────
     server: {
         port: envInt('PORT', 8080),

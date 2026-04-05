@@ -1,12 +1,13 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
+import { config } from "../config";
 
 export const authMiddleware = (app: Elysia) =>
     app
         .use(
             jwt({
                 name: 'jwt',
-                secret: process.env.JWT_SECRET || "DEV_SECRET_DO_NOT_USE_IN_PROOD"
+                secret: config.jwt.secret
             })
         )
         .derive(async ({ jwt, cookie: { auth_token }, headers: { authorization } }) => {
