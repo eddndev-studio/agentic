@@ -1,22 +1,39 @@
         <!-- Tab content: Flujos -->
         <div x-show="activeTab === 'flows'" x-transition:enter>
-                    <div class="flex justify-between items-center mb-6">
+                    <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
                         <h3
                             class="text-xs text-wa-green tracking-normal"
                             x-text="$t('flows')"
                         >
                             Flows
                         </h3>
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
                             <input
                                 type="text"
                                 x-model="flowSearch"
                                 placeholder="Buscar flujo..."
-                                class="px-3 py-1.5 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-wa-text outline-none focus:border-wa-green/50 w-48"
+                                class="px-3 py-1.5 bg-wa-bg-deep border border-wa-border rounded-lg text-xs text-wa-text outline-none focus:border-wa-green/50 w-36 sm:w-48"
                             />
                             <span
                                 class="text-xs font-sans text-wa-text-secondary"
                                 x-text="filteredFlows.length + ' / ' + flows.length"></span>
+                            <button
+                                x-on:click="exportFlowsJson()"
+                                class="px-3 py-1.5 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg flex items-center gap-1.5"
+                                title="Export JSON"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                <span class="hidden sm:inline">Export</span>
+                            </button>
+                            <label class="px-3 py-1.5 border border-wa-border text-wa-text-secondary text-xs hover:bg-wa-bg-hover transition-colors rounded-lg flex items-center gap-1.5 cursor-pointer" title="Import JSON">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span class="hidden sm:inline">Import</span>
+                                <input type="file" accept=".json" class="hidden" x-on:change="importFlowsJson($event)" />
+                            </label>
                         </div>
                     </div>
 
