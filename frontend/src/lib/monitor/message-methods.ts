@@ -112,25 +112,38 @@ export function playNotifSound() {
 
 /**
  * Build a map of externalId → emoji[] from REACTION messages.
- * Only keeps the latest reaction per sender (empty content = removal).
+ * Keeps only the latest reaction per sender. Empty content = removal.
+ * Messages must be in chronological order (oldest first).
  */
 export function buildReactionsMap(messages: any[]): Record<string, string[]> {
-    const map: Record<string, string[]> = {};
+    // Per target message → per sender → latest emoji (or null if removed)
+    const senderMap: Record<string, Record<string, string | null>> = {};
+
     for (const msg of messages) {
         if (msg.type !== 'REACTION' || !msg.metadata?.reactedTo?.id) continue;
         const targetId = msg.metadata.reactedTo.id;
-        if (!map[targetId]) map[targetId] = [];
-        if (msg.content) {
-            map[targetId].push(msg.content);
-        }
+        const sender = msg.sender || (msg.fromMe ? '__me__' : '__unknown__');
+
+        if (!senderMap[targetId]) senderMap[targetId] = {};
+        // Latest reaction wins (chronological order)
+        senderMap[targetId][sender] = msg.content || null;
     }
-    return map;
+
+    // Collapse to emoji arrays (skip nulls = removed reactions)
+    const result: Record<string, string[]> = {};
+    for (const [targetId, senders] of Object.entries(senderMap)) {
+        const emojis = Object.values(senders).filter((e): e is string => !!e);
+        if (emojis.length > 0) result[targetId] = emojis;
+    }
+    return result;
 }
 
 export async function reactToMessage(ctx: any, messageId: string, emoji: string) {
     if (!ctx.selectedSession) return;
     try {
         await ApiClient.post(`/sessions/${ctx.selectedSession.id}/react`, { messageId, emoji });
+        // Reload messages after short delay to reflect the reaction
+        setTimeout(() => loadMessages(ctx, true), 1000);
     } catch (e: any) {
         (window as any).__toast?.error("Reaction failed: " + (e.message || "Unknown"));
     }
