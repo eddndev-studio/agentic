@@ -51,8 +51,8 @@ export const executionController = new Elysia({ prefix: "/executions" })
         }
 
         try {
-            const take = parseInt(limit || "50");
-            const skip = parseInt(offset || "0");
+            const take = Math.min(Math.max(parseInt(limit || "50") || 50, 1), 200);
+            const skip = Math.max(parseInt(offset || "0") || 0, 0);
 
             const [total, executions] = await prisma.$transaction([
                 prisma.execution.count({ where }),
