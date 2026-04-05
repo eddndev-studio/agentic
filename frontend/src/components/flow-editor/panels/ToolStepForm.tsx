@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFlowEditor } from '../FlowEditorProvider';
 import { getLabelColor } from '../../../lib/label-colors';
+import { LabelCombobox } from '../shared/LabelCombobox';
 import type { Step } from '../lib/types';
 
 const BUILTIN_TOOLS = [
@@ -169,63 +170,23 @@ function MultiLabelPicker({ value, onChange, labels, templateId, templateVarDefs
     templateVarDefs: { name: string; type: string }[];
     color: string;
 }) {
-    // Normalize: support legacy single-string values
     const selected = Array.isArray(value) ? value : (value ? [value] : []);
-
-    const toggle = (name: string) => {
-        if (selected.includes(name)) {
-            onChange(selected.filter(n => n !== name));
-        } else {
-            onChange([...selected, name]);
-        }
-    };
 
     if (templateId) {
         const labelVars = templateVarDefs.filter(d => d.type === 'label');
+        const pseudoLabels = labelVars.map((v, i) => ({ id: `var-${i}`, name: `{{${v.name}}}`, color: 0 }));
         return (
             <div>
                 <span className="fe-label">Etiquetas</span>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                    {labelVars.map(v => {
-                        const val = `{{${v.name}}}`;
-                        const isActive = selected.includes(val);
-                        return (
-                            <button key={v.name} type="button" onClick={() => toggle(val)}
-                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer border transition-colors ${
-                                    isActive ? 'border-purple-500/40 bg-purple-500/10 text-purple-400' : 'border-wa-border bg-wa-bg-hover text-wa-text-secondary'
-                                }`}
-                            >
-                                {v.name}
-                            </button>
-                        );
-                    })}
-                </div>
+                <LabelCombobox labels={pseudoLabels} selected={selected} onChange={onChange} accentColor={color} placeholder="Buscar variable..." />
             </div>
         );
     }
 
     return (
         <div>
-            <span className="fe-label">Etiquetas {selected.length > 0 && `(${selected.length})`}</span>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-                {labels.map(lbl => {
-                    const isActive = selected.includes(lbl.name);
-                    return (
-                        <button key={lbl.id} type="button" onClick={() => toggle(lbl.name)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer border transition-colors ${
-                                isActive
-                                    ? `border-[${color}60] bg-[${color}15]`
-                                    : 'border-wa-border bg-wa-bg-hover text-wa-text-secondary'
-                            }`}
-                            style={isActive ? { borderColor: `${color}60`, background: `${color}15`, color } : undefined}
-                        >
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: getLabelColor(lbl.color) }} />
-                            {lbl.name}
-                        </button>
-                    );
-                })}
-                {labels.length === 0 && <span className="text-wa-text-secondary text-xs">No hay etiquetas sincronizadas</span>}
-            </div>
+            <span className="fe-label">Etiquetas {selected.length > 0 && <span className="text-wa-green">({selected.length})</span>}</span>
+            <LabelCombobox labels={labels} selected={selected} onChange={onChange} accentColor={color} />
         </div>
     );
 }
