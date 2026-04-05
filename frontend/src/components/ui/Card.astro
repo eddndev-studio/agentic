@@ -4,7 +4,9 @@ interface Props {
     variant?: "panel" | "deep";
     /** Padding size */
     size?: "sm" | "md" | "lg";
-    /** Decorative background icon name (e.g. "smart_toy", "dashboard", "flow") */
+    /** If provided, renders as <a> instead of <div> */
+    href?: string;
+    /** Decorative background icon name (e.g. "smart_toy", "dashboard") */
     icon?: string;
     /** Additional classes (hover states, animations, etc.) */
     class?: string;
@@ -15,6 +17,7 @@ interface Props {
 const {
     variant = "panel",
     size = "md",
+    href,
     icon,
     class: className = "",
     ...rest
@@ -50,19 +53,19 @@ const icons: Record<string, string> = {
 };
 
 const iconPath = icon ? icons[icon] : null;
+const classes = [variants[variant], sizes[size], icon && "relative overflow-hidden", className];
+
+const iconSvg = iconPath ? `<svg class="pointer-events-none absolute -right-2 -bottom-2 w-24 h-24 select-none" viewBox="0 0 24 24" fill="currentColor" style="color: rgba(255,255,255,0.04);" aria-hidden="true"><path d="${iconPath}" /></svg>` : "";
 ---
 
-<div class:list={[variants[variant], sizes[size], icon && "relative overflow-hidden", className]} {...rest}>
-    {iconPath && (
-        <svg
-            class="pointer-events-none absolute -right-2 -bottom-2 w-24 h-24 select-none"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            style="color: rgba(255,255,255,0.04);"
-            aria-hidden="true"
-        >
-            <path d={iconPath} />
-        </svg>
-    )}
-    <slot />
-</div>
+{href ? (
+    <a href={href} class:list={["block", ...classes]} {...rest}>
+        {iconPath && <Fragment set:html={iconSvg} />}
+        <slot />
+    </a>
+) : (
+    <div class:list={classes} {...rest}>
+        {iconPath && <Fragment set:html={iconSvg} />}
+        <slot />
+    </div>
+)}
