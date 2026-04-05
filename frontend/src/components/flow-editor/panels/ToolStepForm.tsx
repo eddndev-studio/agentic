@@ -63,11 +63,11 @@ export function ToolStepForm({ step, onChange }: Props) {
                 </div>
             )}
 
-            {/* Label tools */}
+            {/* Label tools — multi-select */}
             {(toolName === 'assign_label' || toolName === 'remove_label') && (
-                <LabelPicker
-                    value={toolArgs.label_name || ''}
-                    onSelect={(name: string) => setArg('label_name', name)}
+                <MultiLabelPicker
+                    value={toolArgs.label_name || []}
+                    onChange={(names) => setArg('label_name', names)}
                     labels={botLabels}
                     templateId={templateId}
                     templateVarDefs={templateVarDefs}
@@ -161,45 +161,70 @@ export function ToolStepForm({ step, onChange }: Props) {
     );
 }
 
-function LabelPicker({ value, onSelect, labels, templateId, templateVarDefs, color }: {
-    value: string; onSelect: (name: string) => void;
+function MultiLabelPicker({ value, onChange, labels, templateId, templateVarDefs, color }: {
+    value: string | string[];
+    onChange: (names: string[]) => void;
     labels: { id: string; name: string; color: number }[];
     templateId: string | null;
     templateVarDefs: { name: string; type: string }[];
     color: string;
 }) {
+    // Normalize: support legacy single-string values
+    const selected = Array.isArray(value) ? value : (value ? [value] : []);
+
+    const toggle = (name: string) => {
+        if (selected.includes(name)) {
+            onChange(selected.filter(n => n !== name));
+        } else {
+            onChange([...selected, name]);
+        }
+    };
+
     if (templateId) {
         const labelVars = templateVarDefs.filter(d => d.type === 'label');
         return (
-            <label>
-                <span className="fe-label">Label</span>
-                <select value={value} onChange={e => onSelect(e.target.value)} className="fe-select">
-                    <option value="">Select variable...</option>
-                    {labelVars.map(v => <option key={v.name} value={`{{${v.name}}}`}>{v.name}</option>)}
-                </select>
-            </label>
+            <div>
+                <span className="fe-label">Etiquetas</span>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                    {labelVars.map(v => {
+                        const val = `{{${v.name}}}`;
+                        const isActive = selected.includes(val);
+                        return (
+                            <button key={v.name} type="button" onClick={() => toggle(val)}
+                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer border transition-colors ${
+                                    isActive ? 'border-purple-500/40 bg-purple-500/10 text-purple-400' : 'border-wa-border bg-wa-bg-hover text-wa-text-secondary'
+                                }`}
+                            >
+                                {v.name}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
         );
     }
 
     return (
         <div>
-            <span className="fe-label">Label</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                {labels.map(lbl => (
-                    <button key={lbl.id} onClick={() => onSelect(value === lbl.name ? '' : lbl.name)}
-                        style={{
-                            display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px',
-                            borderRadius: 6, fontSize: 10, cursor: 'pointer',
-                            border: value === lbl.name ? `1px solid ${color}60` : '1px solid #2a3942',
-                            background: value === lbl.name ? `${color}15` : '#202c33',
-                            color: value === lbl.name ? color : '#8696a0',
-                        }}
-                    >
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: getLabelColor(lbl.color) }} />
-                        {lbl.name}
-                    </button>
-                ))}
-                {labels.length === 0 && <span style={{ color: '#8696a0', fontSize: 10 }}>No labels synced</span>}
+            <span className="fe-label">Etiquetas {selected.length > 0 && `(${selected.length})`}</span>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+                {labels.map(lbl => {
+                    const isActive = selected.includes(lbl.name);
+                    return (
+                        <button key={lbl.id} type="button" onClick={() => toggle(lbl.name)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer border transition-colors ${
+                                isActive
+                                    ? `border-[${color}60] bg-[${color}15]`
+                                    : 'border-wa-border bg-wa-bg-hover text-wa-text-secondary'
+                            }`}
+                            style={isActive ? { borderColor: `${color}60`, background: `${color}15`, color } : undefined}
+                        >
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: getLabelColor(lbl.color) }} />
+                            {lbl.name}
+                        </button>
+                    );
+                })}
+                {labels.length === 0 && <span className="text-wa-text-secondary text-xs">No hay etiquetas sincronizadas</span>}
             </div>
         </div>
     );

@@ -403,54 +403,62 @@ export class ToolExecutor {
             }
 
             case "assign_label": {
-                const labelName = args.label_name;
-                if (!labelName) {
+                const rawName = args.label_name;
+                if (!rawName) {
                     return { success: false, data: "Falta el parámetro label_name." };
                 }
+                const labelNames = Array.isArray(rawName) ? rawName : [rawName];
+                const results: string[] = [];
 
-                const label = await prisma.label.findFirst({
-                    where: { botId, deleted: false, name: { equals: labelName, mode: "insensitive" } },
-                });
-                if (!label) {
-                    return { success: false, data: `Etiqueta '${labelName}' no encontrada.` };
+                for (const labelName of labelNames) {
+                    const label = await prisma.label.findFirst({
+                        where: { botId, deleted: false, name: { equals: labelName, mode: "insensitive" } },
+                    });
+                    if (!label) {
+                        results.push(`'${labelName}' no encontrada`);
+                        continue;
+                    }
+                    const assignLabelProvider = await providerRegistry.forBot(botId);
+                    await assignLabelProvider.addChatLabel(botId, session.identifier, label.waLabelId);
+                    assignLabelProvider.markLabelEventHandled(botId, session.id, label.id, 'add');
+                    await LabelPersistenceService.persistLabelAssociation(botId, session.id, label.id, 'add', sourceFlowId);
+                    results.push(`'${label.name}' asignada`);
                 }
 
-                // Sync with provider + persist + emit events + trigger flows
-                const assignLabelProvider = await providerRegistry.forBot(botId);
-                await assignLabelProvider.addChatLabel(botId, session.identifier, label.waLabelId);
-                assignLabelProvider.markLabelEventHandled(botId, session.id, label.id, 'add');
-                await LabelPersistenceService.persistLabelAssociation(botId, session.id, label.id, 'add', sourceFlowId);
-
-                return { success: true, data: `Etiqueta '${label.name}' asignada al chat.` };
+                return { success: true, data: `Etiquetas: ${results.join(', ')}` };
             }
 
             case "remove_label": {
-                const removeLabelName = args.label_name;
-                if (!removeLabelName) {
+                const rawRemoveName = args.label_name;
+                if (!rawRemoveName) {
                     return { success: false, data: "Falta el parámetro label_name." };
                 }
+                const removeNames = Array.isArray(rawRemoveName) ? rawRemoveName : [rawRemoveName];
+                const removeResults: string[] = [];
 
-                const labelToRemove = await prisma.label.findFirst({
-                    where: { botId, deleted: false, name: { equals: removeLabelName, mode: "insensitive" } },
-                });
-                if (!labelToRemove) {
-                    return { success: false, data: `Etiqueta '${removeLabelName}' no encontrada.` };
+                for (const removeLabelName of removeNames) {
+                    const labelToRemove = await prisma.label.findFirst({
+                        where: { botId, deleted: false, name: { equals: removeLabelName, mode: "insensitive" } },
+                    });
+                    if (!labelToRemove) {
+                        removeResults.push(`'${removeLabelName}' no encontrada`);
+                        continue;
+                    }
+                    const existingAssoc = await prisma.sessionLabel.findUnique({
+                        where: { sessionId_labelId: { sessionId: session.id, labelId: labelToRemove.id } },
+                    });
+                    if (!existingAssoc) {
+                        removeResults.push(`'${labelToRemove.name}' no estaba asignada`);
+                        continue;
+                    }
+                    const removeLabelProvider = await providerRegistry.forBot(botId);
+                    await removeLabelProvider.removeChatLabel(botId, session.identifier, labelToRemove.waLabelId);
+                    removeLabelProvider.markLabelEventHandled(botId, session.id, labelToRemove.id, 'remove');
+                    await LabelPersistenceService.persistLabelAssociation(botId, session.id, labelToRemove.id, 'remove', sourceFlowId);
+                    removeResults.push(`'${labelToRemove.name}' removida`);
                 }
 
-                const existingAssoc = await prisma.sessionLabel.findUnique({
-                    where: { sessionId_labelId: { sessionId: session.id, labelId: labelToRemove.id } },
-                });
-                if (!existingAssoc) {
-                    return { success: true, data: `El chat no tiene la etiqueta '${labelToRemove.name}', se omitió.` };
-                }
-
-                // Sync with provider + persist + emit events + trigger flows
-                const removeLabelProvider = await providerRegistry.forBot(botId);
-                await removeLabelProvider.removeChatLabel(botId, session.identifier, labelToRemove.waLabelId);
-                removeLabelProvider.markLabelEventHandled(botId, session.id, labelToRemove.id, 'remove');
-                await LabelPersistenceService.persistLabelAssociation(botId, session.id, labelToRemove.id, 'remove', sourceFlowId);
-
-                return { success: true, data: `Etiqueta '${labelToRemove.name}' removida del chat.` };
+                return { success: true, data: `Etiquetas: ${removeResults.join(', ')}` };
             }
 
             case "get_sessions_by_label": {

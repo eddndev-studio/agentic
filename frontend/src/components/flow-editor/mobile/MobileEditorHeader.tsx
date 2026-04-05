@@ -25,7 +25,7 @@ export function MobileEditorHeader() {
                 <button
                     onClick={save}
                     disabled={saving}
-                    className="ml-auto px-4 py-1.5 bg-wa-green text-white text-xs font-sans rounded-lg hover:bg-wa-green-hover transition-colors disabled:opacity-50"
+                    className="ml-auto inline-flex items-center justify-center font-sans transition-colors rounded-lg disabled:opacity-50 bg-wa-green text-white hover:bg-wa-green-hover px-4 py-2.5 text-xs"
                 >
                     {saving ? 'Guardando...' : 'Guardar'}
                 </button>
