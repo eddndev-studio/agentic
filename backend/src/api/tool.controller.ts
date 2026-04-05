@@ -132,7 +132,7 @@ export const toolController = new Elysia({ prefix: "/tools" })
             if (body.actionType !== undefined) data.actionType = body.actionType;
             if (body.actionConfig !== undefined) data.actionConfig = body.actionConfig;
             if (body.status !== undefined) data.status = body.status;
-            if (body.flowId !== undefined) data.flowId = body.flowId || null;
+            if (body.flowId !== undefined) data.flowId = body.flowId ?? null;
 
             const tool = await prisma.tool.update({ where: { id }, data });
             return tool;

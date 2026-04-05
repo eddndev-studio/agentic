@@ -214,7 +214,7 @@ export const botController = new Elysia({ prefix: "/bots" })
             if (body.paused !== undefined) data.paused = body.paused;
             if (body.thinkingLevel !== undefined) data.thinkingLevel = body.thinkingLevel;
             if (body.notificationChannels !== undefined) data.notificationChannels = body.notificationChannels;
-            if (body.templateId !== undefined) data.templateId = body.templateId || null;
+            if (body.templateId !== undefined) data.templateId = body.templateId ?? null;
             if (body.botVariables !== undefined) data.botVariables = body.botVariables;
 
             const bot = await prisma.bot.update({ where: { id }, data });

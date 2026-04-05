@@ -84,7 +84,7 @@ export const financeController = new Elysia({ prefix: "/finance" })
                 const membership = await prisma.membership.findFirst({ where: { id: body.membershipId, orgId: user!.orgId } });
                 if (!membership) { set.status = 400; return { error: "Membership not found" }; }
             }
-            data.membershipId = body.membershipId || null;
+            data.membershipId = body.membershipId ?? null;
         }
         try {
             return await prisma.worker.update({ where: { id }, data });
